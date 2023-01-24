@@ -5,7 +5,7 @@
         2
     ],
     "description": "Instructs Jellyfin to do a library scan",
-    "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic.plugin.notify_plex/master/icon.png",
+    "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic.plugin.notify_jellyfin/master/icon.png",
     "id": "notify_jellyfin",
     "name": "Notify Jellyfin",
     "platform": [
