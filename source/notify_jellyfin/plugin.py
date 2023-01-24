@@ -24,7 +24,7 @@ import requests
 from unmanic.libs.unplugins.settings import PluginSettings
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.notify_jellyfin")
+logger = logging.getLogger("Unmanic.Plugin.notify_plex")
 
 
 class Settings(PluginSettings):
