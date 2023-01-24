@@ -61,8 +61,8 @@ def on_postprocessor_task_results(data):
     else:
         settings = Settings()
 
-    if not data.get('task_processing_success') and not settings.get_setting('Notify on Task Failure?'):
-        return data
+    #if not data.get('task_processing_success') and not settings.get_setting('Notify on Task Failure?'):
+    #    return data
 
     jellyfin_url = settings.get_setting('Jellyfin URL')
     jellyfin_apikey = settings.get_setting('Jellyfin API Key')
