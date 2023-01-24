@@ -1,4 +1,4 @@
-# Unmanic Plugins by <!-- your name here -->
+# Unmanic Plugins by Jay Gardner<!-- Jay Gardner -->
 
 ## Instructions
 
@@ -7,7 +7,7 @@
 ```
 https://raw.githubusercontent.com/Unmanic/unmanic-plugins/repo/repo.json
 ```
-
+https://raw.githubusercontent.com/JayGardner/unmanic-plugins/repo/repo.json
 
 Follow [Unmanic Documentation](http://docs.unmanic.app/docs/plugins/adding_a_custom_plugin_repo/) 
 to add this repo to your Unmanic installation.
