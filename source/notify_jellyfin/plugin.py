@@ -24,7 +24,7 @@ import requests
 from unmanic.libs.unplugins.settings import PluginSettings
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.notify_plex")
+logger = logging.getLogger("Unmanic.Plugin.notify_jellyfin")
 
 
 class Settings(PluginSettings):
@@ -37,7 +37,7 @@ class Settings(PluginSettings):
 
 def update_jellyfin(jellyfin_url, jellyfin_apikey):
     headers = {'X-MediaBrowser-Token': jellyfin_apikey}
-    r = requests.post(jellyfin_url + "/Library/Refresh", headers)
+    r = requests.post(jellyfin_url + "/Library/Refresh", headers=headers)
     if r.status_code == 204: logger.info("Notifying Jellyfin ({}) to update its library.".format(jellyfin_url))
 
 
@@ -61,8 +61,8 @@ def on_postprocessor_task_results(data):
     else:
         settings = Settings()
 
-    #if not data.get('task_processing_success') and not settings.get_setting('Notify on Task Failure?'):
-    #    return data
+    if not data.get('task_processing_success') and not settings.get_setting('Notify on Task Failure?'):
+        return data
 
     jellyfin_url = settings.get_setting('Jellyfin URL')
     jellyfin_apikey = settings.get_setting('Jellyfin API Key')
