@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-    Written by:               Josh.5 <jsunnex@gmail.com>
-    Date:                     5 April 2021, (10:00 PM)
+    Written by:               yajrendrag <yajdude@gmail.com>
+    Date:                     26 January 2023, (10:00 AM)
 
     Copyright:
-        Copyright (C) 2021 Josh Sunnex
+        Copyright (C) 2023 Jay Gardner
 
         This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
         Public License as published by the Free Software Foundation, version 3.
@@ -38,8 +38,10 @@ class Settings(PluginSettings):
 def update_jellyfin(jellyfin_url, jellyfin_apikey):
     headers = {'X-MediaBrowser-Token': jellyfin_apikey}
     r = requests.post(jellyfin_url + "/Library/Refresh", headers=headers)
-    if r.status_code == 204: logger.info("Notifying Jellyfin ({}) to update its library.".format(jellyfin_url))
-
+    if r.status_code == 204:
+        logger.info("Notifying Jellyfin ({}) to update its library.".format(jellyfin_url))
+    else:
+        logger.errpr("Error notifying Jellyfin - Error Code:({}).".format(r.status_code))
 
 def on_postprocessor_task_results(data):
     """

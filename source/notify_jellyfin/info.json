@@ -1,11 +1,11 @@
 {
-    "author": "Josh.5, yajrendrag",
+    "author": "yajrendrag",
     "compatibility": [
         1,
         2
     ],
     "description": "Instructs Jellyfin to do a library scan",
-    "icon": "",
+    "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/notify_jellyfin/icon.png",
     "id": "notify_jellyfin",
     "name": "Notify Jellyfin",
     "platform": [
