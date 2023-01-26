@@ -41,7 +41,7 @@ def update_jellyfin(jellyfin_url, jellyfin_apikey):
     if r.status_code == 204:
         logger.info("Notifying Jellyfin ({}) to update its library.".format(jellyfin_url))
     else:
-        logger.errpr("Error notifying Jellyfin - Error Code:({}).".format(r.status_code))
+        logger.error("Error notifying Jellyfin - Error Code:({}).".format(r.status_code))
 
 def on_postprocessor_task_results(data):
     """
