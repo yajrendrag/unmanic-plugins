@@ -13,14 +13,19 @@ Any files with metadata listed here will be ignored.
 
 ---
 
-##### Examples:
+##### Example:
 
-###### <span style="color:magenta">Only add video files</span>
+###### <span style="color:magenta">metadata field to search</span>
 ```
-mkv,avi,mov,ts,rmvb,mp4
+encoder
 ```
 
-###### <span style="color:magenta">Only add image files</span>
+###### <span style="color:magenta">metadata value (substring) to check</span>
 ```
-jpg,jpeg,png,gif
+SMA:
+```
+
+###### <span style="color:magenta">Automatically mark for processing all files that do not match metadatafield matching metadata value</span>
+```
+True or False
 ```
