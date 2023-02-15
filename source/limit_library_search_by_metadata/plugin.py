@@ -26,7 +26,7 @@ import os
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
-from limit_library_search_by_metadata.lib.ffmpeg.probe import Probe
+from encoder_video_h264_libx264.lib.ffmpeg import Probe
 
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.limit_library_search_by_metadata")
