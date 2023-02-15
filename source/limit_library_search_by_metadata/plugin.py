@@ -35,7 +35,7 @@ logger = logging.getLogger("Unmanic.Plugin.limit_library_search_by_metadata")
 class Settings(PluginSettings):
     settings = {
         "disallowed_metadata":          '',
-        "metadata_value":	'',
+        "metadata_value":               '',
         "process_if_does_not_have_matching_metadata": False,
     }
     form_settings = {
