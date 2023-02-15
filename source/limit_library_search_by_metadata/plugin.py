@@ -26,51 +26,60 @@ import os
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
+from limit_library_search_by_metadata.lib.ffmpeg import Probe
+
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.limit_library_search_by_file_extension")
+logger = logging.getLogger("Unmanic.Plugin.limit_library_search_by_metadata")
 
 
 class Settings(PluginSettings):
     settings = {
-        "allowed_extensions":          '',
-        "add_all_matching_extensions": False,
+        "disallowed_metadata":          '',
+        "metadata_value":	'',
+        "process_if_does_not_have_matching_metadata": False,
     }
     form_settings = {
-        "allowed_extensions":          {
-            "label":       "Search library only for extensions",
-            "description": "A comma separated list of file extensions."
+        "disallowed_metadata":          {
+            "label":       "metadata field name to search for",
+            "description": "Metadata field to test; do not process file if this field contains metadata_value per below."
         },
-        "add_all_matching_extensions": {
-            "label":       "Add all matching files to pending tasks list",
-            "description": "If this option is enabled and the file matches one of the specified file extensions,\n"
+        "metadata_value":          {
+            "label":       "do not process files containing this string",
+            "description": "A unique, key phrase in the metadata value that inidicates path should not be processed."
+        },
+        "process_if_does_not_have_matching_metadata": {
+            "label":       "Add any files that do not have matching metadata to pending tasks list",
+            "description": "If this option is enabled and the file does not contain matching metadata,\n"
                            "this plugin will add the file to Unmanic's pending task list straight away\n"
                            "without executing any subsequent file test plugins.",
         }
     }
 
 
-def file_ends_in_allowed_extensions(path, allowed_extensions):
+def file_has_disallowed_metadata(path, disallowed_metadata, metadata_value):
     """
-    Check if the file is in the allowed search extensions
+    Check if the file contains disallowed search metadata
 
     :return:
     """
-    # Get the file extension
-    file_extension = os.path.splitext(path)[-1][1:]
 
-    # Ensure the file's extension is lowercase
-    file_extension = file_extension.lower()
+    # initialize Probe
+    probe_data=Probe(logger, allowed_mimetypes=['video'])
+
+    # Get stream data from probe
+    if probe_data.file(path):
+        streams = probe_data.get_probe()["streams"][0]
 
     # If the config is empty (not yet configured) ignore everything
-    if not allowed_extensions:
-        logger.debug("Plugin has not yet been configured with a list of file extensions to allow. Blocking everything.")
-        return False
-
-    # Check if it ends with one of the allowed search extensions
-    if file_extension and file_extension in allowed_extensions.split(','):
+    if not disallowed_metadata:
+        logger.debug("Plugin has not yet been configured with disallowed metadata. Blocking everything.")
         return True
 
-    logger.debug("File '{}' does not end in the specified file extensions '{}'.".format(path, allowed_extensions))
+    # Check if stream contains disallowed metadata
+    if streams and streams[disallowed_metadata] and metadata_value in streams[disallowed_metadata]:
+        return True
+
+    logger.debug("File '{}' does not contain disallowed metadata '{}': '{}'.".format(path, disallowed_metadata, metadata_value))
     return False
 
 
@@ -85,24 +94,34 @@ def on_library_management_file_test(data):
 
     :param data:
     :return:
-    
+
     """
+
+    # initialize Probe
+    probe_data=Probe(logger, allowed_mimetypes=['video'])
+
     # Get the path to the file
     abspath = data.get('path')
+
+    # Get stream data from probe
+    if probe_data.file(abspath):
+        streams = probe_data.get_probe()["streams"][0]
 
     # Configure settings object
     settings = Settings(library_id=data.get('library_id'))
 
-    # Get the list of configured extensions to search for
-    allowed_extensions = settings.get_setting('allowed_extensions')
+    # Get the list of configured metadata to search for
+    disallowed_metadata = settings.get_setting('disallowed_metadata')
+    metadata_value = settings.get_setting('metadata_value')
 
-    in_allowed_extensions = file_ends_in_allowed_extensions(abspath, allowed_extensions)
-    if not in_allowed_extensions:
+    has_disallowed_metadata = file_has_disallowed_metadata(abspath, disallowed_metadata, metadata_value)
+
+    if has_disallowed_metadata:
         # Ignore this file
         data['add_file_to_pending_tasks'] = False
-    elif in_allowed_extensions and settings.get_setting('add_all_matching_extensions'):
+    elif not has_disallowed_metadata and settings.get_setting('process_if_does_not_have_matching_metadata'):
         # Force this file to have a pending task created
         data['add_file_to_pending_tasks'] = True
         logger.debug(
             "File '{}' should be added to task list. " \
-            "File matches specified file extension and plugin is configured to add all matching files.".format(abspath))
+            "File does not contain disallowed metadata and plugin is configured to add all non-matching files.".format(abspath))
