@@ -1,3 +1,0 @@
-[submodule "source/limit_library_search_by_metadata/lib/ffmpeg"]
-	path = source/limit_library_search_by_metadata/lib/ffmpeg
-	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
