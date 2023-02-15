@@ -69,6 +69,9 @@ def file_has_disallowed_metadata(path, disallowed_metadata, metadata_value):
     # Get stream data from probe
     if probe_data.file(path):
         streams = probe_data.get_probe()["streams"][0]
+    else:
+        logger.debug("Probe data failed - Blocking everything.")
+        return True
 
     # If the config is empty (not yet configured) ignore everything
     if not disallowed_metadata:
@@ -97,15 +100,8 @@ def on_library_management_file_test(data):
 
     """
 
-    # initialize Probe
-    probe_data=Probe(logger, allowed_mimetypes=['video'])
-
     # Get the path to the file
     abspath = data.get('path')
-
-    # Get stream data from probe
-    if probe_data.file(abspath):
-        streams = probe_data.get_probe()["streams"][0]
 
     # Configure settings object
     settings = Settings(library_id=data.get('library_id'))
