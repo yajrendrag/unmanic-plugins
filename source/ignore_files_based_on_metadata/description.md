@@ -3,6 +3,7 @@ Enter metadata field and associated value to search for during library scans and
 
 Any files with metadata listed here will be ignored.
 
+If you want to use additional file filter criteria after this plugin, set third option to False
 ---
 
 ##### Links:
@@ -25,7 +26,7 @@ encoder
 SMA:
 ```
 
-###### <span style="color:magenta">Automatically mark for processing all files that do not match metadatafield matching metadata value</span>
+###### <span style="color:magenta">Automatically mark for processing all files that do not match metadata field & matching metadata value</span>
 ```
 True or False
 ```
