@@ -1,4 +1,4 @@
-# Unmanic Plugins by Jay Gardner<!-- Jay Gardner -->
+# Unmanic Plugins by yajrendrag<!-- yajrendrag -->
 
 ## Instructions
 
