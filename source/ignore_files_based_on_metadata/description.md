@@ -8,8 +8,8 @@ Any files with metadata listed here will be ignored.
 ##### Links:
 
 - [Support](https://unmanic.app/discord)
-- [Issues/Feature Requests](https://github.com/Unmanic/plugin.limit_library_search_by_metadata/issues)
-- [Pull Requests](https://github.com/Unmanic/plugin.limit_library_search_by_metadata/pulls)
+- [Issues/Feature Requests](https://github.com/Unmanic/plugin.ignore_files_based_on_metadata/issues)
+- [Pull Requests](https://github.com/Unmanic/plugin.ignore_files_based_on_metadata/pulls)
 
 ---
 

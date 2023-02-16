@@ -29,7 +29,7 @@ from unmanic.libs.unplugins.settings import PluginSettings
 from ignore_files_based_on_metadata.lib.ffmpeg import Probe
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.limit_library_search_by_metadata")
+logger = logging.getLogger("Unmanic.Plugin.ignore_files_based_on_metadata")
 
 
 class Settings(PluginSettings):
@@ -89,7 +89,7 @@ def file_has_disallowed_metadata(path, disallowed_metadata, metadata_value):
     processed_streams_already2 = [(k, v) for (k, v) in probe_format_kv.items() if (disallowed_metadata in k.lower() and metadata_value in v)]
 
     if processed_streams_already or processed_streams_already2:
-        logger.debug("File '{}' does contains disallowed metadata '{}': '{}'.".format(path, disallowed_metadata, metadata_value))
+        logger.debug("File '{}' contains disallowed metadata '{}': '{}'.".format(path, disallowed_metadata, metadata_value))
         return True
 
     logger.debug("File '{}' does not contain disallowed metadata '{}': '{}'.".format(path, disallowed_metadata, metadata_value))
