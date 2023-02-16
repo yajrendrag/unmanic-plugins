@@ -80,6 +80,7 @@ def file_has_disallowed_metadata(path, disallowed_metadata, metadata_value):
 
     # Check if stream contains disallowed metadata
     if streams and streams[disallowed_metadata] and metadata_value in streams[disallowed_metadata]:
+        logger.debug("File '{}' does contains disallowed metadata '{}': '{}'.".format(path, disallowed_metadata, metadata_value))
         return True
 
     logger.debug("File '{}' does not contain disallowed metadata '{}': '{}'.".format(path, disallowed_metadata, metadata_value))
