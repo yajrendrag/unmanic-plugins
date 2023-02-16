@@ -68,7 +68,8 @@ def file_has_disallowed_metadata(path, disallowed_metadata, metadata_value):
 
     # Get stream data from probe
     if probe_data.file(path):
-        streams = probe_data.get_probe()["streams"][0]
+        probe_streams=probe_data.get_probe()["streams"]
+        streams = [probe_streams[i] for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and streams[i]["codec_type"] == "video"]
     else:
         logger.debug("Probe data failed - Blocking everything.")
         return True
@@ -79,7 +80,14 @@ def file_has_disallowed_metadata(path, disallowed_metadata, metadata_value):
         return True
 
     # Check if stream contains disallowed metadata
-    if streams and streams[disallowed_metadata] and metadata_value in streams[disallowed_metadata]:
+    processed_streams_already = [streams[i] for i in range(0, len(streams)) if disallowed_metadata in streams[i] and metadata_value in streams[i][disallowed_metadata]]
+    probe_format_d = {k:v for  (k, v) in probe_format.items() if type(v) is dict}
+    probe_format_kv = {k:v for  (k, v) in probe_format.items() if type(v) is not dict}
+    for v in probe_format_d.values():
+        probe_format_kv.update(v)
+    processed_streams_already2 = [(k, v) for (k, v) in probe_format_kv.items() if (disallowed_metadata in k.lower() and metadata_value in v)]
+
+    if processed_streams_already or processed_streams_already2:
         logger.debug("File '{}' does contains disallowed metadata '{}': '{}'.".format(path, disallowed_metadata, metadata_value))
         return True
 
