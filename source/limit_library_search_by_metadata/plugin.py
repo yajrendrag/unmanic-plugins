@@ -23,9 +23,10 @@
 """
 import logging
 import os
-import ffmpeg
 
 from unmanic.libs.unplugins.settings import PluginSettings
+
+from limit_library_search_by_metadata.lib.ffmpeg Probe
 
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.limit_library_search_by_metadata")
@@ -62,11 +63,14 @@ def file_has_disallowed_metadata(path, disallowed_metadata, metadata_value):
     :return:
     """
 
-    # find streams with video
-    streams = [ffmpeg.probe(path)["streams"][i] for i in range(0, len(ffmpeg.probe(path)["streams"])) if "codec_type" in ffmpeg.probe(path)["streams"][i] and ffmpeg.probe(path)["streams"][i]["codec_type"] == "video"]
+    # initialize Probe
+    probe_data=Probe(logger, allowed_mimetypes=['video'])
 
-    if not streams:
-        logger.debug("Probe data failed - no video streams found - Blocking everything.")
+    # Get stream data from probe
+    if probe_data.file(path):
+        streams = probe_data.get_probe()["streams"][0]
+    else:
+        logger.debug("Probe data failed - Blocking everything.")
         return True
 
     # If the config is empty (not yet configured) ignore everything
@@ -75,8 +79,7 @@ def file_has_disallowed_metadata(path, disallowed_metadata, metadata_value):
         return True
 
     # Check if stream contains disallowed metadata
-    processed_streams_already = [streams[i] for i in range(0, len(streams)) if disallowed_metadata in streams[i] and metadata_value in streams[i][disallowed_metadata]]
-    if processed_streams_already:
+    if streams and streams[disallowed_metadata] and metadata_value in streams[disallowed_metadata]:
         return True
 
     logger.debug("File '{}' does not contain disallowed metadata '{}': '{}'.".format(path, disallowed_metadata, metadata_value))
