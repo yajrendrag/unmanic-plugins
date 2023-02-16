@@ -69,7 +69,7 @@ def file_has_disallowed_metadata(path, disallowed_metadata, metadata_value):
     # Get stream data from probe
     if probe_data.file(path):
         probe_streams=probe_data.get_probe()["streams"]
-        streams = [probe_streams[i] for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and streams[i]["codec_type"] == "video"]
+        streams = [probe_streams[i] for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == "video"]
     else:
         logger.debug("Probe data failed - Blocking everything.")
         return True
