@@ -246,7 +246,7 @@ def build_comchap_args(abspath, file_out, settings):
         args = [
             comchap_path,
             '--comskip-ini={}'.format(config_file),
-            '--use_hw',
+            '--use-hw',
             '--keep-edl',
             '--keep-meta',
             '--verbose',
