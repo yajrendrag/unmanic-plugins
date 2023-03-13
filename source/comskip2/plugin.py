@@ -58,7 +58,7 @@ class Settings(PluginSettings):
             },
             "enable_comchap":      self.__set_enable_comchap_form_settings(),
             "enable_comcut":       self.__set_enable_comcut_form_settings(),
-            "use_hw":              self.__set_use_hw_form_settings(),,
+            "use_hw":              self.__set_use_hw_form_settings(),
         }
 
     def __set_allowed_extensions_form_settings(self):
