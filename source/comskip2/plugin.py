@@ -231,15 +231,28 @@ def build_comchap_args(abspath, file_out, settings):
     # Ensure comchap is executable
     st = os.stat(comchap_path)
     os.chmod(comchap_path, st.st_mode | stat.S_IEXEC)
-    args = [
-        comchap_path,
-        '--comskip-ini={}'.format(config_file),
-        '--keep-edl',
-        '--keep-meta',
-        '--verbose',
-        abspath,
-        file_out,
-    ]
+    use_hw = settings.get_setting('use_hw')
+    if not use_hw:
+        args = [
+            comchap_path,
+            '--comskip-ini={}'.format(config_file),
+            '--keep-edl',
+            '--keep-meta',
+            '--verbose',
+            abspath,
+            file_out,
+        ]
+    else:
+        args = [
+            comchap_path,
+            '--comskip-ini={}'.format(config_file),
+            '--use_hw',
+            '--keep-edl',
+            '--keep-meta',
+            '--verbose',
+            abspath,
+            file_out,
+        ]
     return args
 
 
