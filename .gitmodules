@@ -1,3 +1,6 @@
 [submodule "source/ignore_files_based_on_metadata/lib/ffmpeg"]
 	path = source/ignore_files_based_on_metadata/lib/ffmpeg
 	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/encoder_audio_libfdk_aac/lib/ffmpeg"]
+	path = source/encoder_audio_libfdk_aac/lib/ffmpeg
+	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
