@@ -4,3 +4,6 @@
 [submodule "source/encoder_audio_libfdk_aac/lib/ffmpeg"]
 	path = source/encoder_audio_libfdk_aac/lib/ffmpeg
 	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/remove_subtitle_data_streams/lib/ffmpeg"]
+	path = source/remove_subtitle_data_streams/lib/ffmpeg
+	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
