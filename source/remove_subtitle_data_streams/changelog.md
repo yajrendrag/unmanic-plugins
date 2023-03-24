@@ -1,4 +1,7 @@
 **<span style="color:#56adda">0.0.2</span>**
+- update codec_name values
+
+**<span style="color:#56adda">0.0.2</span>**
 - fix library include
 
 **<span style="color:#56adda">0.0.1</span>**

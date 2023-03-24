@@ -42,9 +42,10 @@ class PluginStreamMapper(StreamMapper):
     def test_stream_needs_processing(self, stream_info: dict):
         """Check if this has subtitle data streams"""
         subtitle_data_streams = [
-            'SubtitleHandler',
+            'bin_data',
+            'none',
         ]
-        if stream_info.get('handler_name').lower() in subtitle_data_streams:
+        if stream_info.get('codec_name').lower() in subtitle_data_streams:
             return True
         return False
 
