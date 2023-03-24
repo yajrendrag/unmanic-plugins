@@ -28,7 +28,7 @@ from unmanic.libs.unplugins.settings import PluginSettings
 from remove_subtitle_data_streams.lib.ffmpeg import StreamMapper, Probe, Parser
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.remove_image_subtitles")
+logger = logging.getLogger("Unmanic.Plugin.remove_subtitle_data_streams")
 
 
 class Settings(PluginSettings):
