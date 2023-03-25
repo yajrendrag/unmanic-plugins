@@ -37,7 +37,7 @@ class Settings(PluginSettings):
 
 class PluginStreamMapper(StreamMapper):
     def __init__(self):
-        super(PluginStreamMapper, self).__init__(logger, ['subtitle'])
+        super(PluginStreamMapper, self).__init__(logger, ['data'])
 
     def test_stream_needs_processing(self, stream_info: dict):
         """Check if this has subtitle data streams"""
