@@ -1,4 +1,7 @@
 **<span style="color:#56adda">0.0.4</span>**
+- add advanced ffmpeg option
+
+**<span style="color:#56adda">0.0.4</span>**
 - correct PluginStreamMapper type
 
 **<span style="color:#56adda">0.0.3</span>**
