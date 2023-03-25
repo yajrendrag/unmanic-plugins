@@ -1,4 +1,7 @@
-**<span style="color:#56adda">0.0.2</span>**
+**<span style="color:#56adda">0.0.4</span>**
+- correct PluginStreamMapper type
+
+**<span style="color:#56adda">0.0.3</span>**
 - update codec_name values
 
 **<span style="color:#56adda">0.0.2</span>**
