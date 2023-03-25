@@ -135,6 +135,8 @@ def on_worker_process(data):
         mapper.set_output_file(data.get('file_out'))
 
         # Get generated ffmpeg args
+        kwargs={"-map_metadata:c": '-1'}
+        mapper.set_ffmpeg_advanced_options(**kwargs)
         ffmpeg_args = mapper.get_ffmpeg_args()
 
         # Apply ffmpeg args to command
