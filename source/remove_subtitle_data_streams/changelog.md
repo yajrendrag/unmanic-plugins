@@ -1,4 +1,4 @@
-**<span style="color:#56adda">0.0.4</span>**
+**<span style="color:#56adda">0.0.5</span>**
 - add advanced ffmpeg option
 
 **<span style="color:#56adda">0.0.4</span>**
