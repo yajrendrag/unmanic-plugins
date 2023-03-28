@@ -24,7 +24,7 @@ import os
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
-from strip_image_streams.lib.ffmpeg import StreamMapper, Probe, Parser
+from strip_image_streams2.lib.ffmpeg import StreamMapper, Probe, Parser
 
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.strip_image_streams")
