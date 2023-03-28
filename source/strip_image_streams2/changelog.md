@@ -1,3 +1,6 @@
+**<span style="color:#56adda">0.0.9</span>**
+- correct plugin.py lib/ffmpeg import to refer to correct plugin ID
+
 **<span style="color:#56adda">0.0.8</span>**
 - update lib/ffmpeg to yajrendrag PR version
 - change name by adding suffix of 2 to separate from Josh's official version
