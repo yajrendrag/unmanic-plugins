@@ -1,4 +1,4 @@
-**<span style="color:#56adda">0.0.6</span>**
+**<span style="color:#56adda">0.0.7</span>**
 - fix error test in probe.py & update to forked
   unmanic.plugin.helpers.ffmpeg repo
 
