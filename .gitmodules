@@ -7,3 +7,6 @@
 [submodule "source/remove_data_streams/lib/ffmpeg"]
 	path = source/remove_data_streams/lib/ffmpeg
 	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/strip_image_streams2/lib/ffmpeg"]
+	path = source/strip_image_streams2/lib/ffmpeg
+	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
