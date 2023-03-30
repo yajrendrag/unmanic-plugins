@@ -1,0 +1,20 @@
+{
+    "author": "Josh.5, SenorSmartyPants, yajrendrag",
+    "compatibility": [
+        1,
+        2
+    ],
+    "description": "Specify one audio stream and one subtitle stream to keep.",
+    "icon": "https://raw.githubusercontent.com/Unmanic/plugin.remove_stream_by_language/master/icon.png",
+    "id": "keep_stream_by_language",
+    "name": "Keep stream by language",
+    "platform": [
+        "all"
+    ],
+    "priorities": {
+        "on_library_management_file_test": 99,
+        "on_worker_process": 1
+    },
+    "tags": "audio,subtitle, ffmpeg,library file test",
+    "version": "0.0.1"
+}
