@@ -1,4 +1,4 @@
-**<span style="color:#56adda">0.0.2</span>**
+**<span style="color:#56adda">0.0.3</span>**
 - update stream encodings & mappings to only map & copy specifc streams
 
 **<span style="color:#56adda">0.0.2</span>**
