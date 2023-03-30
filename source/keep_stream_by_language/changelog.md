@@ -1,3 +1,6 @@
+**<span style="color:#56adda">0.0.4</span>**
+- fix keep function stream_encoding additions
+
 **<span style="color:#56adda">0.0.3</span>**
 - update stream encodings & mappings to only map & copy specifc streams
 
