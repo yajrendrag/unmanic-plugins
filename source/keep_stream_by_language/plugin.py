@@ -145,6 +145,7 @@ def keep_languages(mapper, codec_type, language_list):
     for language in languages:
         language = language.strip()
         if language and language.lower() :
+            mapper.stream_encoding = ['-c:{}', 'copy'.format(codec_type)]
             mapper.stream_mapping += ['-map', '0:{}:m:language:{}?'.format(codec_type, language)]
 
 def on_worker_process(data):
@@ -195,8 +196,8 @@ def on_worker_process(data):
         mapper.set_output_file(data.get('file_out'))
 
         # clear stream mappings, copy everything
-        mapper.stream_mapping = ['-map', '0']
-        mapper.stream_encoding = ['-c', 'copy']
+        mapper.stream_mapping = ['-map', '0:v']
+        mapper.stream_encoding = ['-c:v', 'copy']
         # set negative stream mappings to remove languages
         keep_languages(mapper, 'a', settings.get_setting('audio_languages'))
         keep_languages(mapper, 's', settings.get_setting('subtitle_languages'))
