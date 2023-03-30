@@ -145,7 +145,7 @@ def keep_languages(mapper, codec_type, language_list):
     for language in languages:
         language = language.strip()
         if language and language.lower() :
-            mapper.stream_mapping += ['-map', '0:{}:m:language:{}'.format(codec_type, language)]
+            mapper.stream_mapping += ['-map', '0:{}:m:language:{}?'.format(codec_type, language)]
 
 def on_worker_process(data):
     """
