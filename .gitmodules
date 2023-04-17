@@ -19,3 +19,6 @@
 [submodule "source/reorder_audio_streams_by_language2/lib/ffmpeg"]
 	path = source/reorder_audio_streams_by_language2/lib/ffmpeg
 	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/normalise_libfdk_aac/lib/ffmpeg"]
+	path = source/normalise_libfdk_aac/lib/ffmpeg
+	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
