@@ -85,7 +85,7 @@ class PluginStreamMapper(StreamMapper):
 
     def test_stream_needs_processing(self, stream_info: dict):
         # Only process AAC audio streams
-        if stream_info.get('codec_name').lower() in ['libfdk_aac']:
+        if stream_info.get('codec_name').lower() in ['aac']:
             return True
         return False
 
@@ -117,7 +117,7 @@ def file_already_normalised(settings, path):
     directory_info = UnmanicDirectoryInfo(os.path.dirname(path))
 
     try:
-        previous_loudnorm_filtergraph = directory_info.get('normalise_libfdk_aac', os.path.basename(path))
+        previous_loudnorm_filtergraph = directory_info.get('normalise_aac', os.path.basename(path))
     except NoSectionError as e:
         previous_loudnorm_filtergraph = ''
     except NoOptionError as e:
@@ -278,7 +278,7 @@ def on_postprocessor_task_results(data):
     # Loop over the destination_files list and update the directory info file for each one
     for destination_file in data.get('destination_files'):
         directory_info = UnmanicDirectoryInfo(os.path.dirname(destination_file))
-        directory_info.set('normalise_libfdk_aac', os.path.basename(destination_file), audio_filtergraph(settings))
+        directory_info.set('normalise_aac', os.path.basename(destination_file), audio_filtergraph(settings))
         directory_info.save()
         logger.debug("Normalise AAC info written for '{}'.".format(destination_file))
 
