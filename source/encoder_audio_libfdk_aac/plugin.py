@@ -26,7 +26,7 @@ import os
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
-from encoder_audio_aac.lib.ffmpeg import StreamMapper, Probe, Parser
+from encoder_audio_libfdk_aac.lib.ffmpeg import StreamMapper, Probe, Parser
 
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.encoder_audio_aac")

@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.3</span>**
+- fix library call in plugin.py
+
 **<span style="color:#56adda">0.0.2</span>**
 - use yajrendrag lib/ffmpeg helper lib - allows extra encoders in custom options
 
