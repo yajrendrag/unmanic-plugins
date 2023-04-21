@@ -22,3 +22,6 @@
 [submodule "source/encoder_audio_libfdk_aac/lib/ffmpeg"]
 	path = source/encoder_audio_libfdk_aac/lib/ffmpeg
 	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/add_extra_stereo_audio/lib/ffmpeg"]
+	path = source/add_extra_stereo_audio/lib/ffmpeg
+	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
