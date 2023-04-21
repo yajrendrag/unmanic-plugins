@@ -26,16 +26,16 @@ For information on the available encoder settings:
 
 ### Config description:
 
+#### <span style="color:blue">Language</span>
+Specify language tag to search for in source stream
+
+#### <span style="color:blue">Channels</span>
+Specify number of channels to be searched for in source stream
+
 #### <span style="color:blue">Codec Name</span>
-Specify which encoding to duplicate (by codec name)
+Specify which encoding to search for in source stream (by codec name)
 
-#### <span style="color:blue">Channels</span>
-Specify number of channels in source stream
-
-#### <span style="color:blue">Channels</span>
-Specify number of channels in source stream
-
-#### <span style="color:blue">Channels</span>
+#### <span style="color:blue">Encoder Selection</span>
 Leave unchecked to select native ffmpeg aac encoder, libfdk_aac requires ffmpeg 5.x
 
 :::note
