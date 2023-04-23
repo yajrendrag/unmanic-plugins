@@ -61,7 +61,8 @@ def stream_to_stereo_encode(stream_language, channels, codec_name, probe_streams
     audio_stream = -1
     stream = audio_stream
     for  i in range(0, len(probe_streams)):
-        if probe_streams[i]["codec_name"] == "aac" and probe_streams[i]["channels"] == 2 and probe_streams[i]["channel_layout"] == "stereo": return stream
+        if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == "audio":
+            if probe_streams[i]["codec_name"] == "aac" and probe_streams[i]["channels"] == 2 and probe_streams[i]["channel_layout"] == "stereo": return stream
 
 
     for i in range(0, len(probe_streams)):
