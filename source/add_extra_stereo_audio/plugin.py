@@ -60,17 +60,19 @@ class Settings(PluginSettings):
 def stream_to_stereo_encode(stream_language, channels, codec_name, probe_streams):
     audio_stream = -1
     stream = audio_stream
+    for  i in range(0, len(probe_streams)):
+        if probe_streams[i]["codec_name"] == "aac" and probe_streams[i]["channels"] == 2 and probe_streams[i]["channel_layout"] == "stereo": return stream
+
+
     for i in range(0, len(probe_streams)):
         if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == "audio":
             if stream_language == '' or channels == '' or codec_name == '':
                 if  int(probe_streams[i]["channels"]) > 4:
-                    if probe_streams[i]["codec_name"] == "aac" and probe_streams[i]["channels"] == 2 and probe_streams[i]["channel_layout"] = "stereo": break
                     audio_stream += 1
                     stream = audio_stream
                     break
             else:
                 if str(probe_streams[i]["channels"]) == channels and probe_streams[i]["tags"]["language"] == stream_language and probe_streams[i]["codec_name"] == codec_name:
-                    if probe_streams[i]["codec_name"] == "aac" and probe_streams[i]["channels"] == 2 and probe_streams[i]["channel_layout"] = "stereo": break
                     audio_stream += 1
                     stream = audio_stream
                     break
