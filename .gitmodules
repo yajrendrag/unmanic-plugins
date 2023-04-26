@@ -25,3 +25,6 @@
 [submodule "source/add_extra_stereo_audio/lib/ffmpeg"]
 	path = source/add_extra_stereo_audio/lib/ffmpeg
 	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/reorder_subtitle_streams_by_language2/lib/ffmpeg"]
+	path = source/reorder_subtitle_streams_by_language2/lib/ffmpeg
+	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
