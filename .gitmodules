@@ -31,3 +31,6 @@
 [submodule "source/remove_audio_stream_by_channels/lib/ffmpeg"]
 	path = source/remove_audio_stream_by_channels/lib/ffmpeg
 	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/video_txc_int_ignores/lib/ffmpeg"]
+	path = source/video_txc_int_ignores/lib/ffmpeg
+	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
