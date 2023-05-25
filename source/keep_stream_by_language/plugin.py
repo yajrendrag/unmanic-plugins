@@ -42,10 +42,10 @@ class Settings(PluginSettings):
         super(Settings, self).__init__(*args, **kwargs)
         self.form_settings = {
             "audio_languages": {
-                "label": "Enter 1 Audio stream language to keep",
+                "label": "Enter comma delimited list of languages to keep",
             },
             "subtitle_languages": {
-                "label": "Enter 1 Subtitle stream language to keep",
+                "label": "Enter a comma delimted list of Subtitle stream languages to keep",
             }
         }
 

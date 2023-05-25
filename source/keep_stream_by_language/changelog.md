@@ -1,3 +1,6 @@
+**<span style="color:#56adda">0.0.5</span>**
+- correct verbiage in config options to show multiple languages can be accepted
+
 **<span style="color:#56adda">0.0.4</span>**
 - fix keep function stream_encoding additions
 
