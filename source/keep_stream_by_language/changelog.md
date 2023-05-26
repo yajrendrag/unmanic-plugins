@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.9</span>**
+- add filter to remove language from configured languages if it doesn't appear in any of a file's streams
+
 **<span style="color:#56adda">0.0.8</span>**
 - fix additional file test for duplicate language streams
 

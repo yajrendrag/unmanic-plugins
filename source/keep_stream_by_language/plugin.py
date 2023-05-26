@@ -76,6 +76,8 @@ class PluginStreamMapper(StreamMapper):
         subtitle_streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "subtitle"]
         subtitle_streams_list.sort()
         subtitle_streams_list = [*set(subtitle_streams_list)]
+        [alcl.remove(lang) for lang in alcl if lang not in audio_streams_list]
+        [slcl.remove(lang) for lang in slcl if lang not in subtitle_streams_list]
         logger.debug("audio config list: '{}', audio streams in file: '{}'".format(alcl, audio_streams_list))
         logger.debug("subtitle config list: '{}', subtitle streams in file: '{}'".format(slcl, subtitle_streams_list))
         if alcl == audio_streams_list and slcl == subtitle_streams_list:
