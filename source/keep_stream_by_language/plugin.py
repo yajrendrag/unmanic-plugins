@@ -28,7 +28,7 @@ from unmanic.libs.unplugins.settings import PluginSettings
 from keep_stream_by_language.lib.ffmpeg import StreamMapper, Probe, Parser
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.remove_stream_by_language")
+logger = logging.getLogger("Unmanic.Plugin.keep_stream_by_language")
 
 
 class Settings(PluginSettings):

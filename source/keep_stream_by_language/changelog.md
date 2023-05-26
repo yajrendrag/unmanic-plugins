@@ -1,3 +1,6 @@
+**<span style="color:#56adda">0.0.7</span>**
+- correct logger identification
+
 **<span style="color:#56adda">0.0.6</span>**
 - add additional file test to skip file if all configured streams are the only streams present in file
 
