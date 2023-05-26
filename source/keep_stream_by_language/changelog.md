@@ -1,3 +1,7 @@
+
+**<span style="color:#56adda">0.0.8</span>**
+- fix additional file test for duplicate language streams
+
 **<span style="color:#56adda">0.0.7</span>**
 - correct logger identification
 

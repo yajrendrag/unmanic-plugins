@@ -63,15 +63,19 @@ class PluginStreamMapper(StreamMapper):
         alcl = [alcl[i].strip() for i in range(0,len(alcl))]
         alcl.sort()
         if alcl == ['']: alcl = []
+        alcl = [*set(alcl)]
         subtitle_language_config_list = self.settings.get_setting('subtitle_languages')
         slcl = list(subtitle_language_config_list.split(','))
         slcl = [slcl[i].strip() for i in range(0,len(slcl))]
         slcl.sort()
         if slcl == ['']: slcl = []
+        slcl = [*set(slcl)]
         audio_streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio"]
         audio_streams_list.sort()
+        audio_streams_list = [*set(audio_streams_list)]
         subtitle_streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "subtitle"]
         subtitle_streams_list.sort()
+        subtitle_streams_list = [*set(subtitle_streams_list)]
         logger.debug("audio config list: '{}', audio streams in file: '{}'".format(alcl, audio_streams_list))
         logger.debug("subtitle config list: '{}', subtitle streams in file: '{}'".format(slcl, subtitle_streams_list))
         if alcl == audio_streams_list and slcl == subtitle_streams_list:
