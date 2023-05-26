@@ -1,3 +1,6 @@
+**<span style="color:#56adda">0.0.6</span>**
+- add additional file test to skip file if all configured streams are the only streams present in file
+
 **<span style="color:#56adda">0.0.5</span>**
 - correct verbiage in config options to show multiple languages can be accepted
 
