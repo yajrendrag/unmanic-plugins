@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- add option to remove multichannel audio stream
+
 **<span style="color:#56adda">0.0.4</span>**
 - fix file scan test audio stream counter
 
