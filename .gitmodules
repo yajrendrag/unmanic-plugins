@@ -34,3 +34,6 @@
 [submodule "source/video_txc_int_ignores/lib/ffmpeg"]
 	path = source/video_txc_int_ignores/lib/ffmpeg
 	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/convert_multichan_audio_to_2ch/lib/ffmpeg"]
+	path = source/convert_multichan_audio_to_2ch/lib/ffmpeg
+	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
