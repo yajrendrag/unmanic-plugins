@@ -37,3 +37,6 @@
 [submodule "source/convert_multichan_audio_to_2ch/lib/ffmpeg"]
 	path = source/convert_multichan_audio_to_2ch/lib/ffmpeg
 	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/video_remuxer2/lib/ffmpeg"]
+	path = source/video_remuxer2/lib/ffmpeg
+	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
