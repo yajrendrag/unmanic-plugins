@@ -1,0 +1,18 @@
+{
+    "author": "yajrendrag",
+    "compatibility": [
+        2
+    ],
+    "description": "Creates an extra stereo libfdk stereo audio stream from existing audio stream",
+    "icon": "https://raw.githubusercontent.com/Unmanic/plugin.encoder_audio_aac/master/icon.png",
+    "id": "add_custom_metadata",
+    "name": "Add custom metadata",
+    "platform": [
+        "all"
+    ],
+    "priorities": {
+        "on_worker_process": 0
+    },
+    "tags": "metadata,ffmpeg,worker process test",
+    "version": "0.0.1"
+}

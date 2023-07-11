@@ -43,3 +43,6 @@
 [submodule "source/force_processing/lib/ffmpeg"]
 	path = source/force_processing/lib/ffmpeg
 	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/add_custom_metadata/lib/ffmpeg"]
+	path = source/add_custom_metadata/lib/ffmpeg
+	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
