@@ -94,7 +94,7 @@ def on_worker_process(data):
             ffmpeg_args += ['-metadata', str(cm_list[i].replace(":","="))]
         ffmpeg_args += ['-c', 'copy', str(outpath)]
     elif file_type[1] == '.mp4':
-        ffmpeg_args += ['-metadata', 'comment='+str(custom_metadata)]
+        ffmpeg_args += ['-metadata', 'comment='+str(custom_metadata), '-c', 'copy', str(outpath)]
     else:
         logger.info("'{}'container doesn't accept custom metadata fields".format(file_type))
     logger.debug("ffmpeg args: '{}'".format(ffmpeg_args))
