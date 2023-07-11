@@ -3,7 +3,7 @@
     "compatibility": [
         2
     ],
-    "description": "Creates an extra stereo libfdk stereo audio stream from existing audio stream",
+    "description": "Adds custom metadata fields to an mkv or mp4 file",
     "icon": "https://raw.githubusercontent.com/Unmanic/plugin.encoder_audio_aac/master/icon.png",
     "id": "add_custom_metadata",
     "name": "Add custom metadata",
