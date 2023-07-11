@@ -32,8 +32,17 @@ from force_processing.lib.ffmpeg import Probe, Parser
 logger = logging.getLogger("Unmanic.Plugin.force_processing")
 
 class Settings(PluginSettings):
-    settings = {}
+    settings = {
+        "check_for_valid_ffprobe_data":         False,
+    }
 
+    def __init__(self, *args, **kwargs):
+        super(Settings, self).__init__(*args, **kwargs)
+        self.form_settings = {
+            "check_for_valid_ffprobe_data":              {
+                "label": "if true, checks for valid ffprobe data before adding file to processing queue",
+            }
+    }
 
 def on_library_management_file_test(data):
     """
@@ -48,20 +57,28 @@ def on_library_management_file_test(data):
     :return:
 
     """
-    # Get the path to the file
-    abspath = data.get('path')
-
-    # Get file probe
-    probe_data = Probe(logger, allowed_mimetypes=['audio', 'video'])
-
-    # Get stream data from probe
-    if probe_data.file(abspath):
-        probe_streams = probe_data.get_probe()["streams"]
-        probe_format = probe_data.get_probe()["format"]
-        data['add_file_to_pending_tasks'] = True
+    if data.get('library_id'):
+        settings = Settings(library_id=data.get('library_id'))
     else:
-        logger.info("Probe data failed - Blocking everything.")
-        data['add_file_to_pending_tasks'] = False
+        settings = Settings()
+
+    if settings.get_setting('check_for_valid_ffprobe_data'):
+        # Get the path to the file
+        abspath = data.get('path')
+
+        # Get file probe
+        probe_data = Probe(logger, allowed_mimetypes=['audio', 'video'])
+
+        # Get stream data from probe
+        if probe_data.file(abspath):
+            probe_streams = probe_data.get_probe()["streams"]
+            probe_format = probe_data.get_probe()["format"]
+            data['add_file_to_pending_tasks'] = True
+        else:
+            logger.info("Probe data failed - Blocking everything.")
+            data['add_file_to_pending_tasks'] = False
+    else:
+        data['add_file_to_pending_tasks'] = True
 
     logger.debug("Queue status is: {}".format(data['add_file_to_pending_tasks']))
     return data
