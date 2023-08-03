@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.11</span>**
+- add option to keep streams with no language tags or undefined values
+
 **<span style="color:#56adda">0.0.10</span>**
 - fix broken filter from previous step
 

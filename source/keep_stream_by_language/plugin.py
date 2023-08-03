@@ -28,13 +28,14 @@ from unmanic.libs.unplugins.settings import PluginSettings
 from keep_stream_by_language.lib.ffmpeg import StreamMapper, Probe, Parser
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.keep_stream_by_language")
+logger = logging.getLogger("Unmanic.Plugin.remove_stream_by_language")
 
 
 class Settings(PluginSettings):
     settings = {
         "audio_languages":       '',
         "subtitle_languages":    '',
+        "keep_undefined":        True,
     }
 
 
@@ -42,10 +43,13 @@ class Settings(PluginSettings):
         super(Settings, self).__init__(*args, **kwargs)
         self.form_settings = {
             "audio_languages": {
-                "label": "Enter comma delimited list of languages to keep",
+                "label": "Enter comma delimited list of audio languages to keep",
             },
             "subtitle_languages": {
-                "label": "Enter a comma delimted list of Subtitle stream languages to keep",
+                "label": "Enter comma delimited list of subtitle languages to keep",
+            },
+            "keep_undefined":	{
+                "label": "check to keep streams with no language tags or streams with undefined/uknown language tags",
             }
         }
 
@@ -58,52 +62,29 @@ class PluginStreamMapper(StreamMapper):
         self.settings = settings
 
     def same_streams(self, streams):
-        # get configured list of audio languages - it's a string of comma delimited languages
         audio_language_config_list = self.settings.get_setting('audio_languages')
-
-        # make them into a list and sort them
         alcl = list(audio_language_config_list.split(','))
         alcl = [alcl[i].strip() for i in range(0,len(alcl))]
         alcl.sort()
         if alcl == ['']: alcl = []
-
-        # elimiate any duplicates
-        alcl = [*set(alcl)]
-
-        # same operations as above now on subtitle streams
         subtitle_language_config_list = self.settings.get_setting('subtitle_languages')
         slcl = list(subtitle_language_config_list.split(','))
         slcl = [slcl[i].strip() for i in range(0,len(slcl))]
         slcl.sort()
         if slcl == ['']: slcl = []
-        slcl = [*set(slcl)]
-
-        # get audio streams and subtitle streams acutally in the file, sort them, elimiated duplicates
         audio_streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio"]
         audio_streams_list.sort()
-        audio_streams_list = [*set(audio_streams_list)]
         subtitle_streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "subtitle"]
         subtitle_streams_list.sort()
-        subtitle_streams_list = [*set(subtitle_streams_list)]
-
-        # compare configuration list to see if any configured streams to keep are actually not present in the file, if so
-        # remove the configured stream from alcl/slcl lists so the file isn't processed unnecessarily
-        langs_not_in_file= [lang for lang in alcl if lang not in audio_streams_list]
-        alcl = [i for i in alcl if i not in langs_not_in_file]
-        langs_not_in_file= [lang for lang in slcl if lang not in subtitle_streams_list]
-        slcl = [i for i in slcl if i not in langs_not_in_file]
-
         logger.debug("audio config list: '{}', audio streams in file: '{}'".format(alcl, audio_streams_list))
         logger.debug("subtitle config list: '{}', subtitle streams in file: '{}'".format(slcl, subtitle_streams_list))
-
-        # if the remaining alcl/slcl lists are identical to the actual list of audio/subtitle streams in the file, then no need to process the file as keeping the streams would simply
-        # be copying the existing streams and is unnecessary
         if alcl == audio_streams_list and slcl == subtitle_streams_list:
             return True
         else:
             return False
 
     def test_tags_for_search_string(self, codec_type, stream_tags, stream_id):
+        keep_undefined  = self.settings.get_setting('keep_undefined')
         # TODO: Check if we need to add 'title' tags
         if stream_tags and True in list(k.lower() in ['language'] for k in stream_tags):
             # check codec and get appropriate language list
@@ -115,11 +96,16 @@ class PluginStreamMapper(StreamMapper):
             for language in languages:
                 language = language.strip()
                 if language and language.lower() in stream_tags.get('language', '').lower():
-                    # Found a matching language. Process this stream to remove it
+                    # Found a matching language. Process this stream to keep it
                     return True
+        elif keep_undefined:
+            return True
+            logger.warning(
+                "Stream '{}' in file '{}' has no language tag, but keep_undefined is checked. add to queue".format(stream_id, self.input_file))
+
         else:
             logger.warning(
-                "Stream #{} in file '{}' has no 'language' tag. Ignoring".format(stream_id, self.input_file))
+                "Stream '{}' in file '{}' has no language tag. Ignoring".format(stream_id, self.input_file))
         return False
 
     def test_stream_needs_processing(self, stream_info: dict):
@@ -199,6 +185,17 @@ def keep_languages(mapper, codec_type, language_list):
             mapper.stream_encoding += ['-c:{}'.format(codec_type), 'copy']
             mapper.stream_mapping += ['-map', '0:{}:m:language:{}?'.format(codec_type, language)]
 
+def keep_undefined(mapper, streams):
+    kept_streams = False
+    for i in range(0, len(streams)):
+        if streams[i]["codec_type"] == "subtitle" or streams[i]["codec_type"] == "audio":
+            try:
+                lang = streams[i]["tags"]["language"]
+            except KeyError:
+                kept_streams = True
+                mapper.stream_mapping += ['-map', '0:i']
+    if kept_streams: mapper.stream_encoding += ['-c', 'copy']
+
 def on_worker_process(data):
     """
     Runner function - enables additional configured processing jobs during the worker stages of a task.
@@ -227,12 +224,16 @@ def on_worker_process(data):
     if not probe.file(abspath):
         # File probe failed, skip the rest of this test
         return data
+    else:
+        probe_streams = probe.get_probe()["streams"]
 
     # Configure settings object (maintain compatibility with v1 plugins)
     if data.get('library_id'):
         settings = Settings(library_id=data.get('library_id'))
     else:
         settings = Settings()
+
+    keep_undefined_lang_tags = settings.get_setting('keep_undefined')
 
     # Get stream mapper
     mapper = PluginStreamMapper()
@@ -249,12 +250,17 @@ def on_worker_process(data):
         # clear stream mappings, copy everything
         mapper.stream_mapping = ['-map', '0:v']
         mapper.stream_encoding = ['-c:v', 'copy']
-        # set negative stream mappings to remove languages
+        # keep specific language streams if present
         keep_languages(mapper, 'a', settings.get_setting('audio_languages'))
         keep_languages(mapper, 's', settings.get_setting('subtitle_languages'))
 
+        # keep undefined language streams if present
+        if keep_undefined_lang_tags:
+            keep_undefined(mapper, probe_streams)
+
         # Get generated ffmpeg args
         ffmpeg_args = mapper.get_ffmpeg_args()
+        logger.debug("ffmpeg_args: '{}'".format(ffmpeg_args))
 
         # Apply ffmpeg args to command
         data['exec_command'] = ['ffmpeg']
