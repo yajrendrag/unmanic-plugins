@@ -46,3 +46,6 @@
 [submodule "source/add_custom_metadata/lib/ffmpeg"]
 	path = source/add_custom_metadata/lib/ffmpeg
 	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/remove_streams_based_on_ffprobe_data/lib/ffmpeg"]
+	path = source/remove_streams_based_on_ffprobe_data/lib/ffmpeg
+	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git

@@ -1,0 +1,18 @@
+{
+    "author": "yajrendrag",
+    "compatibility": [
+        2
+    ],
+    "description": "Ignore files containing specific metadata.",
+    "icon": "https://raw.githubusercontent.com/Unmanic/plugin.limit_library_search_by_file_extension/master/icon.png",
+    "id": "remove_streams_based_on_ffprobe_data",
+    "name": "Remove streams based on ffprobe data",
+    "platform": [
+        "all"
+    ],
+    "priorities": {
+        "on_worker_process": 1
+    },
+    "tags": "worker process",
+    "version": "0.0.1"
+}
