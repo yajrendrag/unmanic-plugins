@@ -68,7 +68,7 @@ def stream_has_ffprobe_data(path, probe_streams, probe_field, probe_value):
     logger.debug("streams to remove after sort, set: '{}'".format(streams_to_remove))
 
     if streams_to_remove == []:
-        logger.info("File '{}' does not contain any streams to remove'{}''.".format(path))
+        logger.info("File '{}' does not contain any streams to remove.".format(path))
         return []
 
     logger.debug("File '{}' has streams to remove - indices: '{}'.".format(path, streams_to_remove))
