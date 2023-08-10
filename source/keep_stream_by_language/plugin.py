@@ -257,8 +257,8 @@ def on_worker_process(data):
         mapper.stream_mapping = ['-map', '0:v']
         mapper.stream_encoding = ['-c:v', 'copy']
         # keep specific language streams if present
-        keep_languages(mapper, 'a', settings.get_setting('audio_languages'))
-        keep_languages(mapper, 's', settings.get_setting('subtitle_languages'))
+        keep_languages(mapper, 'a', settings.get_setting('audio_languages'), settings.get_setting('unset_default_subtitle'))
+        keep_languages(mapper, 's', settings.get_setting('subtitle_languages'), settings.get_setting('unset_default_subtitle'))
 
         # keep undefined language streams if present
         if keep_undefined_lang_tags:
