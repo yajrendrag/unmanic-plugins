@@ -36,6 +36,7 @@ class Settings(PluginSettings):
         "audio_languages":       '',
         "subtitle_languages":    '',
         "keep_undefined":        True,
+        "unset_default_subtitle": False,
     }
 
 
@@ -50,6 +51,9 @@ class Settings(PluginSettings):
             },
             "keep_undefined":	{
                 "label": "check to keep streams with no language tags or streams with undefined/uknown language tags",
+            },
+            "unset_default_subtitle":  {
+                "label": "check to unset default subtitle so subtitles are off upon playing video",
             }
         }
 
@@ -179,11 +183,13 @@ def on_library_management_file_test(data):
 
 def keep_languages(mapper, codec_type, language_list):
     languages = list(filter(None, language_list.split(',')))
-    for language in languages:
+    for i, language in enumerate(languages):
         language = language.strip()
         if language and language.lower() :
             mapper.stream_encoding += ['-c:{}'.format(codec_type), 'copy']
             mapper.stream_mapping += ['-map', '0:{}:m:language:{}?'.format(codec_type, language)]
+            if unset_def_sub and codec_type == 's':
+                mapper.stream_mapping += ['-disposition:s:{}'.format(i), '0']
 
 def keep_undefined(mapper, streams):
     kept_streams = False
