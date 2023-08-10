@@ -181,7 +181,7 @@ def on_library_management_file_test(data):
 
     return data
 
-def keep_languages(mapper, codec_type, language_list):
+def keep_languages(mapper, codec_type, language_list, unset_def_sub):
     languages = list(filter(None, language_list.split(',')))
     for i, language in enumerate(languages):
         language = language.strip()

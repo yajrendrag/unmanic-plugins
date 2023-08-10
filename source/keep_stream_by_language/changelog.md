@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.13</span>**
+- fixed missing reference to unset_def_subtitles in keep_languages function
+
 **<span style="color:#56adda">0.0.12</span>**
 - add option to unset subtitle dispositions (so subtitles off by default upon playback)
 
