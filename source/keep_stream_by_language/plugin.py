@@ -189,7 +189,7 @@ def keep_languages(mapper, codec_type, language_list, unset_def_sub):
             mapper.stream_encoding += ['-c:{}'.format(codec_type), 'copy']
             mapper.stream_mapping += ['-map', '0:{}:m:language:{}?'.format(codec_type, language)]
             if unset_def_sub and codec_type == 's':
-                mapper.stream_mapping += ['-disposition:s:{}'.format(i), '0']
+                mapper.stream_mapping += ['-disposition:s:{}'.format(i), '-default', '-default_mode', 'infer_no_subs']
 
 def keep_undefined(mapper, streams):
     kept_streams = False
