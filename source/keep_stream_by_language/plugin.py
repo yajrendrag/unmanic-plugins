@@ -36,7 +36,6 @@ class Settings(PluginSettings):
         "audio_languages":       '',
         "subtitle_languages":    '',
         "keep_undefined":        True,
-        "unset_default_subtitle": False,
     }
 
 
@@ -51,9 +50,6 @@ class Settings(PluginSettings):
             },
             "keep_undefined":	{
                 "label": "check to keep streams with no language tags or streams with undefined/uknown language tags",
-            },
-            "unset_default_subtitle":  {
-                "label": "check to unset default subtitle so subtitles are off upon playing video",
             }
         }
 
@@ -181,15 +177,13 @@ def on_library_management_file_test(data):
 
     return data
 
-def keep_languages(mapper, codec_type, language_list, unset_def_sub):
+def keep_languages(mapper, codec_type, language_list):
     languages = list(filter(None, language_list.split(',')))
-    for i, language in enumerate(languages):
+    for language in languages:
         language = language.strip()
         if language and language.lower() :
             mapper.stream_encoding += ['-c:{}'.format(codec_type), 'copy']
             mapper.stream_mapping += ['-map', '0:{}:m:language:{}?'.format(codec_type, language)]
-            if unset_def_sub and codec_type == 's':
-                mapper.stream_mapping += ['-disposition:s:{}'.format(i), '-default', '-default_mode', 'infer_no_subs']
 
 def keep_undefined(mapper, streams):
     kept_streams = False
@@ -257,8 +251,8 @@ def on_worker_process(data):
         mapper.stream_mapping = ['-map', '0:v']
         mapper.stream_encoding = ['-c:v', 'copy']
         # keep specific language streams if present
-        keep_languages(mapper, 'a', settings.get_setting('audio_languages'), settings.get_setting('unset_default_subtitle'))
-        keep_languages(mapper, 's', settings.get_setting('subtitle_languages'), settings.get_setting('unset_default_subtitle'))
+        keep_languages(mapper, 'a', settings.get_setting('audio_languages'))
+        keep_languages(mapper, 's', settings.get_setting('subtitle_languages'))
 
         # keep undefined language streams if present
         if keep_undefined_lang_tags:
