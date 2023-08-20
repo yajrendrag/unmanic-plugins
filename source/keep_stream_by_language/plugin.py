@@ -22,13 +22,17 @@
 
 """
 import logging
+import os
+from configparser import NoSectionError, NoOptionError
 
 from unmanic.libs.unplugins.settings import PluginSettings
+from unmanic.libs.directoryinfo import UnmanicDirectoryInfo
 
 from keep_stream_by_language.lib.ffmpeg import StreamMapper, Probe, Parser
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.remove_stream_by_language")
+logger = logging.getLogger("Unmanic.Plugin.remove_stream_by
+_language")
 
 
 class Settings(PluginSettings):
@@ -119,6 +123,40 @@ class PluginStreamMapper(StreamMapper):
             'stream_encoding': [],
         }
 
+def kept_streams(settings):
+    al = settings.get_setting('audio_languages')
+    if not al:
+        al = settings.settings.get('audio_languages')
+    sl = settings.get_setting('subtitle_languages')
+    if not sl:
+        sl = settings.settings.get('subtitle_languages')
+    ku = settings.get_setting('keep_undefined')
+    if not ku:
+        ku = settings.settings.get('keep_undefined')
+
+    return 'kept_streams=audio_langauges={}:subtitle_languages={}:keep_undefined={}'.format(al, sl, ku)
+
+def file_streams_already_kept(settings, path):
+    directory_info = UnmanicDirectoryInfo(os.path.dirname(path))
+
+    try:
+        streams_already_kept = directory_info.get('keep_streams_by_language', os.path.basename(path))
+    except NoSectionError as e:
+        streams_already_kept = ''
+    except NoOptionError as e:
+        streams_already_kept = ''
+    except Exception as e:
+        logger.debug("Unknown exception {}.".format(e))
+        streams_already_kept = ''
+
+    if streams_already_kept:
+        logger.debug("File's streams were previously kept with {}.".format(streams_already_kept))
+        # This stream already has been normalised
+        if settings.get_setting('ignore_previously_processed'):
+            return True
+
+    # Default to...
+    return False
 
 def on_library_management_file_test(data):
     """
@@ -164,14 +202,16 @@ def on_library_management_file_test(data):
     # Set the input file
     mapper.set_input_file(abspath)
 
-    if mapper.same_streams(probe_streams):
-        logger.debug("File '{}' only has same streams as keep configuration specifies - so, does not contain streams that require processing.".format(abspath))
-    elif mapper.streams_need_processing():
-        # Mark this file to be added to the pending tasks
-        data['add_file_to_pending_tasks'] = True
-        logger.debug("File '{}' should be added to task list. Probe found streams require processing.".format(abspath))
-    else:
-        logger.debug("File '{}' does not contain streams that require processing.".format(abspath))
+    if not file_streams_already_kept(settings, abspath):
+        logger.debug("File '{}' has not previously had streams kept by keep_streams_by_language plugin".format(abspath))
+        if mapper.same_streams(probe_streams):
+            logger.debug("File '{}' only has same streams as keep configuration specifies - so, does not contain streams that require processing.".format(abspath))
+        elif mapper.streams_need_processing():
+            # Mark this file to be added to the pending tasks
+            data['add_file_to_pending_tasks'] = True
+            logger.debug("File '{}' should be added to task list. Probe found streams require processing.".format(abspath))
+        else:
+            logger.debug("File '{}' does not contain streams that require processing.".format(abspath))
 
     del mapper
 
@@ -235,40 +275,77 @@ def on_worker_process(data):
 
     keep_undefined_lang_tags = settings.get_setting('keep_undefined')
 
-    # Get stream mapper
-    mapper = PluginStreamMapper()
-    mapper.set_settings(settings)
-    mapper.set_probe(probe)
+    if not file_streams_already_kept(settings, data.get('file_in')):
+        # Get stream mapper
+        mapper = PluginStreamMapper()
+        mapper.set_settings(settings)
+        mapper.set_probe(probe)
 
-    # Set the input file
-    mapper.set_input_file(abspath)
+        # Set the input file
+        mapper.set_input_file(abspath)
 
-    if mapper.streams_need_processing():
-        # Set the output file
-        mapper.set_output_file(data.get('file_out'))
+        if mapper.streams_need_processing():
+            # Set the output file
+            mapper.set_output_file(data.get('file_out'))
 
-        # clear stream mappings, copy everything
-        mapper.stream_mapping = ['-map', '0:v']
-        mapper.stream_encoding = ['-c:v', 'copy']
-        # keep specific language streams if present
-        keep_languages(mapper, 'a', settings.get_setting('audio_languages'))
-        keep_languages(mapper, 's', settings.get_setting('subtitle_languages'))
+            # clear stream mappings, copy everything
+            mapper.stream_mapping = ['-map', '0:v']
+            mapper.stream_encoding = ['-c:v', 'copy']
+            # keep specific language streams if present
+            keep_languages(mapper, 'a', settings.get_setting('audio_languages'))
+            keep_languages(mapper, 's', settings.get_setting('subtitle_languages'))
 
-        # keep undefined language streams if present
-        if keep_undefined_lang_tags:
-            keep_undefined(mapper, probe_streams)
+            # keep undefined language streams if present
+            if keep_undefined_lang_tags:
+                keep_undefined(mapper, probe_streams)
 
-        # Get generated ffmpeg args
-        ffmpeg_args = mapper.get_ffmpeg_args()
-        logger.debug("ffmpeg_args: '{}'".format(ffmpeg_args))
+            # Get generated ffmpeg args
+            ffmpeg_args = mapper.get_ffmpeg_args()
+            logger.debug("ffmpeg_args: '{}'".format(ffmpeg_args))
 
-        # Apply ffmpeg args to command
-        data['exec_command'] = ['ffmpeg']
-        data['exec_command'] += ffmpeg_args
+            # Apply ffmpeg args to command
+            data['exec_command'] = ['ffmpeg']
+            data['exec_command'] += ffmpeg_args
 
-        # Set the parser
-        parser = Parser(logger)
-        parser.set_probe(probe)
-        data['command_progress_parser'] = parser.parse_progress
+            # Set the parser
+            parser = Parser(logger)
+            parser.set_probe(probe)
+            data['command_progress_parser'] = parser.parse_progress
+
+    return data
+
+def on_postprocessor_task_results(data):
+    """
+    Runner function - provides a means for additional postprocessor functions based on the task success.
+
+    The 'data' object argument includes:
+        task_processing_success         - Boolean, did all task processes complete successfully.
+        file_move_processes_success     - Boolean, did all postprocessor movement tasks complete successfully.
+        destination_files               - List containing all file paths created by postprocessor file movements.
+        source_data                     - Dictionary containing data pertaining to the original source file.
+
+    :param data:
+    :return:
+
+    """
+    # We only care that the task completed successfully.
+    # If a worker processing task was unsuccessful, dont mark the file streams as kept
+    # TODO: Figure out a way to know if a file's streams were kept but another plugin was the
+    #   cause of the task processing failure flag
+    if not data.get('task_processing_success'):
+        return data
+
+    # Configure settings object (maintain compatibility with v1 plugins)
+    if data.get('library_id'):
+        settings = Settings(library_id=data.get('library_id'))
+    else:
+        settings = Settings()
+
+    # Loop over the destination_files list and update the directory info file for each one
+    for destination_file in data.get('destination_files'):
+        directory_info = UnmanicDirectoryInfo(os.path.dirname(destination_file))
+        directory_info.set('keep_streams_by_language', os.path.basename(destination_file), kept_streams(settings))
+        directory_info.save()
+        logger.debug("Keep streams by language already processed for '{}'.".format(destination_file))
 
     return data
