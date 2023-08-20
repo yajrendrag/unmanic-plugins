@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.13</span>**
+- fix logger reference to keep_streams vs remove_streams
+
 **<span style="color:#56adda">0.0.12</span>**
 - include use of .unmanic file to track files whose streams were previously kept by this plugin to prevent re-adding task to task queue
 
