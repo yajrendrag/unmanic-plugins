@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.12</span>**
+- include use of .unmanic file to track files whose streams were previously kept by this plugin to prevent re-adding task to task queue
+
 **<span style="color:#56adda">0.0.11</span>**
 - add option to keep streams with no language tags or undefined values
 
