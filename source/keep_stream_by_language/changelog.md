@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.14</span>**
+- fix file_streams_already_kept to remove reference to unused option - ignore_previously_processed
+
 **<span style="color:#56adda">0.0.13</span>**
 - fix logger reference to keep_streams vs remove_streams
 

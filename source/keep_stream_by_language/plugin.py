@@ -150,9 +150,7 @@ def file_streams_already_kept(settings, path):
 
     if streams_already_kept:
         logger.debug("File's streams were previously kept with {}.".format(streams_already_kept))
-        # This stream already has been normalised
-        if settings.get_setting('ignore_previously_processed'):
-            return True
+        return True
 
     # Default to...
     return False
