@@ -31,8 +31,7 @@ from unmanic.libs.directoryinfo import UnmanicDirectoryInfo
 from keep_stream_by_language.lib.ffmpeg import StreamMapper, Probe, Parser
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.remove_stream_by
-_language")
+logger = logging.getLogger("Unmanic.Plugin.remove_stream_by_language")
 
 
 class Settings(PluginSettings):
