@@ -229,7 +229,7 @@ def keep_undefined(mapper, streams):
     stream_iterator(mapper, audio_streams_list, 'a')
 
 def stream_iterator(mapper, stream_list, codec):
-    for i in range(0, len(stream_list):
+    for i in range(0, len(stream_list)):
         try:
             lang = stream_list[i]["tags"]["language"]
         except KeyError:
