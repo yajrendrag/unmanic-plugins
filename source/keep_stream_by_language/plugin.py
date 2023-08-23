@@ -223,15 +223,21 @@ def keep_languages(mapper, codec_type, language_list):
             mapper.stream_mapping += ['-map', '0:{}:m:language:{}?'.format(codec_type, language)]
 
 def keep_undefined(mapper, streams):
-    kept_streams = False
-    for i in range(0, len(streams)):
-        if streams[i]["codec_type"] == "subtitle" or streams[i]["codec_type"] == "audio":
-            try:
-                lang = streams[i]["tags"]["language"]
-            except KeyError:
-                kept_streams = True
-                mapper.stream_mapping += ['-map', '0:i']
-    if kept_streams: mapper.stream_encoding += ['-c', 'copy']
+    audio_streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio"]
+    subtitle_streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "subtitle"]
+    stream_iterator(mapper, subtitle_streams_list, 's')
+    stream_iterator(mapper, audio_streams_list, 'a')
+
+def stream_iterator(mapper, stream_list, codec):
+    for i in range(0, len(stream_list):
+        try:
+            lang = stream_list[i]["tags"]["language"]
+        except KeyError:
+            mapadder(mapper, i, codec)
+
+def mapadder(mapper, stream, codec):
+    mapper.stream_mapping += ['-map', '0:{}:{}'.format(codec, stream)]
+    mapper.stream_encoding += ['-c:{}:{}'.format(codec, stream), 'copy']
 
 def on_worker_process(data):
     """

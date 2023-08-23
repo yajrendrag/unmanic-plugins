@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.15</span>**
+- fix bug in keep_undefined by refactoring & properly identify specific audio/subtitle stream being mapped and copied
+
 **<span style="color:#56adda">0.0.14</span>**
 - fix file_streams_already_kept to remove reference to unused option - ignore_previously_processed
 
