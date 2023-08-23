@@ -223,15 +223,15 @@ def keep_languages(mapper, codec_type, language_list):
             mapper.stream_mapping += ['-map', '0:{}:m:language:{}?'.format(codec_type, language)]
 
 def keep_undefined(mapper, streams):
-    audio_streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio"]
-    subtitle_streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "subtitle"]
-    stream_iterator(mapper, subtitle_streams_list, 's')
-    stream_iterator(mapper, audio_streams_list, 'a')
+    audio_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio"]
+    subtitle_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "subtitle"]
+    stream_iterator(mapper, subtitle_streams_list, streams, 's')
+    stream_iterator(mapper, audio_streams_list, streams, 'a')
 
-def stream_iterator(mapper, stream_list, codec):
+def stream_iterator(mapper, stream_list, streams, codec):
     for i in range(0, len(stream_list)):
         try:
-            lang = stream_list[i]["tags"]["language"]
+            lang = streams[i]["tags"]["language"]
         except KeyError:
             mapadder(mapper, i, codec)
 
