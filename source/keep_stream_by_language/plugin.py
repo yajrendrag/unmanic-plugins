@@ -217,13 +217,12 @@ def on_library_management_file_test(data):
 def keep_languages(mapper, ct, language_list, streams, keep_undefined):
     codec_type = ct[0]
     languages = list(filter(None, language_list.split(',')))
-    languages = [languages[i].strip() for i in range(0,len(languages))]
+    languages = [languages[i].lower().strip() for i in range(0,len(languages))]
     streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == ct]
     for i, language in enumerate(streams_list):
-        language = language.strip()
-        if language and language.lower() and not (keep_undefined and language.lower() == "und") and language.lower() in languages:
-            mapper.stream_encoding += ['-c:{}:{}'.format(codec_type, i), 'copy']
-            mapper.stream_mapping += ['-map', '0:{}:{}'.format(codec_type, i)]
+        language = language.lower().strip()
+        if language and not (keep_undefined and language == "und") and language in languages:
+            mapadder(mapper, i, codec_type)
 
 def keep_undefined(mapper, streams):
     audio_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio"]
@@ -234,12 +233,12 @@ def keep_undefined(mapper, streams):
 def stream_iterator(mapper, stream_list, streams, codec):
     for i in range(0, len(stream_list)):
         try:
-            lang = streams[stream_list[i]]["tags"]["language"]
+            lang = streams[stream_list[i]]["tags"]["language"].lower().strip()
         except KeyError:
-            mapadder(mapper, stream_list[i], codec)
+            mapadder(mapper, i, codec)
         else:
             if lang == 'und':
-                mapadder(mapper, stream_list[i], codec)
+                mapadder(mapper, i, codec)
 
 def mapadder(mapper, stream, codec):
     mapper.stream_mapping += ['-map', '0:{}:{}'.format(codec, stream)]
