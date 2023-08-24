@@ -1,5 +1,9 @@
 
 **<span style="color:#56adda">0.0.15</span>**
+- fix duplicate stream copying in keep undefined
+- modify keep_languages to use exact streams instead of language metadata based stream copying
+
+**<span style="color:#56adda">0.0.15</span>**
 - fix bug in keep_undefined by refactoring & properly identify specific audio/subtitle stream being mapped and copied
 
 **<span style="color:#56adda">0.0.14</span>**

@@ -214,13 +214,16 @@ def on_library_management_file_test(data):
 
     return data
 
-def keep_languages(mapper, codec_type, language_list):
+def keep_languages(mapper, ct, language_list, streams, keep_undefined):
+    codec_type = ct[0]
     languages = list(filter(None, language_list.split(',')))
-    for language in languages:
+    languages = [languages[i].strip() for i in range(0,len(languages))]
+    streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == ct]
+    for i, language in enumerate(streams_list):
         language = language.strip()
-        if language and language.lower() :
-            mapper.stream_encoding += ['-c:{}'.format(codec_type), 'copy']
-            mapper.stream_mapping += ['-map', '0:{}:m:language:{}?'.format(codec_type, language)]
+        if language and language.lower() and not (keep_undefined and language.lower() == "und") and language.lower() in languages:
+            mapper.stream_encoding += ['-c:{}:{}'.format(codec_type, i), 'copy']
+            mapper.stream_mapping += ['-map', '0:{}:{}'.format(codec_type, i)]
 
 def keep_undefined(mapper, streams):
     audio_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio"]
@@ -231,9 +234,12 @@ def keep_undefined(mapper, streams):
 def stream_iterator(mapper, stream_list, streams, codec):
     for i in range(0, len(stream_list)):
         try:
-            lang = streams[i]["tags"]["language"]
+            lang = streams[stream_list[i]]["tags"]["language"]
         except KeyError:
-            mapadder(mapper, i, codec)
+            mapadder(mapper, stream_list[i], codec)
+        else:
+            if lang == 'und':
+                mapadder(mapper, stream_list[i], codec)
 
 def mapadder(mapper, stream, codec):
     mapper.stream_mapping += ['-map', '0:{}:{}'.format(codec, stream)]
@@ -291,12 +297,13 @@ def on_worker_process(data):
             # Set the output file
             mapper.set_output_file(data.get('file_out'))
 
-            # clear stream mappings, copy everything
+            # clear stream mappings, copy all video
             mapper.stream_mapping = ['-map', '0:v']
             mapper.stream_encoding = ['-c:v', 'copy']
+
             # keep specific language streams if present
-            keep_languages(mapper, 'a', settings.get_setting('audio_languages'))
-            keep_languages(mapper, 's', settings.get_setting('subtitle_languages'))
+            keep_languages(mapper, 'audio', settings.get_setting('audio_languages'), probe_streams, keep_undefined_lang_tags)
+            keep_languages(mapper, 'subtitle', settings.get_setting('subtitle_languages'), probe_streams, keep_undefined_lang_tags)
 
             # keep undefined language streams if present
             if keep_undefined_lang_tags:
