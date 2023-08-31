@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.6</span>**
+- add option to set default audio to new stereo audio channel
+
 **<span style="color:#56adda">0.0.5</span>**
 - add option to remove multichannel audio stream
 
