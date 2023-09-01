@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.9</span>**
+- unspecified stream parameters now can only be channels and codec, language must be specified
+
 **<span style="color:#56adda">0.0.8</span>**
 - add fix to ignore commentary streams
 

@@ -82,12 +82,12 @@ def stream_to_stereo_encode(stream_language, channels, codec_name, probe_streams
         if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == "audio":
             logger.debug("i '{}', probe_streams[i][codec_type]: '{}', probe_streams[i][channels]: '{}', probe_streams[i][tags][language]: '{}', probe_streams[i][codec_name]: '{}'".format(i, probe_streams[i]["codec_type"], probe_streams[i]["channels"], probe_streams[i]["tags"]["language"], probe_streams[i]["codec_name"]))
             audio_stream += 1
-            if stream_language == '' or channels == '' or codec_name == '':
+            if channels == '' or codec_name == '':
                 if  int(probe_streams[i]["channels"]) > 4:
                     stream = audio_stream
                     break
             else:
-                if str(probe_streams[i]["channels"]) == channels and probe_streams[i]["tags"]["language"] == stream_language and probe_streams[i]["codec_name"] == codec_name:
+                if str(probe_streams[i]["channels"]) == channels and ("language" in probe_streams[i]["tags"] and probe_streams[i]["tags"]["language"] == stream_language) and probe_streams[i]["codec_name"] == codec_name:
                     stream = audio_stream
                     break
     logger.debug("stream: '{}'".format(stream))
