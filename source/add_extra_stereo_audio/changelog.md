@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.8</span>**
+- add fix to ignore commentary streams
+
 **<span style="color:#56adda">0.0.7</span>**
 - add fix to avoid KeyError when language tag doesn't exist
 
