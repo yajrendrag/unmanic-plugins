@@ -27,12 +27,12 @@ from unmanic.libs.unplugins.settings import PluginSettings
 from reorder_audio_streams_by_language2.lib.ffmpeg import StreamMapper, Probe, Parser
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.reorder_audio_streams_by_language")
+logger = logging.getLogger("Unmanic.Plugin.reorder_audio_streams_by_language2")
 
 
 class Settings(PluginSettings):
     settings = {
-        "Search String": "en",
+        "Search String": "eng",
     }
 
     def __init__(self, *args, **kwargs):
@@ -98,14 +98,14 @@ class PluginStreamMapper(StreamMapper):
 
         if codec_type == self.stream_type:
             # Process streams of interest
-            self.found_search_string_streams = True
             if self.test_tags_for_search_string(stream_info.get('tags')):
-                disposition = '0'
+                self.found_search_string_streams = True
                 if len(self.search_string_stream_mapping) == 0:
-                    disposition = 'default'
-                self.search_string_stream_mapping += ['-map', '0:{}:{}'.format(ident.get(codec_type), stream_id), '-disposition:{}:{}'.format(ident.get(codec_type), stream_id), disposition]
+                    self.search_string_stream_mapping += ['-map', '0:{}:{}'.format(ident.get(codec_type), stream_id), '-disposition:{}:{}'.format(ident.get(codec_type), 0), 'default']
+                else:
+                    self.search_string_stream_mapping += ['-map', '0:{}:{}'.format(ident.get(codec_type), stream_id)]
             else:
-                self.unmatched_stream_mapping += ['-map', '0:{}:{}'.format(ident.get(codec_type), stream_id), '-disposition:{}:{}'.format(ident.get(codec_type), stream_id), '0']
+                self.unmatched_stream_mapping += ['-map', '0:{}:{}'.format(ident.get(codec_type), stream_id)]
         else:
             # Process streams not of interest
             if not self.found_search_string_streams:
@@ -143,7 +143,7 @@ class PluginStreamMapper(StreamMapper):
         return result
 
     def order_stream_mapping(self):
-        args = ['-c', 'copy']
+        args = ['-c', 'copy', '-disposition:a', '-default']
         args += self.first_stream_mapping
         args += self.search_string_stream_mapping
         args += self.unmatched_stream_mapping
@@ -247,6 +247,7 @@ def on_worker_process(data):
 
         # Get generated ffmpeg args
         ffmpeg_args = mapper.get_ffmpeg_args()
+        logger.debug("ffmpeg_args: '{}'".format(ffmpeg_args))
 
         # Apply ffmpeg args to command
         data['exec_command'] = ['ffmpeg']
