@@ -1,5 +1,8 @@
 
-**<span style="color:#56adda">1.1.8</span>**
+**<span style="color:#56adda">1.1.10</span>**
+- 2nd fix stream order test comparing new order with original order
+
+**<span style="color:#56adda">1.1.9</span>**
 - fix stream order test comparing new order with original order
 
 **<span style="color:#56adda">1.1.8</span>**
