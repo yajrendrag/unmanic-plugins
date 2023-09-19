@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.3</span>**
+- fix total audio streams count
+
 **<span style="color:#56adda">0.0.2</span>**
 - added test to select only truehd or eac3 multichannel streams to encode
 
