@@ -48,7 +48,7 @@ class Settings(PluginSettings):
 
 def stream_to_ac3_encode(probe_streams):
     try:
-        streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio']
+        streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and streams[i]["codec_name"] in ["truehd", "eac3"]]
         # below returns the audio stream with the maximum number of audio channels > 5, it's audio stream #, and absolute stream # as a tuple, and final index selects key number 1 from the tuple (audio stream #)
         audio_stream_to_encode = max([(probe_streams[streams_list[i]]["channels"], i, ind) for i,ind in enumerate(streams_list) if probe_streams[streams_list[i]]["channels"] >= 6], key = itemgetter(0))[1]
         absolute_stream_num = max([(probe_streams[streams_list[i]]["channels"], i, ind) for i,ind in enumerate(streams_list) if probe_streams[streams_list[i]]["channels"] >= 6], key = itemgetter(0))[2]
