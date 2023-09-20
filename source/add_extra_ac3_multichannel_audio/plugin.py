@@ -95,9 +95,9 @@ def on_library_management_file_test(data):
     # Check if configured to skip files with resolution less than 4k, skip file if so
     if settings.get_setting('skip_files_less_than_4k_resolution'):
         for stream in range(0, len(probe_streams)):
-            if probe_streams(stream)["codec_type"] == "video":
-                width = probe_streams(stream)["width"]
-                height = probe_streams(stream)["height"]
+            if probe_streams[stream]["codec_type"] == "video":
+                width = probe_streams[stream]["width"]
+                height = probe_streams[stream]["height"]
                 if int(width) < 3840 or int(height) < 2160:
                     logger.info("resolution is less than 4k, skipping file per configured instruction - width x height: '{}'x'{}'".format(width, height))
                     return data

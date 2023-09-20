@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.4</span>**
+- fix probe_streams reference
+
 **<span style="color:#56adda">0.0.3</span>**
 - fix total audio streams count
 
