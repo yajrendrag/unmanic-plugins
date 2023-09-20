@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- fix non-existent streams reference - change to probe_streams
+
 **<span style="color:#56adda">0.0.4</span>**
 - fix probe_streams reference
 
