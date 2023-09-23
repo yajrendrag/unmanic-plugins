@@ -67,7 +67,7 @@ def stream_to_ac3_encode(probe_streams):
 #    else:
 #        logger.info("Error finding audio stream to encode", skipping file '{}'".format(abspath))
 #        return 0,0,0
-    return audio_stream_to_encode, new_audio_stream, absolute_stream_num"
+    return audio_stream_to_encode, new_audio_stream, absolute_stream_num
 
 def on_library_management_file_test(data):
     """

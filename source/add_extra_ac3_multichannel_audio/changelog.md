@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.8</span>**
+- delete stray character
+
 **<span style="color:#56adda">0.0.7</span>**
 - fixed test for finding existing ac3 stream
 - commented them all out for now as if there is no ac3 stream and also no language tag, it still may find nothing..
