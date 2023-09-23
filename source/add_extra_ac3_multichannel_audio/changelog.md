@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.7</span>**
+- fixed test for finding existing ac3 stream
+- commented them all out for now as if there is no ac3 stream and also no language tag, it still may find nothing..
+
 **<span style="color:#56adda">0.0.6</span>**
 - add test to see if a 6 channel ac3 stream already exists with language matching that of selected TrueHD, eac3, or DTS audio - if so skip file
 - add correct stream title metadata for added ac3 audio stream

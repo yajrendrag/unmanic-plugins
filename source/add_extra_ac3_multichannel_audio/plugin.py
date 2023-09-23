@@ -56,13 +56,18 @@ def stream_to_ac3_encode(probe_streams):
     except:
         logger.error("Error finding audio stream to encode")
         return 0, 0, 0
-    existing_ac3_stream = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == 'ac3' and probe_streams[i]["channels"] == 6]
-    ac3_stream_exists_already = [existing_ac3_stream[i] for i in range(0, len(existing_ac3_stream)) if "tags" in probe_streams[existing_ac3_stream[i]] and "language" in probe_streams[existing_ac3_stream[i]]["tags"] and probe_streams[existing_ac3_stream[i]]["tags"]["language"] in probe_streams[absolute_stream_num]["tags"]["language"]]
-    if ac3_stream_exists_already == []:
-        return audio_stream_to_encode, new_audio_stream, absolute_stream_num"
-    else:
-        logger.info("6 channel ac3 stream with matching language already exists, skipping file '{}'".format(abspath))
-        return 0,0,0
+#    existing_ac3_stream = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == 'ac3' and probe_streams[i]["channels"] == 6]
+#    ac3_stream_exists_already = [existing_ac3_stream[i] for i in range(0, len(existing_ac3_stream)) if "tags" in probe_streams[existing_ac3_stream[i]] and "language" in probe_streams[existing_ac3_stream[i]]["tags"] and probe_streams[existing_ac3_stream[i]]["tags"]["language"] in probe_streams[absolute_stream_num]["tags"]["language"]]
+#    if ac3_stream_exists_already != []:
+#        logger.info("6 channel ac3 stream with matching language already exists, skipping file '{}'".format(abspath))
+#        return 0,0,0
+#    elif ac3_stream_exists_already == []:
+#        logger.info("no ac3 stream exists, encoding audio stream '{}' from file '{}' as ac3".format(audio_stream_to_encode,abspath))
+#        return audio_stream_to_encode, new_audio_stream, absolute_stream_num"
+#    else:
+#        logger.info("Error finding audio stream to encode", skipping file '{}'".format(abspath))
+#        return 0,0,0
+    return audio_stream_to_encode, new_audio_stream, absolute_stream_num"
 
 def on_library_management_file_test(data):
     """
