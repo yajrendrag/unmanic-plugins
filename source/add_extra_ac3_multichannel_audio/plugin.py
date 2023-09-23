@@ -56,7 +56,13 @@ def stream_to_ac3_encode(probe_streams):
     except:
         logger.error("Error finding audio stream to encode")
         return 0, 0, 0
-    return audio_stream_to_encode, new_audio_stream, absolute_stream_num
+    existing_ac3_stream = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == 'ac3' and probe_streams[i]["channels"] == 6]
+    ac3_stream_exists_already = [existing_ac3_stream[i] for i in range(0, len(existing_ac3_stream)) if "tags" in probe_streams[existing_ac3_stream[i]] and "language" in probe_streams[existing_ac3_stream[i]]["tags"] and probe_streams[existing_ac3_stream[i]]["tags"]["language"] in probe_streams[absolute_stream_num]["tags"]["language"]]
+    if ac3_stream_exists_already == []:
+        return audio_stream_to_encode, new_audio_stream, absolute_stream_num"
+    else:
+        logger.info("6 channel ac3 stream with matching language already exists, skipping file '{}'".format(abspath))
+        return 0,0,0
 
 def on_library_management_file_test(data):
     """
@@ -158,7 +164,7 @@ def on_worker_process(data):
     channels = '6'
     if new_audio_stream:
         # Get generated ffmpeg args
-        ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0', '-c', 'copy']
+        ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-strict', '-2', '-map', '0', '-c', 'copy']
         if "bit_rate" in probe_streams[absolute_stream_num]:
             bitrate = int(probe_streams[absolute_stream_num]["bit_rate"])
             if bitrate > 640000:
@@ -167,7 +173,12 @@ def on_worker_process(data):
                 bit_rate = str(int(int(bitrate)/1000)) + 'k'
         else:
             bit_rate = '640k'
-        ffmpeg_args += ['-map', '0:a:'+str(stream_to_encode), '-c:a:'+str(new_audio_stream), encoder, '-ac', channels, '-b:a:'+str(new_audio_stream), bit_rate, '-y', str(outpath)]
+
+        sfx = os.path.splitext(abspath)[1]
+        if sfx == '.mkv':
+            ffmpeg_args += ['-map', '0:a:'+str(stream_to_encode), '-c:a:'+str(new_audio_stream), encoder, '-ac', channels, '-b:a:'+str(new_audio_stream), bit_rate, '-metadata:s:a:'+str(new_audio_stream), 'title="ac3 5.1 surround"', '-y', str(outpath)]
+        else:
+            ffmpeg_args += ['-map', '0:a:'+str(stream_to_encode), '-c:a:'+str(new_audio_stream), encoder, '-ac', channels, '-b:a:'+str(new_audio_stream), bit_rate, '-metadata:s:a:'+str(new_audio_stream), 'title="ac3 5.1 surround"', '-dn', '-map_metadata:c', '-1', '-y', str(outpath)]
 
         logger.debug("ffmpeg args: '{}'".format(ffmpeg_args))
 
