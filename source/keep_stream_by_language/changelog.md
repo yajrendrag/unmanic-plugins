@@ -1,5 +1,8 @@
 
-**<span style="color:#56adda">0.0.15</span>**
+**<span style="color:#56adda">0.0.17</span>**
+- add code to match all streams; enter * in plugin config language field(s) to keep all streams of desired type
+
+**<span style="color:#56adda">0.0.16</span>**
 - fix duplicate stream copying in keep undefined
 - modify keep_languages to use exact streams instead of language metadata based stream copying
 

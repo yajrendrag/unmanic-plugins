@@ -81,7 +81,8 @@ class PluginStreamMapper(StreamMapper):
         subtitle_streams_list.sort()
         logger.debug("audio config list: '{}', audio streams in file: '{}'".format(alcl, audio_streams_list))
         logger.debug("subtitle config list: '{}', subtitle streams in file: '{}'".format(slcl, subtitle_streams_list))
-        if alcl == audio_streams_list and slcl == subtitle_streams_list:
+        if (alcl == audio_streams_list or alcl == ['*'])  and (slcl == subtitle_streams_list or slcl == ['*']):
+        #if alcl == audio_streams_list and slcl == subtitle_streams_list:
             return True
         else:
             return False
@@ -98,7 +99,8 @@ class PluginStreamMapper(StreamMapper):
             languages = list(filter(None, language_list.split(',')))
             for language in languages:
                 language = language.strip()
-                if language and language.lower() in stream_tags.get('language', '').lower():
+                if language and (language.lower() in stream_tags.get('language', '').lower() or language.lower() == '*'):
+                #if language and language.lower() in stream_tags.get('language', '').lower():
                     # Found a matching language. Process this stream to keep it
                     return True
         elif keep_undefined:
@@ -221,7 +223,8 @@ def keep_languages(mapper, ct, language_list, streams, keep_undefined):
     streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == ct]
     for i, language in enumerate(streams_list):
         language = language.lower().strip()
-        if language and not (keep_undefined and language == "und") and language in languages:
+        if language  and not (keep_undefined and language == "und") and (language in languages or languages == ['*']):
+        #if language and not (keep_undefined and language == "und") and language in languages:
             mapadder(mapper, i, codec_type)
 
 def keep_undefined(mapper, streams):
