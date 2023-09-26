@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.10</span>**
+- fix stream to encode to guard against streams with no audio language tags
+
 **<span style="color:#56adda">0.0.9</span>**
 - unspecified stream parameters now can only be channels and codec, language must be specified
 
