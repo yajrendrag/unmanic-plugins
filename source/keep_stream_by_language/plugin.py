@@ -253,7 +253,7 @@ def stream_iterator(mapper, stream_list, streams, codec):
 
 def mapadder(mapper, stream, codec):
     mapper.stream_mapping += ['-map', '0:{}:{}'.format(codec, stream)]
-    mapper.stream_encoding += ['-c:{}:{}'.format(codec, stream), 'copy']
+    #mapper.stream_encoding += ['-c:{}:{}'.format(codec, stream), 'copy']
 
 def on_worker_process(data):
     """
@@ -309,7 +309,7 @@ def on_worker_process(data):
 
             # clear stream mappings, copy all video
             mapper.stream_mapping = ['-map', '0:v']
-            mapper.stream_encoding = ['-c:v', 'copy']
+            #mapper.stream_encoding = ['-c:v', 'copy']
 
             # keep specific language streams if present
             keep_languages(mapper, 'audio', settings.get_setting('audio_languages'), probe_streams, keep_undefined_lang_tags)
@@ -320,7 +320,17 @@ def on_worker_process(data):
                 keep_undefined(mapper, probe_streams)
 
             # Get generated ffmpeg args
+            mapper.stream_encoding += ['-c', 'copy']
             ffmpeg_args = mapper.get_ffmpeg_args()
+
+            # override video stream encoding - finds adjacent elements of ('-c:v:0', 'copy') and deletes them from the ffmpeg_args since we added global copy above
+            adjacent_arg_elements = [(ffmpeg_args[i-1] if i > 0 else None, ffmpeg_args[i] if i < len(ffmpeg_args)-1 else None) for i in range(0, len(ffmpeg_args))]
+            items_to_delete = 0
+            for i in range(len(adjacent_arg_elements)):
+                if adjacent_arg_elements[i] == ('-c:v:0', 'copy'):
+                    items_to_delete = i-1
+                    break
+            if items_to_delete > 0: del ffmpeg_args[items_to_delete:items_to_delete + 2]
             logger.debug("ffmpeg_args: '{}'".format(ffmpeg_args))
 
             # Apply ffmpeg args to command

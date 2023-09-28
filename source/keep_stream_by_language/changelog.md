@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.20</span>**
+- change copy streams to copying per stream to a single '-c copy' argument to ffmpeg
+- this allows pgs subtitle streams to be copied - copying by stream for pgs subs seems to not work
+
 **<span style="color:#56adda">0.0.19</span>**
 - fix keep_languages function to test for non-existent language tags
 - change keep_undefined to only include streams without tags or without language tags 
