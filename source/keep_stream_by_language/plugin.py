@@ -112,9 +112,9 @@ class PluginStreamMapper(StreamMapper):
                     # Found a matching language. Process this stream to keep it
                     return True
         elif keep_undefined:
-            return True
             logger.warning(
                 "Stream '{}' in file '{}' has no language tag, but keep_undefined is checked. add to queue".format(stream_id, self.input_file))
+            return True
 
         else:
             logger.warning(
