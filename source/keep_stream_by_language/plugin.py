@@ -75,9 +75,17 @@ class PluginStreamMapper(StreamMapper):
         slcl = [slcl[i].strip() for i in range(0,len(slcl))]
         slcl.sort()
         if slcl == ['']: slcl = []
-        audio_streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio"]
+        try:
+            audio_streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio"]
+        except KeyError:
+            logger.info("no audio tags in file")
+            return False
         audio_streams_list.sort()
-        subtitle_streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "subtitle"]
+        try:
+            subtitle_streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "subtitle"]
+        except KeyError:
+            logger.info("no subtitle tags in file")
+            return False
         subtitle_streams_list.sort()
         logger.debug("audio config list: '{}', audio streams in file: '{}'".format(alcl, audio_streams_list))
         logger.debug("subtitle config list: '{}', subtitle streams in file: '{}'".format(slcl, subtitle_streams_list))

@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.18</span>**
+- fix same_streams function to test for non-existent language tags
+
 **<span style="color:#56adda">0.0.17</span>**
 - add code to match all streams; enter * in plugin config language field(s) to keep all streams of desired type
 
