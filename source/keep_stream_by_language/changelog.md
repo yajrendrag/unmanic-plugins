@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.19</span>**
+- fix keep_languages function to test for non-existent language tags
+- change keep_undefined to only include streams without tags or without language tags 
+
 **<span style="color:#56adda">0.0.18</span>**
 - fix same_streams function to test for non-existent language tags
 

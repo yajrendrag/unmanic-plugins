@@ -228,7 +228,7 @@ def keep_languages(mapper, ct, language_list, streams, keep_undefined):
     codec_type = ct[0]
     languages = list(filter(None, language_list.split(',')))
     languages = [languages[i].lower().strip() for i in range(0,len(languages))]
-    streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == ct]
+    streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == ct and "tags" in streams[i] and "language" in streams[i]["tags"]]
     for i, language in enumerate(streams_list):
         language = language.lower().strip()
         if language  and not (keep_undefined and language == "und") and (language in languages or languages == ['*']):
@@ -236,8 +236,8 @@ def keep_languages(mapper, ct, language_list, streams, keep_undefined):
             mapadder(mapper, i, codec_type)
 
 def keep_undefined(mapper, streams):
-    audio_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio"]
-    subtitle_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "subtitle"]
+    audio_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio" and ("tags" not in streams[i] or ("tags" in streams[i] and "language" not in streams[i]["tags"]))]
+    subtitle_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "subtitle" and ("tags" not in streams[i] or ("tags" in streams[i] and "language" not in streams[i]["tags"]))]
     stream_iterator(mapper, subtitle_streams_list, streams, 's')
     stream_iterator(mapper, audio_streams_list, streams, 'a')
 
