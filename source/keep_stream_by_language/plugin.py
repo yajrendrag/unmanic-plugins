@@ -236,7 +236,7 @@ def keep_languages(mapper, ct, language_list, streams, keep_undefined, keep_comm
                     ( codec_type == 's' or (keep_commentary == True or ("codec_type" in streams[i] and streams[i]["codec_type"] == ct and "tags" in streams[i] and "title" in streams[i]["tags"] and "commentary" not in streams[i]["tags"]["title"].lower())))]
     for i, language in enumerate(streams_list):
         language = language.lower().strip()
-        if language  and not (keep_undefined and language == "und") and (language in languages or languages == ['*']:
+        if language  and not (keep_undefined and language == "und") and (language in languages or languages == ['*']):
         #if language and not (keep_undefined and language == "und") and language in languages:
             mapadder(mapper, i, codec_type)
 

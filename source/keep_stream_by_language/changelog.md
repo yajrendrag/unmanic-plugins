@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.22</span>**
+- fix missing character in keep_languages causing error upon loading plugin
+
 **<span style="color:#56adda">0.0.21</span>**
 - add option to remove commentary audio streams identified by "commentary" (or "Commentary") in audio title tag
 
