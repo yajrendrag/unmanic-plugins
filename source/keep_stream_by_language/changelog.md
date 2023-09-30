@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.21</span>**
+- add option to remove commentary audio streams identified by "commentary" (or "Commentary") in audio title tag
+
 **<span style="color:#56adda">0.0.20</span>**
 - change copy streams to copying per stream to a single '-c copy' argument to ffmpeg
 - this allows pgs subtitle streams to be copied - copying by stream for pgs subs seems to not work

@@ -5,6 +5,7 @@ Any video files with audio/subtitle streams having tags that match these languag
 
 Three letter language codes should be used where applicable.
 
+additional options are to keep an streams with missing or undefined language tags and keep or discard commentary streams irrespective of any language tags it may have.
 ---
 
 #### Examples:

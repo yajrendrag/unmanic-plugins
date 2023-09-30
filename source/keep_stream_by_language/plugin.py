@@ -39,6 +39,7 @@ class Settings(PluginSettings):
         "audio_languages":       '',
         "subtitle_languages":    '',
         "keep_undefined":        True,
+        "keep_commentary":       False,
     }
 
 
@@ -53,6 +54,9 @@ class Settings(PluginSettings):
             },
             "keep_undefined":	{
                 "label": "check to keep streams with no language tags or streams with undefined/uknown language tags",
+            },
+            "keep_commentary":   {
+                "label": "uncheck to discard commentary audio streams regardless of any language tags",
             }
         }
 
@@ -224,19 +228,24 @@ def on_library_management_file_test(data):
 
     return data
 
-def keep_languages(mapper, ct, language_list, streams, keep_undefined):
-    codec_type = ct[0]
+def keep_languages(mapper, ct, language_list, streams, keep_undefined, keep_commentary):
+    codec_type = ct[0].lower()
     languages = list(filter(None, language_list.split(',')))
     languages = [languages[i].lower().strip() for i in range(0,len(languages))]
-    streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == ct and "tags" in streams[i] and "language" in streams[i]["tags"]]
+    streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == ct and "tags" in streams[i] and "language" in streams[i]["tags"] and
+                    ( codec_type == 's' or (keep_commentary == True or ("codec_type" in streams[i] and streams[i]["codec_type"] == ct and "tags" in streams[i] and "title" in streams[i]["tags"] and "commentary" not in streams[i]["tags"]["title"].lower())))]
     for i, language in enumerate(streams_list):
         language = language.lower().strip()
-        if language  and not (keep_undefined and language == "und") and (language in languages or languages == ['*']):
+        if language  and not (keep_undefined and language == "und") and (language in languages or languages == ['*']:
         #if language and not (keep_undefined and language == "und") and language in languages:
             mapadder(mapper, i, codec_type)
 
-def keep_undefined(mapper, streams):
-    audio_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio" and ("tags" not in streams[i] or ("tags" in streams[i] and "language" not in streams[i]["tags"]))]
+def keep_undefined(mapper, streams, keep_commentary):
+    if keep_commentary:
+        audio_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio" and ("tags" not in streams[i] or ("tags" in streams[i] and "language" not in streams[i]["tags"]))]
+    else:
+        audio_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio" and ("tags" not in streams[i] or ("tags" in streams[i] and "language" not in streams[i]["tags"])) and
+                              ("tags" in streams[i] and "title" in streams[i]["tags"] and "commentary" not in streams[i]["tags"]["title"].lower())]
     subtitle_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "subtitle" and ("tags" not in streams[i] or ("tags" in streams[i] and "language" not in streams[i]["tags"]))]
     stream_iterator(mapper, subtitle_streams_list, streams, 's')
     stream_iterator(mapper, audio_streams_list, streams, 'a')
@@ -293,6 +302,7 @@ def on_worker_process(data):
         settings = Settings()
 
     keep_undefined_lang_tags = settings.get_setting('keep_undefined')
+    keep_commentary = settings.get_setting('keep_commentary')
 
     if not file_streams_already_kept(settings, data.get('file_in')):
         # Get stream mapper
@@ -312,12 +322,12 @@ def on_worker_process(data):
             #mapper.stream_encoding = ['-c:v', 'copy']
 
             # keep specific language streams if present
-            keep_languages(mapper, 'audio', settings.get_setting('audio_languages'), probe_streams, keep_undefined_lang_tags)
-            keep_languages(mapper, 'subtitle', settings.get_setting('subtitle_languages'), probe_streams, keep_undefined_lang_tags)
+            keep_languages(mapper, 'audio', settings.get_setting('audio_languages'), probe_streams, keep_undefined_lang_tags, keep_commentary)
+            keep_languages(mapper, 'subtitle', settings.get_setting('subtitle_languages'), probe_streams, keep_undefined_lang_tags, keep_commentary)
 
             # keep undefined language streams if present
             if keep_undefined_lang_tags:
-                keep_undefined(mapper, probe_streams)
+                keep_undefined(mapper, probe_streams, keep_commentary)
 
             # Get generated ffmpeg args
             mapper.stream_encoding += ['-c', 'copy']
