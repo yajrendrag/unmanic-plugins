@@ -29,8 +29,7 @@ from unmanic.libs.unplugins.settings import PluginSettings
 from convert_multichan_audio_to_2ch.lib.ffmpeg import Probe, Parser
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.add_extra_stereo_audio")
-
+logger = logging.getLogger("Unmanic.Plugin.convert_multichan_audio_to_2ch")
 
 class Settings(PluginSettings):
     settings = {
