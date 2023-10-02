@@ -53,7 +53,7 @@ class Settings(PluginSettings):
                 "label": "Enter comma delimited list of subtitle languages to keep",
             },
             "keep_undefined":	{
-                "label": "check to keep streams with no language tags or streams with undefined/uknown language tags",
+                "label": "check to keep streams with no language tags or streams with undefined/unknown language tags",
             },
             "keep_commentary":   {
                 "label": "uncheck to discard commentary audio streams regardless of any language tags",
@@ -233,7 +233,8 @@ def keep_languages(mapper, ct, language_list, streams, keep_undefined, keep_comm
     languages = list(filter(None, language_list.split(',')))
     languages = [languages[i].lower().strip() for i in range(0,len(languages))]
     streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == ct and "tags" in streams[i] and "language" in streams[i]["tags"] and
-                    ( codec_type == 's' or (keep_commentary == True or ("codec_type" in streams[i] and streams[i]["codec_type"] == ct and "tags" in streams[i] and "title" in streams[i]["tags"] and "commentary" not in streams[i]["tags"]["title"].lower())))]
+                    (codec_type == 's' or keep_commentary == True or (keep_commentary == False and ("codec_type" in streams[i] and streams[i]["codec_type"] == ct and "tags" in streams[i] and ("title" in streams[i]["tags"] and
+                     "commentary" not in streams[i]["tags"]["title"].lower() or "title" not in streams[i]["tags"]))))]
     for i, language in enumerate(streams_list):
         language = language.lower().strip()
         if language  and not (keep_undefined and language == "und") and (language in languages or languages == ['*']):

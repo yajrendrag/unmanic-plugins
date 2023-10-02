@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.23</span>**
+- fix keep_langues streams_list list generator from falsely removing languages when no title tag exists
+
 **<span style="color:#56adda">0.0.22</span>**
 - fix missing character in keep_languages causing error upon loading plugin
 
