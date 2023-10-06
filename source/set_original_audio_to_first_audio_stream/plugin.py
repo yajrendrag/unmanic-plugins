@@ -205,12 +205,19 @@ def on_library_management_file_test(data):
 
     basename = os.path.basename(abspath)
     original_language = get_original_language(basename, streams, data)
-    if original_language == "":
+    astreams = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "tags" in streams[i] and "language" in streams[i]["tags"]]
+    if original_language[0] == "":
+        logger.error("Task not added to queue - original language not identified for file: '{}'".format(abspath))
         data['add_file_to_pending_tasks'] = False
         return data
     else:
-        data['add_file_to_pending_tasks'] = True
-
+        if original_language[0] in astreams:
+            logger.info("File '{}' added to task queue - original language identified and is in file.".format(abspath))
+            data['add_file_to_pending_tasks'] = True
+        else:
+            logger.error("Task not added to queue - original language not in audio streams of file '{}'".format(abspath))
+            data['add_file_to_pending_tasks'] = False
+            return data
     return data
 
 
