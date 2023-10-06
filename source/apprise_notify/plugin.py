@@ -18,6 +18,10 @@
         You should have received a copy of the GNU General Public License along with this program.
         If not, see <https://www.gnu.org/licenses/>.
 
+        This program uses the Apprise Project (<https://github.com/caronc/apprise/>) which is governed by it's own
+        license terms using BSD 3-Clause "New" or "Revised" License.  The text of this license has accompanied this
+        program.  If for some reason you do not have it, please refer to <https://github.com/caronc/apprise/blob/master/LICENSE/>.
+
 """
 import logging
 import apprise
