@@ -51,7 +51,7 @@ def on_postprocessor_task_results(data):
 
     :param data:
     :return:
-    
+
     """
     # Configure settings object (maintain compatibility with v1 plugins)
     if data.get('library_id'):
@@ -60,6 +60,10 @@ def on_postprocessor_task_results(data):
         settings = Settings()
 
     status = data.get('task_processing_success')
+    if status:
+        task_status = "successfully processed"
+    else:
+        task_status = "failed to process"
     apprise_config_path = str(settings.get_setting('apprise_config_path'))
     source = data.get('source_data')["basename"]
     notify = apprise.Apprise()
@@ -72,7 +76,7 @@ def on_postprocessor_task_results(data):
     if not result:
         logger.error("Error adding configuration data to apprise notification object")
         return data
-    result = notify.notify(body='Unmanic processing of file: ' + str(source) + ': ' + str(status), title = 'Unmanic Task Update')
+    result = notify.notify(body='Unmanic ' + str(task_status) + str('\n') + str(source), title = 'Unmanic Task Status')
     if not result:
         logger.error("Error sending apprise notification")
     return data
