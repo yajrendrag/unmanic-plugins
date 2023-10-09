@@ -1,1 +1,1 @@
-parse-torrent-name
+parse-torrent-title
