@@ -149,11 +149,15 @@ def get_original_language(video_file, streams, data):
 
     matched_result = 0
     count = 0
+    if library_type == "Movies":
+        title_field = "title"
+    else:
+        title_field = "original_name"
     if len(video.json()["results"]) > 1:
         logger.info("More than one result was found - trying to narrow to one by exact match on title")
         for i in range(len(video.json()["results"])):
-            if "original_name" in video.json()["results"][i]: logger.debug("i: '{}', video.json()[results][i][original_name]: '{}', title: '{}'".format(i, video.json()["results"][i]["original_name"], title)) 
-            if "original_name" in video.json()["results"][i] and video.json()["results"][i]["original_name"] == title:
+            if title_field in video.json()["results"][i]: logger.debug("i: '{}', video.json()[results][i]'{}': '{}', title: '{}'".format(i, title_field, video.json()["results"][i][title_field], title)) 
+            if title_field in video.json()["results"][i] and video.json()["results"][i][title_field] == title:
                 count += 1
                 matched_result = i
         if count != 1:
@@ -164,7 +168,7 @@ def get_original_language(video_file, streams, data):
         original_language = [lang_codes[i][1] for i in range(len(lang_codes)) if video.json()["results"][matched_result]["original_language"] == lang_codes[i][0]]
         logger.debug("original_language: '{}'".format(original_language))
         for i in range(len(original_language)):
-            if '/' in original_language[i]: original_language[i] = original_language.split(' / ')[0]
+            if '/' in original_language[i]: original_language[i] = original_language[0].split(' / ')[0]
     except:
         logger.error("Error matching original language - Aborting.")
         return []
@@ -215,14 +219,14 @@ def on_library_management_file_test(data):
         logger.error("Task not added to queue - original language not identified for file: '{}'".format(abspath))
         data['add_file_to_pending_tasks'] = False
         return data
-    else:
+    elif original_language != []:
         if (original_language[0] in astreams) or (original_language[0] not in astreams and reorder_additional_audio_streams):
             logger.info("File '{}' added to task queue - original language identified and is in file or reordering additional streams.".format(abspath))
             data['add_file_to_pending_tasks'] = True
-        else:
-            logger.error("Task not added to queue - original language not in audio streams of file '{}' or not reordering additional streams".format(abspath))
-            data['add_file_to_pending_tasks'] = False
-            return data
+    else:
+        logger.error("Task not added to queue - original language not in audio streams of file '{}' or not reordering additional streams".format(abspath))
+        data['add_file_to_pending_tasks'] = False
+        return data
     return data
 
 
