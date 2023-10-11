@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.6</span>**
+- add a translation code for 2 letter language 'cn' to same as that for 'zh'
+
 **<span style="color:#56adda">0.0.5</span>**
 - make original_language list compatible with multiple original languages when 2 letter code translates to different b & t 3 letter codes
 
