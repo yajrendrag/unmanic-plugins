@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- make original_language list compatible with multiple original languages when 2 letter code translates to different b & t 3 letter codes
+
 **<span style="color:#56adda">0.0.4</span>**
 - add title field variable as tmdb movie title elment an tv title element have different field names
 - fix iso-639.2 b & t code parser

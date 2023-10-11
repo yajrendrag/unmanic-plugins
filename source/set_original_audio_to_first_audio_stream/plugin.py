@@ -168,13 +168,17 @@ def get_original_language(video_file, streams, data):
         original_language = [lang_codes[i][1] for i in range(len(lang_codes)) if video.json()["results"][matched_result]["original_language"] == lang_codes[i][0]]
         logger.debug("original_language: '{}'".format(original_language))
         for i in range(len(original_language)):
-            if '/' in original_language[i]: original_language[i] = original_language[0].split(' / ')[0]
+            # if '/' in original_language[i]: original_language[i] = original_language[0].split(' / ')[0]
+            if '/' in original_language[i]:
+                original_language.append(original_language[0].split(' / ')[1].replace("*",""))
+                original_language[i] = original_language[i].split(' / ')[0]
+        logger.debug("original_language: '{}'".format(original_language))
     except:
         logger.error("Error matching original language - Aborting.")
         return []
     else:
         astreams = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "tags" in streams[i] and "language" in streams[i]["tags"]]
-        original_audio_position = [i for i in range(len(astreams)) if astreams[i] == original_language[0]]
+        original_audio_position = [i for i in range(len(astreams)) if astreams[i] in original_language]
         if len(original_audio_position) > 1:
             logger.info("Video file '{}' contains '{}' original language streams in '{}'".format(video_file, len(original_audio_position), original_language))
 
@@ -215,12 +219,14 @@ def on_library_management_file_test(data):
     basename = os.path.basename(abspath)
     original_language = get_original_language(basename, streams, data)
     astreams = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "tags" in streams[i] and "language" in streams[i]["tags"]]
-    if (original_language == [] or original_language[0] == "") and not reorder_additional_audio_streams:
+#    if (original_language == [] or original_language[0] == "") and not reorder_additional_audio_streams:
+    if (original_language == [] or all(i=="" for i in original_language)) and not reorder_additional_audio_streams:
         logger.error("Task not added to queue - original language not identified for file: '{}'".format(abspath))
         data['add_file_to_pending_tasks'] = False
         return data
     elif original_language != []:
-        if (original_language[0] in astreams) or (original_language[0] not in astreams and reorder_additional_audio_streams):
+        if any(x in original_language for x in astreams) or (not any(x in original_language for x in astreams) and reorder_additional_audio_streams):
+        # if (original_language[0] in astreams) or (original_language[0] not in astreams and reorder_additional_audio_streams):
             logger.info("File '{}' added to task queue - original language identified and is in file or reordering additional streams.".format(abspath))
             data['add_file_to_pending_tasks'] = True
     else:
@@ -285,7 +291,8 @@ def on_worker_process(data):
     logger.debug("astreams: '{}', astream_order: '{}".format(astreams, astream_order))
     original_astream_order = astream_order[:]
     if original_language:
-        original_audio_position = [i for i in range(len(astreams)) if astreams[i] == original_language[0]]
+        # original_audio_position = [i for i in range(len(astreams)) if astreams[i] == original_language[0]]
+        original_audio_position = [i for i in range(len(astreams)) if astreams[i] in original_language]
         new_audio_position = original_audio_position[:]
     if reorder_additional_audio_streams:
         additional_audio_position = [i for i in range(len(astreams)) for j in range(len(altr)) if astreams[i] == altr[j]]
