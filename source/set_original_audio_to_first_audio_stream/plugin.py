@@ -164,7 +164,7 @@ def get_original_language(video_file, streams, data):
     else:
         title_field = "original_name"
     if len(video.json()["results"]) > 1:
-        logger.info("More than one result was found - trying to narrow to one by exact match on title: '{}', file: '{}'".format(title, video_file)
+        logger.info("More than one result was found - trying to narrow to one by exact match on title: '{}', file: '{}'".format(title, video_file))
         for i in range(len(video.json()["results"])):
             if title_field in video.json()["results"][i]: logger.debug("i: '{}', video.json()[results][i]'{}': '{}', title: '{}'".format(i, title_field, video.json()["results"][i][title_field], title)) 
             if title_field in video.json()["results"][i] and video.json()["results"][i][title_field] == title:
