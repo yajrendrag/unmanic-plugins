@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.7</span>**
+- added filenames to various logger output to make tracing issues easier
+
 **<span style="color:#56adda">0.0.6</span>**
 - add a translation code for 2 letter language 'cn' to same as that for 'zh'
 

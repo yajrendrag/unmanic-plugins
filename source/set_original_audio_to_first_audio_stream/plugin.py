@@ -164,27 +164,27 @@ def get_original_language(video_file, streams, data):
     else:
         title_field = "original_name"
     if len(video.json()["results"]) > 1:
-        logger.info("More than one result was found - trying to narrow to one by exact match on title")
+        logger.info("More than one result was found - trying to narrow to one by exact match on title: '{}', file: '{}'".format(title, video_file)
         for i in range(len(video.json()["results"])):
             if title_field in video.json()["results"][i]: logger.debug("i: '{}', video.json()[results][i]'{}': '{}', title: '{}'".format(i, title_field, video.json()["results"][i][title_field], title)) 
             if title_field in video.json()["results"][i] and video.json()["results"][i][title_field] == title:
                 count += 1
                 matched_result = i
         if count != 1:
-            logger.error("Could not match to exact title - Aborting")
+            logger.error("Could not match to exact title - Aborting; title: '{}', file'{}'".format(title, video_file))
             return []
 
     try:
         original_language = [lang_codes[i][1] for i in range(len(lang_codes)) if video.json()["results"][matched_result]["original_language"] == lang_codes[i][0]]
-        logger.debug("original_language: '{}'".format(original_language))
+        logger.debug("original_language: '{}', file: '{}'".format(original_language, video_file))
         for i in range(len(original_language)):
             # if '/' in original_language[i]: original_language[i] = original_language[0].split(' / ')[0]
             if '/' in original_language[i]:
                 original_language.append(original_language[0].split(' / ')[1].replace("*",""))
                 original_language[i] = original_language[i].split(' / ')[0]
-        logger.debug("original_language: '{}'".format(original_language))
+        logger.debug("original_language: '{}', file: '{}'".format(original_language, video_file))
     except:
-        logger.error("Error matching original language - Aborting.")
+        logger.error("Error matching original language - Aborting, file: '{}'".format(video_file))
         return []
     else:
         astreams = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "tags" in streams[i] and "language" in streams[i]["tags"]]
