@@ -4,7 +4,7 @@
         2
     ],
     "description": "Notify of task success/failure using Apprise",
-    "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/apprise_notify/icon.png",
+    "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/task_notifier/icon.png",
     "id": "task_notifier",
     "name": "Task notifier",
     "priorities": {
