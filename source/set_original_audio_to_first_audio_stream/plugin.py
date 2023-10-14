@@ -23,6 +23,7 @@ import logging
 import os
 import PTN
 import requests
+import string
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -95,6 +96,18 @@ class Settings(PluginSettings):
         }
         return values
 
+def unique_title_test(video, video_file, title_field, title):
+    matched_result = 0
+    count = 0
+    if len(video.json()["results"]) > 1:
+        logger.info("More than one result was found - trying to narrow to one by exact match on title: '{}', file: '{}'".format(title, video_file))
+        for i in range(len(video.json()["results"])):
+            if title_field in video.json()["results"][i]: logger.debug("i: '{}', video.json()[results][i]'{}': '{}', title: '{}'".format(i, title_field, video.json()["results"][i][title_field], title)) 
+            if title_field in video.json()["results"][i] and video.json()["results"][i][title_field].translate(str.maketrans('', '', string.punctuation)) == title.translate(str.maketrans('', '', string.punctuation)):
+                count += 1
+                matched_result = i
+    return count, matched_result
+
 def get_original_language(video_file, streams, data):
     basename = os.path.basename(video_file)
     if data.get('library_id'):
@@ -124,20 +137,7 @@ def get_original_language(video_file, streams, data):
         year = ""
         logger.info("Error Parsing year from file: '{}'".format(video_file))
 
-    if library_type == "TV":
-        try:
-            season = parsed_info["season"]
-        except KeyError:
-            season = ""
-            logger.info("Error Parsing season from file: '{}'".format(video_file))
-
-        try:
-            episode = parsed_info["episode"]
-        except KeyError:
-            episode = ""
-            logger.info("Error Parsing episode from file: '{}'".format(video_file))
-
-        logger.debug("parsed info: '{}'".format(parsed_info))
+    logger.debug("parsed info: '{}'".format(parsed_info))
 
     if year:
         if library_type == "Movies":
@@ -157,22 +157,18 @@ def get_original_language(video_file, streams, data):
 
     logger.debug("video.json: '{}'".format(video.json()))
 
-    matched_result = 0
-    count = 0
     if library_type == "Movies":
         title_field = "title"
     else:
-        title_field = "original_name"
-    if len(video.json()["results"]) > 1:
-        logger.info("More than one result was found - trying to narrow to one by exact match on title: '{}', file: '{}'".format(title, video_file))
-        for i in range(len(video.json()["results"])):
-            if title_field in video.json()["results"][i]: logger.debug("i: '{}', video.json()[results][i]'{}': '{}', title: '{}'".format(i, title_field, video.json()["results"][i][title_field], title)) 
-            if title_field in video.json()["results"][i] and video.json()["results"][i][title_field] == title:
-                count += 1
-                matched_result = i
-        if count != 1:
-            logger.error("Could not match to exact title - Aborting; title: '{}', file'{}'".format(title, video_file))
-            return []
+        title_field = "name"
+
+    count, matched_result = unique_title_test(video, video_file, title_field, title)
+    count_o, matched_result_o = unique_title_test(video, video_file, "original_"+title_field, title)
+    if count != 1 and count_o != 1:
+        logger.error("Could not match to exact title - Aborting; title: '{}', file'{}'".format(title, video_file))
+        return []
+    elif count_o == 1 and count != 1:
+        matched_result = matched_result_o
 
     try:
         original_language = [lang_codes[i][1] for i in range(len(lang_codes)) if video.json()["results"][matched_result]["original_language"] == lang_codes[i][0]]

@@ -1,4 +1,9 @@
 
+**<span style="color:#56adda">0.0.8</span>**
+- add fixes for punctuation in titles
+- test both title/name and original_title/original_name for unique match
+- refactor unique test into dedicated function
+
 **<span style="color:#56adda">0.0.7</span>**
 - added filenames to various logger output to make tracing issues easier
 
