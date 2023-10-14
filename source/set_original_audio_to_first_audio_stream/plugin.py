@@ -99,6 +99,7 @@ class Settings(PluginSettings):
 def unique_title_test(video, video_file, title_field, title):
     matched_result = 0
     count = 0
+    same_langs = []
     if len(video.json()["results"]) > 1:
         logger.info("More than one result was found - trying to narrow to one by exact match on title: '{}', file: '{}'".format(title, video_file))
         for i in range(len(video.json()["results"])):
@@ -106,6 +107,9 @@ def unique_title_test(video, video_file, title_field, title):
             if title_field in video.json()["results"][i] and video.json()["results"][i][title_field].translate(str.maketrans('', '', string.punctuation)) == title.translate(str.maketrans('', '', string.punctuation)):
                 count += 1
                 matched_result = i
+                same_langs.append(video.json()["results"][i]["original_language"])
+    if all(i == same_langs[0] for i in same_langs):
+        count = 1
     return count, matched_result
 
 def get_original_language(video_file, streams, data):
@@ -157,18 +161,19 @@ def get_original_language(video_file, streams, data):
 
     logger.debug("video.json: '{}'".format(video.json()))
 
+    matched_result = 0
     if library_type == "Movies":
         title_field = "title"
     else:
         title_field = "name"
-
-    count, matched_result = unique_title_test(video, video_file, title_field, title)
-    count_o, matched_result_o = unique_title_test(video, video_file, "original_"+title_field, title)
-    if count != 1 and count_o != 1:
-        logger.error("Could not match to exact title - Aborting; title: '{}', file'{}'".format(title, video_file))
-        return []
-    elif count_o == 1 and count != 1:
-        matched_result = matched_result_o
+    if len(video.json()["results"]) > 1:
+        count, matched_result = unique_title_test(video, video_file, title_field, title)
+        count_o, matched_result_o = unique_title_test(video, video_file, "original_"+title_field, title)
+        if count != 1 and count_o != 1:
+            logger.error("Could not match to exact title - Aborting; title: '{}', file'{}'".format(title, video_file))
+            return []
+        elif count_o == 1 and count != 1:
+            matched_result = matched_result_o
 
     try:
         original_language = [lang_codes[i][1] for i in range(len(lang_codes)) if video.json()["results"][matched_result]["original_language"] == lang_codes[i][0]]
@@ -230,11 +235,11 @@ def on_library_management_file_test(data):
         logger.error("Task not added to queue - original language not identified for file: '{}'".format(abspath))
         data['add_file_to_pending_tasks'] = False
         return data
-    elif original_language != []:
-        if any(x in original_language for x in astreams) or (not any(x in original_language for x in astreams) and reorder_additional_audio_streams):
+#    elif original_language != []:
+    elif any(x in original_language for x in astreams) or (not any(x in original_language for x in astreams) and reorder_additional_audio_streams):
         # if (original_language[0] in astreams) or (original_language[0] not in astreams and reorder_additional_audio_streams):
-            logger.info("File '{}' added to task queue - original language identified and is in file or reordering additional streams.".format(abspath))
-            data['add_file_to_pending_tasks'] = True
+        logger.info("File '{}' added to task queue - original language identified and is in file or reordering additional streams.".format(abspath))
+        data['add_file_to_pending_tasks'] = True
     else:
         logger.error("Task not added to queue - original language not in audio streams of file '{}' or not reordering additional streams".format(abspath))
         data['add_file_to_pending_tasks'] = False
