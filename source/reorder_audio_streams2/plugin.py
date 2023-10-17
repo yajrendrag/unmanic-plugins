@@ -116,18 +116,18 @@ class Settings(PluginSettings):
             values["display"] = 'hidden'
         return values
 
-def unique_title_test(video, video_file, title_field, title):
+def unique_title_test(vres, video_file, title_field, title):
     matched_result = 0
     count = 0
     same_langs = []
-    if len(video.json()["results"]) > 1:
+    if len(vres) > 1:
         logger.info("More than one result was found - trying to narrow to one by exact match on title: '{}', file: '{}'".format(title, video_file))
-        for i in range(len(video.json()["results"])):
-            if title_field in video.json()["results"][i]: logger.debug("i: '{}', video.json()[results][i]'{}': '{}', title: '{}'".format(i, title_field, video.json()["results"][i][title_field], title)) 
-            if title_field in video.json()["results"][i] and video.json()["results"][i][title_field].translate(str.maketrans('', '', string.punctuation)) == title.translate(str.maketrans('', '', string.punctuation)):
+        for i in range(len(vres)):
+            if title_field in vres[i]: logger.debug("i: '{}', video.json()[results][i]'{}': '{}', title: '{}'".format(i, title_field, vres[i][title_field], title)) 
+            if title_field in vres[i] and vres[i][title_field].translate(str.maketrans('', '', string.punctuation)) == title.translate(str.maketrans('', '', string.punctuation)):
                 count += 1
                 matched_result = i
-                same_langs.append(video.json()["results"][i]["original_language"])
+                same_langs.append(vres[i]["original_language"])
     if all(i == same_langs[0] for i in same_langs):
         count = 1
     return count, matched_result
@@ -163,32 +163,36 @@ def get_original_language(video_file, streams, data):
 
     logger.debug("parsed info: '{}'".format(parsed_info))
 
+    page = 1
     if year:
         if library_type == "Movies":
-            video = requests.request("GET", tmdburl + title + '&primary_release_year=' + str(year) + '&api_key=' + tmdb_api_key, headers=headers)
+            vurl = tmdburl + title + '&primary_release_year=' + str(year) + '&api_key=' + tmdb_api_key
         else:
-            video = requests.request("GET", tmdburl + title + '&first_air_date_year=' + str(year) + '&api_key=' + tmdb_api_key, headers=headers)
+            vurl = tmdburl + title + '&first_air_date_year=' + str(year) + '&api_key=' + tmdb_api_key
     else:
-        if library_type == "Movies":
-            video = requests.request("GET", tmdburl + title + '&api_key=' + tmdb_api_key, headers=headers)
-        else:
-            video = requests.request("GET", tmdburl + title + '&api_key=' + tmdb_api_key, headers=headers)
+        # urls reduce to the same thing when no year is part of the query
+        vurl = tmdburl + title + '&api_key=' + tmdb_api_key
+
     try:
-        results = video.json()["results"]
+        video = requests.request("GET", vurl + '&page=' + str(page), headers=headers)
+        vres = video.json()["results"]
+        pages = video.json()["total_pages"]
+        for i in range(2, pages + 1):
+            vres += requests.request("GET", vurl + '&page=' + str(i), headers=headers).json()["results"]
     except:
         logger.error("Error requesting video info from tmdb. Aborting")
         return []
 
-    logger.debug("video.json: '{}'".format(video.json()))
+    logger.debug("video.json: '{}'".format(vres))
 
     matched_result = 0
     if library_type == "Movies":
         title_field = "title"
     else:
         title_field = "name"
-    if len(video.json()["results"]) > 1:
-        count, matched_result = unique_title_test(video, video_file, title_field, title)
-        count_o, matched_result_o = unique_title_test(video, video_file, "original_"+title_field, title)
+    if len(vres) > 1:
+        count, matched_result = unique_title_test(vres, video_file, title_field, title)
+        count_o, matched_result_o = unique_title_test(vres, video_file, "original_"+title_field, title)
         if count != 1 and count_o != 1:
             logger.error("Could not match to exact title - Aborting; title: '{}', file'{}'".format(title, video_file))
             return []
@@ -196,7 +200,7 @@ def get_original_language(video_file, streams, data):
             matched_result = matched_result_o
 
     try:
-        original_language = [lang_codes[i][1] for i in range(len(lang_codes)) if video.json()["results"][matched_result]["original_language"] == lang_codes[i][0]]
+        original_language = [lang_codes[i][1] for i in range(len(lang_codes)) if vres[matched_result]["original_language"] == lang_codes[i][0]]
         logger.debug("original_language: '{}', file: '{}'".format(original_language, video_file))
         for i in range(len(original_language)):
             # if '/' in original_language[i]: original_language[i] = original_language[0].split(' / ')[0]
@@ -361,4 +365,3 @@ def on_worker_process(data):
         data['command_progress_parser'] = parser.parse_progress
 
     return data
-
