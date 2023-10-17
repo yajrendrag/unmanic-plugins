@@ -1,4 +1,9 @@
 
+**<span style="color:#56adda">0.0.10</span>**
+- rename plugin to reorder_audio_streams2
+- make reordering original languages an option
+- add all pages from tmdb query
+
 **<span style="color:#56adda">0.0.9</span>**
 - fix unique test function results so only used when more than 1 result found
 - add test for equal original languages when more than 1 result found - instead of aborting, just return that original language as they are all the same

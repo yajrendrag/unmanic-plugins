@@ -46,6 +46,7 @@ lang_codes = [('aa', 'aar'), ('ab', 'abk'), ('af', 'afr'), ('ak', 'aka'), ('am',
 
 class Settings(PluginSettings):
     settings = {
+        "reorder_original_language":          False,
         "reorder_additional_audio_streams":    False,
         "library_type":	"",
         "tmdb_api_key":    "",
@@ -56,16 +57,15 @@ class Settings(PluginSettings):
     def __init__(self, *args, **kwargs):
         super(Settings, self).__init__(*args, **kwargs)
         self.form_settings = {
+            "reorder_original_language": {
+                "label": "Check this option if you want to reorder the original language to be the first language",
+            },
             "reorder_additional_audio_streams": {
                 "label": "Check this option if you want to reorder audio streams in addition to the original audio stream",
             },
             "library_type": self.__set_library_type_form_settings(),
-            "tmdb_api_key": {
-                "label": "enter your tmdb (the movie database) api key",
-            },
-            "tmdb_api_read_access_token": {
-                "label": "enter your tmdb (the movie database) api api read access token",
-            },
+            "tmdb_api_key": self.__set_tmdb_api_key_form_settings(),
+            "tmdb_api_read_access_token": self.__set_tmdb_api_read_access_token_form_settings(),
             "Search String": self.__set_additional_audio_streams_form_settings(),
         }
 
@@ -75,6 +75,24 @@ class Settings(PluginSettings):
             "input_type": "textarea",
         }
         if not self.get_setting('reorder_additional_audio_streams'):
+            values["display"] = 'hidden'
+        return values
+
+    def __set_tmdb_api_read_access_token_form_settings(self):
+        values = {
+            "label":      "enter your tmdb (the movie database) api api read access token",
+            "input_type": "textarea",
+        }
+        if not self.get_setting('reorder_original_language'):
+            values["display"] = 'hidden'
+        return values
+
+    def __set_tmdb_api_key_form_settings(self):
+        values = {
+            "label":      "enter your tmdb (the movie database) api key",
+            "input_type": "textarea",
+        }
+        if not self.get_setting('reorder_original_language'):
             values["display"] = 'hidden'
         return values
 
@@ -94,6 +112,8 @@ class Settings(PluginSettings):
                 },
             ],
         }
+        if not self.get_setting('reorder_original_language'):
+            values["display"] = 'hidden'
         return values
 
 def unique_title_test(video, video_file, title_field, title):
@@ -227,21 +247,24 @@ def on_library_management_file_test(data):
         settings = Settings()
 
     reorder_additional_audio_streams = settings.get_setting('reorder_additional_audio_streams')
+    reorder_original_language = settings.get_setting('reorder_original_language')
     basename = os.path.basename(abspath)
-    original_language = get_original_language(basename, streams, data)
+    if reorder_original_language:
+        original_language = get_original_language(basename, streams, data)
     astreams = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "tags" in streams[i] and "language" in streams[i]["tags"]]
-#    if (original_language == [] or original_language[0] == "") and not reorder_additional_audio_streams:
-    if (original_language == [] or all(i=="" for i in original_language)) and not reorder_additional_audio_streams:
+    if (reorder_original_language and (original_language == [] or all(i=="" for i in original_language))) and not reorder_additional_audio_streams:
         logger.error("Task not added to queue - original language not identified for file: '{}'".format(abspath))
         data['add_file_to_pending_tasks'] = False
         return data
 #    elif original_language != []:
-    elif any(x in original_language for x in astreams) or (not any(x in original_language for x in astreams) and reorder_additional_audio_streams):
-        # if (original_language[0] in astreams) or (original_language[0] not in astreams and reorder_additional_audio_streams):
-        logger.info("File '{}' added to task queue - original language identified and is in file or reordering additional streams.".format(abspath))
+    elif (reorder_original_language and (any(x in original_language for x in astreams) or (not any(x in original_language for x in astreams) and reorder_additional_audio_streams))) or (not reorder_original_language and reorder_additional_audio_streams):
+        if reorder_original_language:
+            logger.info("File '{}' added to task queue - original language identified and is in file or reordering additional streams.".format(abspath))
+        else:
+            logger.info("File '{}' added to task queue - reordering additional languages only")
         data['add_file_to_pending_tasks'] = True
     else:
-        logger.error("Task not added to queue - original language not in audio streams of file '{}' or not reordering additional streams".format(abspath))
+        logger.error("Task not added to queue - original language not in audio streams of file '{}' or not reordering additional streams or original language".format(abspath))
         data['add_file_to_pending_tasks'] = False
         return data
     return data
@@ -285,15 +308,19 @@ def on_worker_process(data):
     else:
         settings = Settings()
 
-    original_language = get_original_language(abspath, streams, data)
-    logger.debug("original language: '{}'".format(original_language))
+    original_language = []
+    reorder_original_language = settings.get_setting('reorder_original_language')
+    if reorder_original_language:
+        original_language = get_original_language(abspath, streams, data)
+        logger.debug("original language: '{}'".format(original_language))
     reorder_additional_audio_streams = settings.get_setting('reorder_additional_audio_streams')
     if reorder_additional_audio_streams:
         additional_langauges_to_reorder = settings.get_setting('Search String')
         altr = list(additional_langauges_to_reorder.split(','))
         altr = [altr[i].strip() for i in range(len(altr))]
         # if altr contains the original_language, remove it since the original_language will appear first anyway
-        altr = [altr[i] for i in range(len(altr)) if altr[i] != original_language[0]]
+        if reorder_original_language:
+            altr = [altr[i] for i in range(len(altr)) if altr[i] != original_language[0]]
 
     original_audio_position = []
     new_audio_position = []
