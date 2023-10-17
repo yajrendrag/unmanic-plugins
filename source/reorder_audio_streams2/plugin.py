@@ -324,7 +324,7 @@ def on_worker_process(data):
         altr = [altr[i].strip() for i in range(len(altr))]
         # if altr contains the original_language, remove it since the original_language will appear first anyway
         if reorder_original_language:
-            altr = [altr[i] for i in range(len(altr)) if altr[i] != original_language[0]]
+            altr = [altr[i] for i in range(len(altr)) if altr[i] not in original_language]
 
     original_audio_position = []
     new_audio_position = []

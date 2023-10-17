@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.12</span>**
+- guard against empty original_language array in altr
+
 **<span style="color:#56adda">0.0.11</span>**
 - add all pages from tmdb query
 
