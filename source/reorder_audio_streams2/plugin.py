@@ -24,6 +24,9 @@ import os
 import PTN
 import requests
 import string
+import re
+
+yr = re.compile(r'\d\d\d\d')
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
