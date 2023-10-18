@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.13</span>**
+- add workaround for PTN parsing incorrect year
+
 **<span style="color:#56adda">0.0.12</span>**
 - guard against empty original_language array in altr
 

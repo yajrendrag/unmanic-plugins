@@ -6,7 +6,7 @@
     Date:                     5 Oct 2023, (11:40 AM)
  
     Copyright:
-        Copyright (C) 2021 Jay Gardner
+        Copyright (C) 2023 Jay Gardner
 
         This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
         Public License as published by the Free Software Foundation, version 3.
@@ -30,7 +30,7 @@ from unmanic.libs.unplugins.settings import PluginSettings
 from set_original_audio_to_first_audio_stream.lib.ffmpeg import Probe, Parser
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.set_original_audio_to_first_audio_stream")
+logger = logging.getLogger("Unmanic.Plugin.reorder_audio_streams2")
 
 lang_codes = [('aa', 'aar'), ('ab', 'abk'), ('af', 'afr'), ('ak', 'aka'), ('am', 'amh'), ('ar', 'ara'), ('an', 'arg'), ('as', 'asm'), ('av', 'ava'), ('ae', 'ave'), ('ay', 'aym'), ('az', 'aze'), ('ba', 'bak'), ('bm', 'bam'), ('be', 'bel'), ('bn', 'ben'), ('bi', 'bis'), ('bo', 'bod / tib*'),
               ('bs', 'bos'), ('br', 'bre'), ('bg', 'bul'), ('ca', 'cat'), ('cs', 'ces / cze*'), ('ch', 'cha'), ('ce', 'che'), ('cn', 'zho / chi*'), ('cu', 'chu'), ('cv', 'chv'), ('kw', 'cor'), ('co', 'cos'), ('cr', 'cre'), ('cy', 'cym / wel*'), ('da', 'dan'), ('de', 'deu / ger*'), ('dv', 'div'), ('dz', 'dzo'),
@@ -161,6 +161,22 @@ def get_original_language(video_file, streams, data):
         year = ""
         logger.info("Error Parsing year from file: '{}'".format(video_file))
 
+    try:
+        excess = parsed_info["excess"]
+    except KeyError:
+        excess = []
+        logger.info("Error Parsing excess from file: '{}'".format(video_file))
+
+    year2 = []
+    if year and excess:
+        if isinstance(excess, str):
+            year2 = excess
+        elif isinstance(excess, list):
+            year2 = [i for i in parsed_info["excess"] if yr.match(i) is not None]
+            if year2: year2 = year2[0]
+        if yr.match(year2) is None:
+            year2 = []
+
     logger.debug("parsed info: '{}'".format(parsed_info))
 
     page = 1
@@ -175,6 +191,10 @@ def get_original_language(video_file, streams, data):
 
     try:
         video = requests.request("GET", vurl + '&page=' + str(page), headers=headers)
+        logger.debug("video results len: '{}', year2: '{}'".format(len(video.json()["results"]), year2))
+        if len(video.json()["results"]) == 0 and year and year2:
+            vurl = vurl.replace(str(year), str(year2))
+            video = requests.request("GET", vurl + '&page=' + str(page), headers=headers)
         vres = video.json()["results"]
         pages = video.json()["total_pages"]
         for i in range(2, pages + 1):
