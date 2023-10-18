@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.15</span>**
+- added logging for year2 TypeError and skipping year2 for those file conditions
+
 **<span style="color:#56adda">0.0.14</span>**
 - fix missing import re and compiled regex expresssion for PTN excess
 
