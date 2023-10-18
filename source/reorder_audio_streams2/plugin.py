@@ -177,7 +177,12 @@ def get_original_language(video_file, streams, data):
         elif isinstance(excess, list):
             year2 = [i for i in parsed_info["excess"] if yr.match(i) is not None]
             if year2: year2 = year2[0]
-        if yr.match(year2) is None:
+        logger.debug("year2: '{}'".format(year2))
+        try:
+            if yr.match(year2) is None:
+                year2 = []
+        except TypeError:
+            logger.debug("TypeError: year2: '{}'".format(year2))
             year2 = []
 
     logger.debug("parsed info: '{}'".format(parsed_info))
