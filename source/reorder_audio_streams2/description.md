@@ -42,6 +42,10 @@ the list of audio streams in the file.
 #### <span style="color:blue">reorder_additional_audio_streams</span>
 Check this if you wish to reorder additional language streams - it can be used with or without checking the reorder original language option.
 
+#### <span style="color:blue">remove_other_languages</span>
+Check this if you wish to remove other languages not configured for reordering.  If you wish to keep undefined language streams, add "und" (without quotes) to the end
+of the reorder_additional_language_streams field.  Any audio streams that do not contain a language tag of any kind will be removed if setting this option.
+
 #### <span style="color:blue">library_type</span>
 Select TV or Movies for the library type - the plugin can only process a single content type per library.  This option is only visible if reorder original audio is checked.
 

@@ -1,4 +1,9 @@
 
+**<span style="color:#56adda">0.0.16</span>**
+- add option to remove streams not configured to be reordered
+- to keep any streams with undefined language tags, add 'und' to end of additional languages field
+- any streams without any language tags at all in this scenario will be removed
+
 **<span style="color:#56adda">0.0.15</span>**
 - added logging for year2 TypeError and skipping year2 for those file conditions
 

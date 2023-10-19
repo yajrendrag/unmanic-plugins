@@ -51,6 +51,7 @@ class Settings(PluginSettings):
     settings = {
         "reorder_original_language":          False,
         "reorder_additional_audio_streams":    False,
+        "remove_other_languages":              False,
         "library_type":	"",
         "tmdb_api_key":    "",
         "tmdb_api_read_access_token":    "",
@@ -65,6 +66,9 @@ class Settings(PluginSettings):
             },
             "reorder_additional_audio_streams": {
                 "label": "Check this option if you want to reorder audio streams in addition to the original audio stream",
+            },
+            "remove_other_languages": {
+                "label": "Check this option if you want to remove languages that are not configured for reordering",
             },
             "library_type": self.__set_library_type_form_settings(),
             "tmdb_api_key": self.__set_tmdb_api_key_form_settings(),
@@ -342,6 +346,7 @@ def on_worker_process(data):
 
     original_language = []
     reorder_original_language = settings.get_setting('reorder_original_language')
+    remove_other_languages = settings.get_setting('remove_other_languages')
     if reorder_original_language:
         original_language = get_original_language(abspath, streams, data)
         logger.debug("original language: '{}'".format(original_language))
@@ -369,7 +374,8 @@ def on_worker_process(data):
         new_audio_position += additional_audio_position[:]
     logger.debug("new audio position: '{}'".format(new_audio_position))
     [astream_order.remove(new_audio_position[i]) for i in range(len(new_audio_position))]
-    new_audio_position += astream_order
+    if not remove_other_languages:
+        new_audio_position += astream_order
     logger.debug("new audio position: '{}'; original_astream_order: '{}'".format(new_audio_position, original_astream_order))
 
     if new_audio_position != original_astream_order:
