@@ -41,7 +41,7 @@ lang_codes = [('aa', 'aar'), ('ab', 'abk'), ('af', 'afr'), ('ak', 'aka'), ('am',
               ('gn', 'grn'), ('gu', 'guj'), ('ht', 'hat'), ('ha', 'hau'), ('he', 'heb'), ('hz', 'her'), ('hi', 'hin'), ('ho', 'hmo'), ('hr', 'hrv'), ('hu', 'hun'), ('hy', 'hye / arm*'), ('ig', 'ibo'), ('io', 'ido'), ('ii', 'iii'), ('iu', 'iku'), ('ie', 'ile'), ('ia', 'ina'), ('id', 'ind'),
               ('ik', 'ipk'), ('is', 'isl / ice*'), ('it', 'ita'), ('jv', 'jav'), ('ja', 'jpn'), ('kl', 'kal'), ('kn', 'kan'), ('ks', 'kas'), ('ka', 'kat / geo*'), ('kr', 'kau'), ('kk', 'kaz'), ('km', 'khm'), ('ki', 'kik'), ('rw', 'kin'), ('ky', 'kir'), ('kv', 'kom'), ('kg', 'kon'), ('ko', 'kor'),
               ('kj', 'kua'), ('ku', 'kur'), ('lo', 'lao'), ('la', 'lat'), ('lv', 'lav'), ('li', 'lim'), ('ln', 'lin'), ('lt', 'lit'), ('lb', 'ltz'), ('lu', 'lub'), ('lg', 'lug'), ('mh', 'mah'), ('ml', 'mal'), ('mr', 'mar'), ('mk', 'mkd / mac*'), ('mg', 'mlg'), ('mt', 'mlt'), ('mn', 'mon'),
-              ('mi', 'mri / mao*'), ('ms', 'msa / may*'), ('my', 'mya / bur*'), ('na', 'nau'), ('nv', 'nav'), ('nr', 'nbl'), ('nd', 'nde'), ('ng', 'ndo'), ('ne', 'nep'), ('nl', 'nld / dut*'), ('nn', 'nno'), ('nb', 'nob'), ('no', 'nor'), ('ny', 'nya'), ('oc', 'oci'), ('oj', 'oji'), ('or', 'ori'),
+              ('mi', 'mri / mao*'), ('ms', 'msa / may*'), ('my', 'mya / bur*'), ('na', 'nau'), ('nv', 'nav'), ('nr', 'nbl'), ('nd', 'nde'), ('ng', 'ndo'), ('ne', 'nep'), ('nl', 'nld / dut*'), ('nn', 'nno'), ('nb', 'nob'), ('no', 'nor / nob / nno'), ('ny', 'nya'), ('oc', 'oci'), ('oj', 'oji'), ('or', 'ori'),
               ('om', 'orm'), ('os', 'oss'), ('pa', 'pan'), ('pi', 'pli'), ('pl', 'pol'), ('pt', 'por'), ('ps', 'pus'), ('qu', 'que'), ('rm', 'roh'), ('ro', 'ron / rum*'), ('rn', 'run'), ('ru', 'rus'), ('sg', 'sag'), ('sa', 'san'), ('si', 'sin'), ('sk', 'slk / slo*'), ('sl', 'slv'), ('se', 'sme'),
               ('sm', 'smo'), ('sn', 'sna'), ('sd', 'snd'), ('so', 'som'), ('st', 'sot'), ('es', 'spa'), ('sq', 'sqi / alb*'), ('sc', 'srd'), ('sr', 'srp'), ('ss', 'ssw'), ('su', 'sun'), ('sw', 'swa'), ('sv', 'swe'), ('ty', 'tah'), ('ta', 'tam'), ('tt', 'tat'), ('te', 'tel'), ('tg', 'tgk'),
               ('tl', 'tgl'), ('th', 'tha'), ('ti', 'tir'), ('to', 'ton'), ('tn', 'tsn'), ('ts', 'tso'), ('tk', 'tuk'), ('tr', 'tur'), ('tw', 'twi'), ('ug', 'uig'), ('uk', 'ukr'), ('ur', 'urd'), ('uz', 'uzb'), ('ve', 'ven'), ('vi', 'vie'), ('vo', 'vol'), ('wa', 'wln'), ('wo', 'wol'), ('xh', 'xho'),
@@ -234,11 +234,14 @@ def get_original_language(video_file, streams, data):
     try:
         original_language = [lang_codes[i][1] for i in range(len(lang_codes)) if vres[matched_result]["original_language"] == lang_codes[i][0]]
         logger.debug("original_language: '{}', file: '{}'".format(original_language, video_file))
-        for i in range(len(original_language)):
-            # if '/' in original_language[i]: original_language[i] = original_language[0].split(' / ')[0]
-            if '/' in original_language[i]:
-                original_language.append(original_language[0].split(' / ')[1].replace("*",""))
-                original_language[i] = original_language[i].split(' / ')[0]
+        if original_language:
+            oi = original_language[0].replace("*","").split('/')
+            oi = [i.strip() for i in oi]
+            original_language=oi
+#        for i in range(len(original_language)):
+#            if '/' in original_language[i]:
+#                original_language.append(original_language[0].split(' / ')[1].replace("*",""))
+#                original_language[i] = original_language[i].split(' / ')[0]
         logger.debug("original_language: '{}', file: '{}'".format(original_language, video_file))
     except:
         logger.error("Error matching original language - Aborting, file: '{}'".format(video_file))

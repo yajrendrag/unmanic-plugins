@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.17</span>**
+- added fix for allowing more than two 3 letter codes per each 2 letter lookup
+
 **<span style="color:#56adda">0.0.16</span>**
 - add option to remove streams not configured to be reordered
 - to keep any streams with undefined language tags, add 'und' to end of additional languages field
