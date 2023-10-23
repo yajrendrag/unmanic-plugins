@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.18</span>**
+- fix probe, parser import line to refer to correct plugin name post plugin name change
+
 **<span style="color:#56adda">0.0.17</span>**
 - added fix for allowing more than two 3 letter codes per each 2 letter lookup
 
