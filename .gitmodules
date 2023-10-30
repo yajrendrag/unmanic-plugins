@@ -52,9 +52,3 @@
 [submodule "source/add_extra_ac3_multichannel_audio/lib/ffmpeg"]
 	path = source/add_extra_ac3_multichannel_audio/lib/ffmpeg
 	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
-[submodule "source/set_original_audio_to_first_audio_stream/lib/ffmpeg"]
-	path = source/set_original_audio_to_first_audio_stream/lib/ffmpeg
-	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
-[submodule "source/reorder_audio_streams2/lib/ffmpeg"]
-	path = source/reorder_audio_streams2/lib/ffmpeg
-	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
