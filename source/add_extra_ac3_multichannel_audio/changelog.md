@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.9</span>**
+- readded fix for finding existing ac3 stream of same language as lossless stream and not adding a new stream in that eventuality
+
 **<span style="color:#56adda">0.0.8</span>**
 - delete stray character
 

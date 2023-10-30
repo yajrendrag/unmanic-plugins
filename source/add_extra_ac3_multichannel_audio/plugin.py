@@ -46,7 +46,7 @@ class Settings(PluginSettings):
             }
         }
 
-def stream_to_ac3_encode(probe_streams):
+def stream_to_ac3_encode(probe_streams, abspath):
     try:
         streams_list = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] in ["truehd", "eac3", "dts"]]
         # below returns the audio stream with the maximum number of audio channels > 5, it's audio stream #, and absolute stream # as a tuple, and final index selects key number 1 from the tuple (audio stream #)
@@ -56,18 +56,13 @@ def stream_to_ac3_encode(probe_streams):
     except:
         logger.error("Error finding audio stream to encode")
         return 0, 0, 0
-#    existing_ac3_stream = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == 'ac3' and probe_streams[i]["channels"] == 6]
-#    ac3_stream_exists_already = [existing_ac3_stream[i] for i in range(0, len(existing_ac3_stream)) if "tags" in probe_streams[existing_ac3_stream[i]] and "language" in probe_streams[existing_ac3_stream[i]]["tags"] and probe_streams[existing_ac3_stream[i]]["tags"]["language"] in probe_streams[absolute_stream_num]["tags"]["language"]]
-#    if ac3_stream_exists_already != []:
-#        logger.info("6 channel ac3 stream with matching language already exists, skipping file '{}'".format(abspath))
-#        return 0,0,0
-#    elif ac3_stream_exists_already == []:
-#        logger.info("no ac3 stream exists, encoding audio stream '{}' from file '{}' as ac3".format(audio_stream_to_encode,abspath))
-#        return audio_stream_to_encode, new_audio_stream, absolute_stream_num"
-#    else:
-#        logger.info("Error finding audio stream to encode", skipping file '{}'".format(abspath))
-#        return 0,0,0
-    return audio_stream_to_encode, new_audio_stream, absolute_stream_num
+    existing_ac3_stream = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == 'ac3' and probe_streams[i]["channels"] == 6]
+    ac3_stream_exists_already = [existing_ac3_stream[i] for i in range(0, len(existing_ac3_stream)) if "tags" in probe_streams[existing_ac3_stream[i]] and "language" in probe_streams[existing_ac3_stream[i]]["tags"] and probe_streams[existing_ac3_stream[i]]["tags"]["language"] in probe_streams[absolute_stream_num]["tags"]["language"]]
+    if ac3_stream_exists_already == []:
+        return audio_stream_to_encode, new_audio_stream, absolute_stream_num
+    else:
+        logger.info("6 channel ac3 stream with matching language already exists, skipping file '{}'".format(abspath))
+        return 0,0,0
 
 def on_library_management_file_test(data):
     """
@@ -113,13 +108,13 @@ def on_library_management_file_test(data):
                     logger.info("resolution is less than 4k, skipping file per configured instruction - width x height: '{}'x'{}'".format(width, height))
                     return data
 
-    stream_to_encode, new_audio_stream, absolute_stream_num = stream_to_ac3_encode(probe_streams)
+    stream_to_encode, new_audio_stream, absolute_stream_num = stream_to_ac3_encode(probe_streams, abspath)
     if new_audio_stream:
         data['add_file_to_pending_tasks'] = True
         logger.info("Multichannel audio stream '{}' is being encoded as extra ac3 audio channel '{}'".format(stream_to_encode, new_audio_stream))
     else:
         data['add_file_to_pending_tasks'] = False
-        logger.info("do not add file '{}' to task list - no multichannel audio streams found".format(abspath))
+        logger.info("do not add file '{}' to task list - no multichannel audio streams found or one already exists with same language as lossless audio stream".format(abspath))
 
     return data
 
@@ -164,7 +159,7 @@ def on_worker_process(data):
     else:
         settings = Settings()
 
-    stream_to_encode, new_audio_stream, absolute_stream_num = stream_to_ac3_encode(probe_streams)
+    stream_to_encode, new_audio_stream, absolute_stream_num = stream_to_ac3_encode(probe_streams, abspath)
     encoder = 'ac3'
     channels = '6'
     if new_audio_stream:
