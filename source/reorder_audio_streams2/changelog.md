@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.19</span>**
+- fix submodule to match changed name of plugin
+
 **<span style="color:#56adda">0.0.18</span>**
 - fix probe, parser import line to refer to correct plugin name post plugin name change
 
