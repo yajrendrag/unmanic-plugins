@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.20</span>**
+- fix typo in lib import statement - missing .lib in path to ffmpeg
+
 **<span style="color:#56adda">0.0.19</span>**
 - fix submodule to match changed name of plugin
 
