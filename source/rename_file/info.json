@@ -1,0 +1,15 @@
+{
+    "author": "yajrendrag",
+    "compatibility": [
+        2
+    ],
+    "description": "Renames file after processing by adding data from ffrobe fields to the name",
+    "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/rename_file/icon.png",
+    "id": "rename_file",
+    "name": "Rename file",
+    "priorities": {
+        "on_postprocessor_task_results": 0
+    },
+    "tags": "rename, postprocessor",
+    "version": "0.0.1"
+}

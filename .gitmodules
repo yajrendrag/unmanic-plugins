@@ -55,3 +55,6 @@
 [submodule "source/reorder_audio_streams2/lib/ffmpeg"]
 	path = source/reorder_audio_streams2/lib/ffmpeg
 	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/rename_file/lib/ffmpeg"]
+	path = source/rename_file/lib/ffmpeg
+	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
