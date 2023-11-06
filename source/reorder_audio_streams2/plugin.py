@@ -255,6 +255,36 @@ def get_original_language(video_file, streams, data):
     original_language = [*set(original_language)]
     return original_language
 
+def get_old_and_new_order(streams, reorder_original_language, original_language, settings):
+    remove_other_languages = settings.get_setting('remove_other_languages')
+    reorder_additional_audio_streams = settings.get_setting('reorder_additional_audio_streams')
+    if reorder_additional_audio_streams:
+        additional_langauges_to_reorder = settings.get_setting('Search String')
+        altr = list(additional_langauges_to_reorder.split(','))
+        altr = [altr[i].strip() for i in range(len(altr))]
+        # if altr contains the original_language, remove it since the original_language will appear first anyway
+        if reorder_original_language:
+            altr = [altr[i] for i in range(len(altr)) if altr[i] not in original_language]
+
+    original_audio_position = []
+    new_audio_position = []
+    astreams = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "tags" in streams[i] and "language" in streams[i]["tags"]]
+    astream_order = [i for i in range(len(astreams))]
+    logger.debug("astreams: '{}', astream_order: '{}".format(astreams, astream_order))
+    original_astream_order = astream_order[:]
+    if original_language:
+        original_audio_position = [i for i in range(len(astreams)) if astreams[i] in original_language]
+        new_audio_position = original_audio_position[:]
+    if reorder_additional_audio_streams:
+        additional_audio_position = [j for i in range(len(astreams)) for j in range(len(altr)) if astreams[i] == altr[j]]
+        new_audio_position += additional_audio_position[:]
+    logger.debug("new audio position: '{}'".format(new_audio_position))
+    [astream_order.remove(new_audio_position[i]) for i in range(len(new_audio_position))]
+    if not remove_other_languages:
+        new_audio_position += astream_order
+    logger.debug("new audio position: '{}'; original_astream_order: '{}'".format(new_audio_position, original_astream_order))
+    return new_audio_position, original_astream_order
+
 def on_library_management_file_test(data):
     """
     Runner function - enables additional actions during the library management file tests.
@@ -285,25 +315,26 @@ def on_library_management_file_test(data):
     else:
         settings = Settings()
 
+    original_language= []
     reorder_additional_audio_streams = settings.get_setting('reorder_additional_audio_streams')
     reorder_original_language = settings.get_setting('reorder_original_language')
     basename = os.path.basename(abspath)
     if reorder_original_language:
         original_language = get_original_language(basename, streams, data)
     astreams = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "tags" in streams[i] and "language" in streams[i]["tags"]]
+    new_audio_position, original_astream_order = get_old_and_new_order(streams, reorder_original_language, original_language, settings)
     if (reorder_original_language and (original_language == [] or all(i=="" for i in original_language))) and not reorder_additional_audio_streams:
         logger.error("Task not added to queue - original language not identified for file: '{}'".format(abspath))
         data['add_file_to_pending_tasks'] = False
         return data
-#    elif original_language != []:
-    elif (reorder_original_language and (any(x in original_language for x in astreams) or (not any(x in original_language for x in astreams) and reorder_additional_audio_streams))) or (not reorder_original_language and reorder_additional_audio_streams):
+    elif ((reorder_original_language and (any(x in original_language for x in astreams) or (not any(x in original_language for x in astreams) and reorder_additional_audio_streams))) or (not reorder_original_language and reorder_additional_audio_streams)) and new_audio_position != original_astream_order:
         if reorder_original_language:
             logger.info("File '{}' added to task queue - original language identified and is in file or reordering additional streams.".format(abspath))
         else:
             logger.info("File '{}' added to task queue - reordering additional languages only")
         data['add_file_to_pending_tasks'] = True
     else:
-        logger.error("Task not added to queue - original language not in audio streams of file '{}' or not reordering additional streams or original language".format(abspath))
+        logger.error("Task not added to queue - original language not in audio streams of file '{}' or not reordering additional streams or original language or streams do not require reordering".format(abspath))
         data['add_file_to_pending_tasks'] = False
         return data
     return data
@@ -349,37 +380,11 @@ def on_worker_process(data):
 
     original_language = []
     reorder_original_language = settings.get_setting('reorder_original_language')
-    remove_other_languages = settings.get_setting('remove_other_languages')
     if reorder_original_language:
         original_language = get_original_language(abspath, streams, data)
         logger.debug("original language: '{}'".format(original_language))
-    reorder_additional_audio_streams = settings.get_setting('reorder_additional_audio_streams')
-    if reorder_additional_audio_streams:
-        additional_langauges_to_reorder = settings.get_setting('Search String')
-        altr = list(additional_langauges_to_reorder.split(','))
-        altr = [altr[i].strip() for i in range(len(altr))]
-        # if altr contains the original_language, remove it since the original_language will appear first anyway
-        if reorder_original_language:
-            altr = [altr[i] for i in range(len(altr)) if altr[i] not in original_language]
 
-    original_audio_position = []
-    new_audio_position = []
-    astreams = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "tags" in streams[i] and "language" in streams[i]["tags"]]
-    astream_order = [i for i in range(len(astreams))]
-    logger.debug("astreams: '{}', astream_order: '{}".format(astreams, astream_order))
-    original_astream_order = astream_order[:]
-    if original_language:
-        # original_audio_position = [i for i in range(len(astreams)) if astreams[i] == original_language[0]]
-        original_audio_position = [i for i in range(len(astreams)) if astreams[i] in original_language]
-        new_audio_position = original_audio_position[:]
-    if reorder_additional_audio_streams:
-        additional_audio_position = [i for i in range(len(astreams)) for j in range(len(altr)) if astreams[i] == altr[j]]
-        new_audio_position += additional_audio_position[:]
-    logger.debug("new audio position: '{}'".format(new_audio_position))
-    [astream_order.remove(new_audio_position[i]) for i in range(len(new_audio_position))]
-    if not remove_other_languages:
-        new_audio_position += astream_order
-    logger.debug("new audio position: '{}'; original_astream_order: '{}'".format(new_audio_position, original_astream_order))
+    new_audio_position, original_astream_order = get_old_and_new_order(streams, reorder_original_language, original_language, settings)
 
     if new_audio_position != original_astream_order:
         # stream order changed, remap audio streams
