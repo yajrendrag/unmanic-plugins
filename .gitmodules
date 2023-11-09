@@ -58,3 +58,6 @@
 [submodule "source/rename_file/lib/ffmpeg"]
 	path = source/rename_file/lib/ffmpeg
 	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/add_srt_to_video/lib/ffmpeg"]
+	path = source/add_srt_to_video/lib/ffmpeg
+	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
