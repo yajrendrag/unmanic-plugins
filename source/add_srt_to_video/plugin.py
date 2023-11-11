@@ -1,4 +1,4 @@
-'#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
@@ -159,12 +159,12 @@ def on_worker_process(data):
                 try:
                     lang3 = [lang_codes[i][1] for i in range(len(lang_codes)) if lang == lang_codes[i][1]][0]
                 except (KeyError, IndexError):
-                    logger.error("error - 3 letter language coded provided not found - aborting. language code: '{}'".format(lang))
+                    logger.error("error - 3 letter language code provided not found - aborting. language code: '{}'".format(lang))
                     return data
             else:
                 logger.error("error - improper langauge code supplied - aborting. language code: '{}'".format(lang))
                 return data
-            ffmpeg_subtitle_args += ['-map', '{}:s:0'.format(j+1), '-metadata:s:s:{}'.format(j), 'language={}'.format(lang)]
+            ffmpeg_subtitle_args += ['-map', '{}:s:0'.format(j+1), '-metadata:s:s:{}'.format(j), 'language={}'.format(lang3)]
         ffmpeg_args += ['-max_muxing_queue_size', '9999', '-strict', '-2', '-map', '0:v', '-c:v', 'copy', '-map', '0:a', '-c:a', 'copy'] + ffmpeg_subtitle_args + ['-map', '0:t?', '-c:t', 'copy', '-map', '0:d?', '-c:d', 'copy', '-c:s', str(encoder)]
         if sfx == mp4:
             ffmpeg_args += ['-dn', '-map_metadata:c', '-1', '-y', str(outfile)]
