@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.7</span>**
+- fix loop in post processor so list stays constant while deleting files
+
 **<span style="color:#56adda">0.0.6</span>**
 - added capability to keep any existing subtitles
 

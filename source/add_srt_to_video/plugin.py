@@ -219,8 +219,11 @@ def on_postprocessor_task_results(data):
     if status:
         abspath = data.get('source_data').get('abspath')
         basefile = os.path.splitext(abspath)[0]
-        for j in range(len(glob.glob(glob.escape(basefile) + '*.*[a-z].srt'))):
-            srt_file = glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j]
+        srt_files = glob.glob(glob.escape(basefile) + '*.*[a-z].srt')
+        logger.debug("basefile in post: '{}'".format(basefile))
+        logger.debug("srt files: '{}'".format(srt_files))
+        for j in range(len(srt_files)):
+            srt_file = srt_files[j]
             os.remove(srt_file)
             logger.info("srt file '{}' has been added to video file of the same basename; the srt file has been deleted.".format(srt_file))
 
