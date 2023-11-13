@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- glob.escaped all basefiles to protect against special characters in the path name
+
 **<span style="color:#56adda">0.0.4</span>**
 - moved the deletion of the srt files to a post processing routine in order to test task success before deletion
 

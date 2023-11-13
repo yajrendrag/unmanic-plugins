@@ -97,9 +97,9 @@ def on_library_management_file_test(data):
     if sfx == mkv or sfx == mp4:
         basefile = os.path.splitext(abspath)[0]
         logger.debug("basefile: '{}'".format(basefile))
-        logger.debug("glob length: '{}'".format(len(glob.glob(basefile+'*.*[a-z].srt'))))
-        for j in range(len(glob.glob(basefile+'.*.srt'))):
-            lang_srt = [li for li in difflib.ndiff(basefile, glob.glob(basefile+'*.*[a-z].srt')[j]) if li[0] != ' ']
+        logger.debug("glob length: '{}'".format(len(glob.glob(glob.escape(basefile) + '*.*[a-z].srt'))))
+        for j in range(len(glob.glob(glob.escape(basefile) + '.*.srt'))):
+            lang_srt = [li for li in difflib.ndiff(basefile, glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j]) if li[0] != ' ']
             lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
             logger.info ("Language code '{}' subtitle file found, adding file to task queue".format(lang))
             data['add_file_to_pending_tasks'] = True
@@ -153,9 +153,9 @@ def on_worker_process(data):
         ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath)]
         ffmpeg_subtitle_args = []
         basefile = os.path.splitext(abspath)[0]
-        for j in range(len(glob.glob(basefile+'*.*[a-z].srt'))):
-            ffmpeg_args += ['-i', str(glob.glob(basefile+'*.*[a-z].srt')[j])]
-            lang_srt = [li for li in difflib.ndiff(basefile, glob.glob(basefile+'*.*[a-z].srt')[j]) if li[0] != ' ']
+        for j in range(len(glob.glob(glob.escape(basefile) + '*.*[a-z].srt'))):
+            ffmpeg_args += ['-i', str(glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j])]
+            lang_srt = [li for li in difflib.ndiff(basefile, glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j]) if li[0] != ' ']
             lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
             if len(lang) == 2:
                 try:
@@ -194,10 +194,6 @@ def on_worker_process(data):
             parser.set_probe(probe)
             data['command_progress_parser'] = parser.parse_progress
 
-            for j in range(len(glob.glob(basefile+'*.*[a-z].srt'))):
-                srt_file = glob.glob(basefile+'*.*[a-z].srt')[j]
-                os.remove(srt_file)
-                logger.info("srt file '{}' has been added to video file of the same basename; the srt file has been deleted.".format(srt_file))
     return data
 
 def on_postprocessor_task_results(data):
@@ -228,8 +224,8 @@ def on_postprocessor_task_results(data):
     if status:
         abspath = data.get('source_data').get('abspath')
         basefile = os.path.splitext(abspath)[0]
-        for j in range(len(glob.glob(basefile+'*.*[a-z].srt'))):
-            srt_file = glob.glob(basefile+'*.*[a-z].srt')[j]
+        for j in range(len(glob.glob(glob.escape(basefile) + '*.*[a-z].srt'))):
+            srt_file = glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j]
             os.remove(srt_file)
             logger.info("srt file '{}' has been added to video file of the same basename; the srt file has been deleted.".format(srt_file))
 
