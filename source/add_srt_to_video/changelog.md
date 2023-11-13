@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.6</span>**
+- added capability to keep any existing subtitles
+
 **<span style="color:#56adda">0.0.5</span>**
 - glob.escaped all basefiles to protect against special characters in the path name
 

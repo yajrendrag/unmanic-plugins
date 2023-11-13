@@ -45,32 +45,10 @@ lang_codes = [('aa', 'aar'), ('ab', 'abk'), ('af', 'afr'), ('ak', 'aka'), ('am',
 
 class Settings(PluginSettings):
     settings = {
-#        "language_tag_format":	"",
     }
 
     def __init__(self, *args, **kwargs):
         super(Settings, self).__init__(*args, **kwargs)
-#        self.form_settings = {
-#            "language_tag_format": self.__set_language_tag_form_settings(),
-#        }
-
-#    def __set_language_tag_form_settings(self):
-#        values = {
-#            "label":      "Enter language tag format - 2 or 3 letters",
-#            "description":    "Langauge tags can be written as either 2 letters or 3 letters.  3 letters is more recent.",
-#            "input_type": "select",
-#            "select_options": [
-#                {
-#                    "value": "2",
-#                    "label": "2 Letter",
-#                },
-#                {
-#                    "value": "3",
-#                    "label": "3 Letter",
-#                },
-#            ],
-#        }
-#        return values
 
 def on_library_management_file_test(data):
     """
@@ -143,16 +121,27 @@ def on_worker_process(data):
         # File probe failed, skip the rest of this test
         return data
 
+    # get all streams
+    streams=probe.get_probe()["streams"]
+
     # Get file suffix
     mkv = '.mkv'
     mp4 = '.mp4'
     encoder = 'copy'
     sfx = os.path.splitext(abspath)[1]
     if sfx == mp4: encoder = 'mov_text'
+
+    # Get any existing subtitles
+    existing_subtitle_streams_list = [i for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "subtitle"]
+    existing_subtitle_streams_list_len = len(existing_subtitle_streams_list)
+
+    # test suffix for video file
     if sfx == mkv or sfx == mp4:
         ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath)]
         ffmpeg_subtitle_args = []
         basefile = os.path.splitext(abspath)[0]
+
+        # get all subtitle files in folder where original video file is, get 3 letter language code, build ffmpeg subtitle args for new streams
         for j in range(len(glob.glob(glob.escape(basefile) + '*.*[a-z].srt'))):
             ffmpeg_args += ['-i', str(glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j])]
             lang_srt = [li for li in difflib.ndiff(basefile, glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j]) if li[0] != ' ']
@@ -174,8 +163,14 @@ def on_worker_process(data):
             else:
                 logger.error("error - improper langauge code supplied - aborting. language code: '{}'".format(lang))
                 return data
-            ffmpeg_subtitle_args += ['-map', '{}:s:0'.format(j+1), '-metadata:s:s:{}'.format(j), 'language={}'.format(lang3)]
-        ffmpeg_args += ['-max_muxing_queue_size', '9999', '-strict', '-2', '-map', '0:v', '-c:v', 'copy', '-map', '0:a', '-c:a', 'copy'] + ffmpeg_subtitle_args + ['-map', '0:t?', '-c:t', 'copy', '-map', '0:d?', '-c:d', 'copy', '-c:s', str(encoder)]
+            ffmpeg_subtitle_args += ['-map', '{}:s:0'.format(j+1), '-c:s:{}'.format(j+existing_subtitle_streams_list_len), str(encoder), '-metadata:s:s:{}'.format(j+existing_subtitle_streams_list_len), 'language={}'.format(lang3)]
+
+        # add in any existing subtitle streams
+        for i in range(existing_subtitle_streams_list_len-1, -1, -1):
+            ffmpeg_subtitle_args = ['-map', '0:s:{}'.format(i), '-c:s:{}'.format(i), 'copy'] + ffmpeg_subtitle_args
+
+        # build rest of ffmpeg_args around ffmpeg_subtitle_args
+        ffmpeg_args += ['-max_muxing_queue_size', '9999', '-strict', '-2', '-map', '0:v', '-c:v', 'copy', '-map', '0:a', '-c:a', 'copy'] + ffmpeg_subtitle_args + ['-map', '0:t?', '-c:t', 'copy', '-map', '0:d?', '-c:d', 'copy']
         if sfx == mp4:
             ffmpeg_args += ['-dn', '-map_metadata:c', '-1', '-y', str(outfile)]
         else:
