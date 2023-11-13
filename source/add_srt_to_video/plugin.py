@@ -98,7 +98,7 @@ def on_library_management_file_test(data):
         basefile = os.path.splitext(abspath)[0]
         logger.debug("basefile: '{}'".format(basefile))
         logger.debug("glob length: '{}'".format(len(glob.glob(glob.escape(basefile) + '*.*[a-z].srt'))))
-        for j in range(len(glob.glob(glob.escape(basefile) + '.*.srt'))):
+        for j in range(len(glob.glob(glob.escape(basefile) + '*.*[a-z].srt'))):
             lang_srt = [li for li in difflib.ndiff(basefile, glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j]) if li[0] != ' ']
             lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
             logger.info ("Language code '{}' subtitle file found, adding file to task queue".format(lang))
