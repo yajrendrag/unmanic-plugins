@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.8</span>**
+- change worker process to reference the original source file path to match srt files to since file_in will be in the cache and no srt files there
+
 **<span style="color:#56adda">0.0.7</span>**
 - fix loop in post processor so list stays constant while deleting files
 

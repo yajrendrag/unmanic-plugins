@@ -114,6 +114,7 @@ def on_worker_process(data):
     # Get the path to the input and output files
     abspath = data.get('file_in')
     outfile = data.get('file_out')
+    srtpath = data.get('original_file_path')
 
     # Get file probe
     probe = Probe(logger, allowed_mimetypes=['video'])
@@ -139,7 +140,7 @@ def on_worker_process(data):
     if sfx == mkv or sfx == mp4:
         ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath)]
         ffmpeg_subtitle_args = []
-        basefile = os.path.splitext(abspath)[0]
+        basefile = os.path.splitext(srtpath)[0]
 
         # get all subtitle files in folder where original video file is, get 3 letter language code, build ffmpeg subtitle args for new streams
         for j in range(len(glob.glob(glob.escape(basefile) + '*.*[a-z].srt'))):
