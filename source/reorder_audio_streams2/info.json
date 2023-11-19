@@ -16,5 +16,5 @@
         "on_worker_process": 2
     },
     "tags": "audio,ffmpeg,library file test",
-    "version": "0.0.21"
+    "version": "0.0.22"
 }

@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.22</span>**
+- reversed index correction from version 0.0.21 (it was correct originally) and put astream_order.remove in a try block
+
 **<span style="color:#56adda">0.0.21</span>**
 - add file test check so file is skipped (not added to task queue) if the new audio stream order is the same as original
 - correct index on additional_audio_position list comprehension in get_old_and_new_order function so that order is correct on additional audio streams

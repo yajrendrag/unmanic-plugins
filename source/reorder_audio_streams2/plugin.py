@@ -268,6 +268,7 @@ def get_old_and_new_order(streams, reorder_original_language, original_language,
 
     original_audio_position = []
     new_audio_position = []
+    additional_audio_position = []
     astreams = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "tags" in streams[i] and "language" in streams[i]["tags"]]
     astream_order = [i for i in range(len(astreams))]
     logger.debug("astreams: '{}', astream_order: '{}".format(astreams, astream_order))
@@ -276,10 +277,15 @@ def get_old_and_new_order(streams, reorder_original_language, original_language,
         original_audio_position = [i for i in range(len(astreams)) if astreams[i] in original_language]
         new_audio_position = original_audio_position[:]
     if reorder_additional_audio_streams:
-        additional_audio_position = [j for i in range(len(astreams)) for j in range(len(altr)) if astreams[i] == altr[j]]
+        additional_audio_position = [i for i in range(len(astreams)) for j in range(len(altr)) if astreams[i] == altr[j]]
         new_audio_position += additional_audio_position[:]
     logger.debug("new audio position: '{}'".format(new_audio_position))
-    [astream_order.remove(new_audio_position[i]) for i in range(len(new_audio_position))]
+    try:
+        [astream_order.remove(new_audio_position[i]) for i in range(len(new_audio_position))]
+    except ValueError:
+        logger.error("Attempt to remove list items from astreams that are not present - astreams: '{}' \n, astream_order: '{}', new_audio_position: '{}', additional_audio_position: '{}', original_astream_order: '{}'\nAborting.".format(
+                     astreams, astream_order, new_audio_position, additional_audio_position, original_astream_order))
+        return [], []
     if not remove_other_languages:
         new_audio_position += astream_order
     logger.debug("new audio position: '{}'; original_astream_order: '{}'".format(new_audio_position, original_astream_order))
@@ -323,6 +329,8 @@ def on_library_management_file_test(data):
         original_language = get_original_language(basename, streams, data)
     astreams = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "tags" in streams[i] and "language" in streams[i]["tags"]]
     new_audio_position, original_astream_order = get_old_and_new_order(streams, reorder_original_language, original_language, settings)
+    if new_audio_position == [] and original_astream_order == []:
+        logger.error("Task not added to queue - error processing stream positions - see above error re: attempting to remove list items from astreams")
     if (reorder_original_language and (original_language == [] or all(i=="" for i in original_language))) and not reorder_additional_audio_streams:
         logger.error("Task not added to queue - original language not identified for file: '{}'".format(abspath))
         data['add_file_to_pending_tasks'] = False
