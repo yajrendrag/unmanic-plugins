@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.9</span>**
+- add check_sub function to verify subtitle will encode before adding to ffmpeg_subtitle_args; if error, subtitle file is skipped.
+
 **<span style="color:#56adda">0.0.8</span>**
 - change worker process to reference the original source file path to match srt files to since file_in will be in the cache and no srt files there
 

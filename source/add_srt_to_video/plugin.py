@@ -23,6 +23,7 @@ import logging
 import os
 import glob
 import difflib
+import subprocess
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -91,6 +92,11 @@ def lang_split(lang):
     l = [l2.replace('*','') for l2 in l]
     return l[0]
 
+def check_sub(subfile, encoder, suffix):
+    if suffix == 'mkv': suffix = 'matroska'
+    rt = subprocess.check_call(['ffmpeg', '-hide_banner', '-i', subfile, '-map', '0', '-c', encoder, '-y', '-f', suffix, '/dev/null'], shell=False)
+    return rt
+
 def on_worker_process(data):
     """
     Runner function - enables additional configured processing jobs during the worker stages of a task.
@@ -144,6 +150,7 @@ def on_worker_process(data):
 
         # get all subtitle files in folder where original video file is, get 3 letter language code, build ffmpeg subtitle args for new streams
         for j in range(len(glob.glob(glob.escape(basefile) + '*.*[a-z].srt'))):
+            if check_sub(str(glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j]), encoder, suffix): continue
             ffmpeg_args += ['-i', str(glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j])]
             lang_srt = [li for li in difflib.ndiff(basefile, glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j]) if li[0] != ' ']
             lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
