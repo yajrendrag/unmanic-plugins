@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.11</span>**
+- add error handling to check_sub if encode test fails
+
 **<span style="color:#56adda">0.0.10</span>**
 - correct 'suffix' to 'sfx' in check_sub if statement
 
