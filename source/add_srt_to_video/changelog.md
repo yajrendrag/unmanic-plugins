@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.10</span>**
+- correct 'suffix' to 'sfx' in check_sub if statement
+
 **<span style="color:#56adda">0.0.9</span>**
 - add check_sub function to verify subtitle will encode before adding to ffmpeg_subtitle_args; if error, subtitle file is skipped.
 

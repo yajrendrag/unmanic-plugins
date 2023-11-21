@@ -150,7 +150,7 @@ def on_worker_process(data):
 
         # get all subtitle files in folder where original video file is, get 3 letter language code, build ffmpeg subtitle args for new streams
         for j in range(len(glob.glob(glob.escape(basefile) + '*.*[a-z].srt'))):
-            if check_sub(str(glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j]), encoder, suffix): continue
+            if check_sub(str(glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j]), encoder, sfx): continue
             ffmpeg_args += ['-i', str(glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j])]
             lang_srt = [li for li in difflib.ndiff(basefile, glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j]) if li[0] != ' ']
             lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
