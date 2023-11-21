@@ -159,8 +159,8 @@ def on_worker_process(data):
         srt_files = glob.glob(glob.escape(basefile) + '*.*[a-z].srt')
         srt_to_skip = []
         for i in range(len(srt_files)):
-            will_it_encode = check_sub(str(srt_files[i]), encoder, sfx)
-            if not will_it_encode: srt_to_skip.append(i)
+            it_wont_encode = check_sub(str(srt_files[i]), encoder, sfx)
+            if it_wont_encode: srt_to_skip.append(i)
         if srt_to_skip:
             srt_files = [srt_files[i] for i in range(len(srt_files)) if i not in srt_to_skip]
 
