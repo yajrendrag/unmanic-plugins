@@ -93,9 +93,12 @@ def lang_split(lang):
     return l[0]
 
 def check_sub(subfile, encoder, suffix):
-    if suffix == 'mkv': suffix = 'matroska'
+    if suffix == '.mkv':
+        fmt = 'matroska'
+    else:
+        fmt = 'mp4'
     try:
-        rt = subprocess.check_call(['ffmpeg', '-hide_banner', '-i', subfile, '-map', '0', '-c', encoder, '-y', '-f', suffix, '/dev/null'], shell=False)
+        rt = subprocess.check_call(['ffmpeg', '-hide_banner', '-i', subfile, '-map', '0', '-c', encoder, '-y', '-f', fmt, '/dev/null'], shell=False)
     except subprocess.CalledProcessError:
         logger.error("Subtitle file '{}' could not be encoded and will not be added to the source video file".format(subfile))
         rt = 1
