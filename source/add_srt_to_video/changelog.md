@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.13</span>**
+- pull check_sub into it's own loop as the stream indicies get out of sync when skipping files in the main loop
+
 **<span style="color:#56adda">0.0.12</span>**
 - fix check_sub to fix encode muxer format - suffix passed in has preceeding '.'
 

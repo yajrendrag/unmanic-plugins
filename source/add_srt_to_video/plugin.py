@@ -155,11 +155,19 @@ def on_worker_process(data):
         ffmpeg_subtitle_args = []
         basefile = os.path.splitext(srtpath)[0]
 
+        # check srt files to skip any that won't encode
+        srt_files = glob.glob(glob.escape(basefile) + '*.*[a-z].srt')
+        srt_to_skip = []
+        for i in range(len(srt_files)):
+            will_it_encode = check_sub(str(srt_files[i]), encoder, sfx)
+            if not will_it_encode: srt_to_skip.append(i)
+        if srt_to_skip:
+            srt_files = [srt_files[i] for i in range(len(srt_files)) if i not in srt_to_skip]
+
         # get all subtitle files in folder where original video file is, get 3 letter language code, build ffmpeg subtitle args for new streams
-        for j in range(len(glob.glob(glob.escape(basefile) + '*.*[a-z].srt'))):
-            if check_sub(str(glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j]), encoder, sfx): continue
-            ffmpeg_args += ['-i', str(glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j])]
-            lang_srt = [li for li in difflib.ndiff(basefile, glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[j]) if li[0] != ' ']
+        for j in range(len(srt_files)):
+            ffmpeg_args += ['-i', str(srt_files[j])]
+            lang_srt = [li for li in difflib.ndiff(basefile, srt_files[j]) if li[0] != ' ']
             lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
             if len(lang) == 2:
                 try:
