@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.15</span>**
+- change lang parser to just pick the first non blank characters after the first dot as the language - this allows forms of .lang.srt or .lang.other_code.srt
+
 **<span style="color:#56adda">0.0.14</span>**
 - reverse logic in check_srt so it skips the bad srt files
 

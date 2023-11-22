@@ -168,7 +168,9 @@ def on_worker_process(data):
         for j in range(len(srt_files)):
             ffmpeg_args += ['-i', str(srt_files[j])]
             lang_srt = [li for li in difflib.ndiff(basefile, srt_files[j]) if li[0] != ' ']
-            lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
+            # lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
+            langbase = ''.join([i.replace('+ ','') for i in lang_srt])
+            lang = langbase.split('.')[1]
             if len(lang) == 2:
                 try:
                     lang3 = [lang_codes[i][1] for i in range(len(lang_codes)) if lang == lang_codes[i][0]][0]

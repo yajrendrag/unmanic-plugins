@@ -17,3 +17,7 @@ and it will transcode the srt to mov_text format if it's an mp4 file.
 
 There is no configuration associated with this plugin.
 
+---
+### Notes:
+
+This plugin does not support linked instances UNLESS the linked instance has access to the media library using identical paths as the main (task sending) instance. 
