@@ -1,0 +1,1 @@
+parse-torrent-title==2.7

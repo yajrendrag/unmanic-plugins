@@ -23,6 +23,7 @@
 """
 import logging
 import os
+import PTN
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -33,70 +34,68 @@ logger = logging.getLogger("Unmanic.Plugin.rename_file")
 
 class Settings(PluginSettings):
     settings = {
-        "append_video_resolution":      False,
-        "append_audio_codec":           False,
-        "append_audio_channel_layout":  False,
-        "append_audio_language":        False,
+        "modify_name_fields":           True,
+        "append_video_resolution":      "",
+        "append_audio_codec":           "",
+        "append_audio_channel_layout":  "",
+        "append_audio_language":        "",
     }
 
     def __init__(self, *args, **kwargs):
         super(Settings, self).__init__(*args, **kwargs)
         self.form_settings = {
-            "append_video_resolution": {
-                "label": "Check this option if you want to append video resolution to file name",
+            "modify_name_fields": {
+                 "label": "Check this option if you want replace existing fields names with new values from ffprobe of transcoded file; uncheck if your wish to append new fields to file name from ffprobe metadata",
             },
-            "append_audio_codec": {
-                "label": "Check this option if you want to append audio codec name to file name",
-            },
-            "append_audio_channel_layout": {
-                "label": "Check this option if you want to append audio channel layout to file name",
-            },
-            "append_audio_language": {
-                "label": "Check this option if you want to append audio language to file name",
-            }
+            "append_video_resolution":       self.__set_append_video_resolution_form_settings(),
+            "append_audio_codec":            self.__set_append_audio_codec_form_settings(),
+            "append_audio_channel_layout":   self.__set_append_audio_channel_layout_form_settings(),
+            "append_audio_language":         self.__set_append_audio_language_form_settings(),
         }
 
-def on_postprocessor_task_results(data):
-    """
-    Runner function - provides a means for additional postprocessor functions based on the task success.
+    def __set_append_video_resolution_form_settings(self):
+        values = {
+            "label":      "Check this option if you want to append video resolution to file name",
+            "input_type": "checkbox",
+        }
+        if self.get_setting('modify_name_fields'):
+            values["display"] = 'hidden'
+        return values
 
-    The 'data' object argument includes:
-        final_cache_path                - The path to the final cache file that was then used as the source for all destination files.
-        library_id                      - The library that the current task is associated with.
-        task_processing_success         - Boolean, did all task processes complete successfully.
-        file_move_processes_success     - Boolean, did all postprocessor movement tasks complete successfully.
-        destination_files               - List containing all file paths created by postprocessor file movements.
-        source_data                     - Dictionary containing data pertaining to the original source file.
+    def __set_append_audio_codec_form_settings(self):
+        values = {
+            "label":      "Check this option if you want to append audio codec name to file name",
+            "input_type": "checkbox",
+        }
+        if self.get_setting('modify_name_fields'):
+            values["display"] = 'hidden'
+        return values
 
-    :param data:
-    :return:
+    def __set_append_audio_channel_layout_form_settings(self):
+        values = {
+            "label":      "Check this option if you want to append audio channel layout to file name",
+            "input_type": "checkbox",
+        }
+        if self.get_setting('modify_name_fields'):
+            values["display"] = 'hidden'
+        return values
 
-    """
-    # Configure settings object (maintain compatibility with v1 plugins)
-    if data.get('library_id'):
-        settings = Settings(library_id=data.get('library_id'))
-    else:
-        settings = Settings()
+    def __set_append_audio_language_form_settings(self):
+        values = {
+            "label":      "Check this option if you want to append audio language to file name",
+            "input_type": "checkbox",
+        }
+        if self.get_setting('modify_name_fields'):
+            values["display"] = 'hidden'
+        return values
 
-    status = data.get('task_processing_success')
-    logger.debug("status: '{}'".format(status))
-
-    if status:
-        abspath = data.get('source_data').get('abspath')
+def append(data, settings, abspath, streams):
         append_video_resolution = settings.get_setting('append_video_resolution')
         append_audio_codec = settings.get_setting('append_audio_codec')
         append_audio_channel_layout = settings.get_setting('append_audio_channel_layout')
         append_audio_language = settings.get_setting('append_audio_language')
 
         logger.debug("abspath: '{}', append_video_resolution: '{}', append_audio_codec: '{}', append_audio_channel_layout: '{}', append_audio_language: '{}'".format(abspath, append_video_resolution, append_audio_codec, append_audio_channel_layout, append_audio_language))
-
-        probe = Probe(logger, allowed_mimetypes=['video'])
-        if not probe.file(abspath):
-            # File probe failed, skip the rest of this test
-            logger.error("probe failed for file: '{}'; cannot append to filename".format(abspath))
-            return data
-        else:
-            streams = probe.get_probe()["streams"]
 
         vcodec = [streams[i]["codec_name"] for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'video']
         logger.debug("vcodec: '{}'".format(vcodec))
@@ -180,6 +179,124 @@ def on_postprocessor_task_results(data):
         logger.debug("basefile: '{}', suffix: '{}', newpath: '{}'".format(basefile, suffix, newpath))
         os.rename (abspath, newpath)
 
+def replace(data, settings, abspath, streams):
+    basename = os.path.basename(abspath)
+    dirname = os.path.dirname(abspath)
+    parsed_info = PTN.parse(basename, standardise=False)
+    logger.debug("Parsed info: '{}'".format(parsed_info))
+
+    try:
+        codec = parsed_info["codec"]
+    except KeyError:
+        codec = ""
+        logger.error("Error Parsing video codec from file: '{}'".format(abspath))
+
+    try:
+        audio = parsed_info["audio"]
+    except KeyError:
+        audio = ""
+        logger.error("Error Parsing audio codec from file: '{}'".format(abspath))
+
+    try:
+        resolution = parsed_info["resolution"]
+    except KeyError:
+        resolution = ""
+        logger.error("Error Parsing resolution from file: '{}'".format(abspath))
+
+    video_stream = [stream for stream in range(len(streams)) if streams[stream]["codec_type"] == "video"]
+    try:
+        video_codec = streams[video_stream[0]]["codec_name"].upper()
+    except:
+        video_codec = ""
+        logger.info("Error extracting video codec from file: '{}'".format(abspath))
+
+    try:
+        vrez_height = streams[video_stream[0]]["height"]
+        vrez_width = streams[video_stream[0]]["width"]
+    except:
+        vrez_height = ""
+        vrez_width = ""
+        logger.info("Error extracting resolution from file: '{}'".format(abspath))
+
+    astreams_default = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "disposition" in streams[i] and "default" in streams[i]["disposition"] and streams[i]["disposition"] == 1]
+    astreams_first = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio']
+    if astreams_default:
+        astream = astreams_default[0]
+    elif astreams_first:
+        astream = astreams_first[0]
+    else:
+        astream = ""
+        logger.info("no identified audio stream for file: '{}'".format(abspath))
+
+    acodec = ''
+    if astream:
+        audio_codec = streams[astream]["codec_name"]
+        channel_layout = streams[astream]["channel_layout"]
+        channels = streams[astream]["channels"]
+        if channel_layout == "stereo" and channels == '2':
+            acodec = audio_codec + channel_layout + '.0'
+        elif channels > 4:
+            acodec = audio_codec + str(channel_layout).replace('(side)','')
+
+    if basename.find(codec) > 0:
+        basename = basename.replace(codec, video_codec)
+
+    if basename.find(resolution) > 0:
+        if 'x' or 'X' in resolution:
+            basename = basename.replace(resolution, str(vrez_width) + 'x' + str(vrez_height))
+        else:
+            basename = basename.replace(resolution, str(vrez_height))
+
+    if basename.find(acodec) > 0:
+        basename = basename.replace(audio, acodec)
+
+    newpath = dirname + '/' + basename
+    if newpath != abspath:
+        os.rename (abspath, newpath)
+    else:
+        logger.info("Newpath = existing path - nothing to rename")
+
+def on_postprocessor_task_results(data):
+    """
+    Runner function - provides a means for additional postprocessor functions based on the task success.
+
+    The 'data' object argument includes:
+        final_cache_path                - The path to the final cache file that was then used as the source for all destination files.
+        library_id                      - The library that the current task is associated with.
+        task_processing_success         - Boolean, did all task processes complete successfully.
+        file_move_processes_success     - Boolean, did all postprocessor movement tasks complete successfully.
+        destination_files               - List containing all file paths created by postprocessor file movements.
+        source_data                     - Dictionary containing data pertaining to the original source file.
+
+    :param data:
+    :return:
+
+    """
+    # Configure settings object (maintain compatibility with v1 plugins)
+    if data.get('library_id'):
+        settings = Settings(library_id=data.get('library_id'))
+    else:
+        settings = Settings()
+
+    status = data.get('task_processing_success')
+    logger.debug("status: '{}'".format(status))
+
+    if status:
+        append_or_replace = settings.get_setting('modify_name_fields')
+        abspath = data.get('source_data').get('abspath')
+
+        probe = Probe(logger, allowed_mimetypes=['video'])
+        if not probe.file(abspath):
+            # File probe failed, skip the rest of this test
+            logger.error("probe failed for file: '{}'; cannot append to filename".format(abspath))
+            return data
+        else:
+            streams = probe.get_probe()["streams"]
+
+        if not append_or_replace:
+            append(data, settings, abspath, streams)
+        else:
+            replace(data, settings, abspath, streams)
 
     return data
 
