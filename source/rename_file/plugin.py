@@ -24,6 +24,7 @@
 import logging
 import os
 import PTN
+import glob
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -89,95 +90,108 @@ class Settings(PluginSettings):
             values["display"] = 'hidden'
         return values
 
+def rename_related(abspath, newpath):
+    basefile = os.path.splitext(abspath)[0]
+    basefile_new = os.path.splitext(newpath)[0]
+    related_files = glob.glob(glob.escape(basefile) + '.*')
+    related_files = [file for file in related_files if file != abspath]
+    for file in related_files:
+        sfx = os.path.splitext(file)[1]
+        os.rename(basefile + sfx, basefile_new + sfx)
+
 def append(data, settings, abspath, streams):
-        append_video_resolution = settings.get_setting('append_video_resolution')
-        append_audio_codec = settings.get_setting('append_audio_codec')
-        append_audio_channel_layout = settings.get_setting('append_audio_channel_layout')
-        append_audio_language = settings.get_setting('append_audio_language')
+    append_video_resolution = settings.get_setting('append_video_resolution')
+    append_audio_codec = settings.get_setting('append_audio_codec')
+    append_audio_channel_layout = settings.get_setting('append_audio_channel_layout')
+    append_audio_language = settings.get_setting('append_audio_language')
 
-        logger.debug("abspath: '{}', append_video_resolution: '{}', append_audio_codec: '{}', append_audio_channel_layout: '{}', append_audio_language: '{}'".format(abspath, append_video_resolution, append_audio_codec, append_audio_channel_layout, append_audio_language))
+    logger.debug("abspath: '{}', append_video_resolution: '{}', append_audio_codec: '{}', append_audio_channel_layout: '{}', append_audio_language: '{}'".format(abspath, append_video_resolution, append_audio_codec, append_audio_channel_layout, append_audio_language))
 
-        vcodec = [streams[i]["codec_name"] for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'video']
-        logger.debug("vcodec: '{}'".format(vcodec))
+    vcodec = [streams[i]["codec_name"] for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'video']
+    logger.debug("vcodec: '{}'".format(vcodec))
 
+    try:
+        vcodec = vcodec[0]
+    except IndexError:
+         logger.error("Aborting rename - could not find video stream in file: '{}'".format(abspath))
+         return data
+
+    if append_video_resolution:
+        vrezw = [streams[i]["width"] for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'video']
+        vrezh = [streams[i]["height"] for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'video']
         try:
-            vcodec = vcodec[0]
+            vrezw = vrezw[0]
+            vrezh = vrezh[0]
         except IndexError:
-             logger.error("Aborting rename - could not find video stream in file: '{}'".format(abspath))
-             return data
-
-        if append_video_resolution:
-            vrezw = [streams[i]["width"] for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'video']
-            vrezh = [streams[i]["height"] for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'video']
-            try:
-                vrezw = vrezw[0]
-                vrezh = vrezh[0]
-            except IndexError:
-                vrez = ''
-                logger.info("Not including video resolution - could not extract video resolution from file: '{}'".format(abspath))
-            else:
-                vrez = str(vrezw) + "x" + str(vrezh)
-        else:
             vrez = ''
+            logger.info("Not including video resolution - could not extract video resolution from file: '{}'".format(abspath))
+        else:
+            vrez = str(vrezw) + "x" + str(vrezh)
+    else:
+        vrez = ''
 
-        if append_audio_codec or append_audio_channel_layout or append_audio_language:
-            astreams_default = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "disposition" in streams[i] and "default" in streams[i]["disposition"] and streams[i]["disposition"] == 1]
-            astreams_first = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio']
-            logger.debug("astreams_default: '{}', astreams_first: '{}'".format(astreams_default, astreams_first))
-            if astreams_default:
-                astream = astreams_default[0]
-            elif astreams_first:
-                astream = astreams_first[0]
-            else:
-                astream = ""
-                logger.info("no identified audio stream for file: '{}'".format(abspath))
+    if append_audio_codec or append_audio_channel_layout or append_audio_language:
+        astreams_default = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "disposition" in streams[i] and "default" in streams[i]["disposition"] and streams[i]["disposition"] == 1]
+        astreams_first = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio']
+        logger.debug("astreams_default: '{}', astreams_first: '{}'".format(astreams_default, astreams_first))
+        if astreams_default:
+            astream = astreams_default[0]
+        elif astreams_first:
+            astream = astreams_first[0]
         else:
             astream = ""
-            logger.info("no audio options configured to be in renamed file: '{}'".format(abspath))
+            logger.info("no identified audio stream for file: '{}'".format(abspath))
+    else:
+        astream = ""
+        logger.info("no audio options configured to be in renamed file: '{}'".format(abspath))
 
-        if astream:
-            if append_audio_codec:
-                try:
-                     acodec = streams[astream]["codec_name"]
-                except:
-                    acodec = ''
-                    logger.info("Not including audio codec - could not extract audio codec from file: '{}'".format(abspath))
-            else:
+    if astream:
+        if append_audio_codec:
+            try:
+                acodec = streams[astream]["codec_name"]
+            except:
                 acodec = ''
-
-            if append_audio_channel_layout:
-                try:
-                    channel_layout = streams[astream]["channel_layout"]
-                except:
-                    channel_layout = ''
-                    logger.info("Not including channel layout - could not extract channel layout from file: '{}'".format(abspath))
-                else:
-                    if "(side)" in channel_layout: channel_layout = channel_layout.replace("(side)","")
-            else:
-                channel_layout = ''
-
-            if append_audio_language:
-                try:
-                    audio_language = streams[astream]["tags"]["language"]
-                except:
-                    audio_language = ''
-                    logger.info("Not including video resolution - could not extract audio language from file: '{}'".format(abspath))
-            else:
-                audio_language = ''
+                logger.info("Not including audio codec - could not extract audio codec from file: '{}'".format(abspath))
         else:
             acodec = ''
+
+        if append_audio_channel_layout:
+            try:
+                channel_layout = streams[astream]["channel_layout"]
+            except:
+                channel_layout = ''
+                logger.info("Not including channel layout - could not extract channel layout from file: '{}'".format(abspath))
+            else:
+                if "(side)" in channel_layout: channel_layout = channel_layout.replace("(side)","")
+        else:
             channel_layout = ''
+
+        if append_audio_language:
+            try:
+                audio_language = streams[astream]["tags"]["language"]
+            except:
+                audio_language = ''
+                logger.info("Not including video resolution - could not extract audio language from file: '{}'".format(abspath))
+        else:
             audio_language = ''
+    else:
+        acodec = ''
+        channel_layout = ''
+        audio_language = ''
 
-        name_extension = ""
-        for i in vcodec, vrez, acodec, channel_layout, audio_language:
-            if i: name_extension +=  "." + i
+    name_extension = ""
+    for i in vcodec, vrez, acodec, channel_layout, audio_language:
+        if i: name_extension +=  "." + i
 
-        basefile = os.path.splitext(abspath)[0]
-        suffix = os.path.splitext(abspath)[1]
-        newpath = basefile + name_extension + suffix
-        logger.debug("basefile: '{}', suffix: '{}', newpath: '{}'".format(basefile, suffix, newpath))
+    basefile = os.path.splitext(abspath)[0]
+    suffix = os.path.splitext(abspath)[1]
+    newpath = basefile + name_extension + suffix
+    logger.debug("basefile: '{}', suffix: '{}', newpath: '{}'".format(basefile, suffix, newpath))
+    if newpath != abspath:
         os.rename (abspath, newpath)
+        rename_related(abspath, newpath)
+    else:
+        logger.info("Newpath = existing path - nothing to rename")
 
 def replace(data, settings, abspath, streams):
     basename = os.path.basename(abspath)
@@ -251,8 +265,10 @@ def replace(data, settings, abspath, streams):
         basename = basename.replace(audio, acodec)
 
     newpath = dirname + '/' + basename
+    logger.debug("basefile: '{}', suffix: '{}', newpath: '{}'".format(os.path.splitext(abspath)[0], os.path.splitext(abspath)[1], newpath))
     if newpath != abspath:
         os.rename (abspath, newpath)
+        rename_related(abspath, newpath)
     else:
         logger.info("Newpath = existing path - nothing to rename")
 
