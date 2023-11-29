@@ -94,13 +94,13 @@ class PluginStreamMapper(StreamMapper):
         advanced_options = {}
         if end_seconds and float(end_seconds) > 0:
             # Ensure the end trim is less than the duration of the file, less the start trim
-            if float(end_seconds) > float(duration) - float(start_seconds):
+            if float(end_seconds) > float(duration):
                 # The configured value is larger than the duration of the file.
                 # Skip this file for now...
                 return advanced_options
             # Build the start trim args
             advanced_options = {
-                "-to": str(float(duration) - float(end_seconds) - float(start_seconds)),
+                "-to": str(float(duration) - float(end_seconds)),
             }
             self.set_ffmpeg_advanced_options(**advanced_options)
 
