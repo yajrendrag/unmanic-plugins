@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+'#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
@@ -125,10 +125,10 @@ class PluginStreamMapper(StreamMapper):
         args_string = ''
         for key in start_args:
             args_string += "{} {}".format(key, start_args.get(key))
-        logger.debug("args_string: '{}'".(args_string))
+        logger.debug("args_string: '{}'".format(args_string))
         for key in end_args:
             args_string += "{} {}".format(key, end_args.get(key))
-        logger.debug("args_string: '{}'".(args_string))
+        logger.debug("args_string: '{}'".format(args_string))
         return args_string
 
     @staticmethod

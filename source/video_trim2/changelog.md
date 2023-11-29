@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.4</span>**
+- fix logger.debug line missing format
+
 **<span style="color:#56adda">0.0.3</span>**
 - revise '-to' time calculation
 
