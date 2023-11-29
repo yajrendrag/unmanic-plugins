@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- switch to advanced options
+	
 **<span style="color:#56adda">0.0.4</span>**
 - revert to main options
 
