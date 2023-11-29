@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.4</span>**
+- revert to main options
+
 **<span style="color:#56adda">0.0.3</span>**
 - add debug logger output
 
