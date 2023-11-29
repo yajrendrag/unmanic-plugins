@@ -328,6 +328,11 @@ def on_postprocessor_task_results(data):
         mapper.set_settings(settings)
         mapper.set_probe(probe)
 
+        # logger output
+        format = probe.get('format', {})
+        duration = format.get('duration')
+        logger.debug ("trimmed file duration: '{}'".format(duration))
+
         # Get trim args for the source file
         trim_args = mapper.gen_trim_args()
 
