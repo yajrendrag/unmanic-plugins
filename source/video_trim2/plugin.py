@@ -100,7 +100,7 @@ class PluginStreamMapper(StreamMapper):
                 return advanced_options
             # Build the start trim args
             advanced_options = {
-                "-to": str(float(duration) - float(end_seconds)),
+                "-to": str(float(duration) - float(end_seconds) - float(start_seconds)),
             }
             self.set_ffmpeg_advanced_options(**advanced_options)
 
@@ -125,8 +125,10 @@ class PluginStreamMapper(StreamMapper):
         args_string = ''
         for key in start_args:
             args_string += "{} {}".format(key, start_args.get(key))
+        logger.debug("args_string: '{}'".(args_string))
         for key in end_args:
             args_string += "{} {}".format(key, end_args.get(key))
+        logger.debug("args_string: '{}'".(args_string))
         return args_string
 
     @staticmethod
