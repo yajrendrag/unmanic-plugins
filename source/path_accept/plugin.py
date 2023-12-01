@@ -61,6 +61,8 @@ def on_library_management_file_test(data):
 
     regex_patterns = settings.get_setting('patterns')
 
+    data['add_file_to_pending_tasks'] = None
+
     file_path = data.get('path')
     for regex_pattern in regex_patterns.splitlines():
         if not regex_pattern:
