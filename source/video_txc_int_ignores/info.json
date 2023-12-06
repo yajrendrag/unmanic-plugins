@@ -1,12 +1,12 @@
 {
-    "author": "Josh.5",
+    "author": "Josh.5, yajrendrag",
     "compatibility": [
         2
     ],
     "description": "Transcode the video streams of a video file",
     "icon": "https://raw.githubusercontent.com/Unmanic/plugin.video_transcoder/master/icon.png",
-    "id": "video_transcoder",
-    "name": "Transcode Video Files",
+    "id": "video_txc_int_ignores",
+    "name": "Transcode Video Files Integrated Ignores",
     "priorities": {
         "on_library_management_file_test": 10,
         "on_worker_process": 1
