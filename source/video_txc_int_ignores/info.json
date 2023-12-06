@@ -3,7 +3,7 @@
     "compatibility": [
         2
     ],
-    "description": "Transcode the video streams of a video file",
+    "description": "Transcode the video streams of a video file with integrated ignore filters",
     "icon": "https://raw.githubusercontent.com/Unmanic/plugin.video_transcoder/master/icon.png",
     "id": "video_txc_int_ignores",
     "name": "Transcode Video Files Integrated Ignores",
@@ -12,5 +12,5 @@
         "on_worker_process": 1
     },
     "tags": "video,ffmpeg",
-    "version": "0.0.7"
+    "version": "0.0.1"
 }
