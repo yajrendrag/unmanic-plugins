@@ -28,6 +28,8 @@
 """
 import logging
 import apprise
+import subprocess
+from apprise.decorators import notify
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -43,6 +45,9 @@ class Settings(PluginSettings):
     def __init__(self, *args, **kwargs):
         super(Settings, self).__init__(*args, **kwargs)
 
+@notify(on="unmanic")
+def my_wrapper(body, title, notify_type, *args, **kwargs):
+    subprocess.check_call(["bash", "/config/unmanic_notifier.sh", body], shell=False)
 
 def on_postprocessor_task_results(data):
     """
