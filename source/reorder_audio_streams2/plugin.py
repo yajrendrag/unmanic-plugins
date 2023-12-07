@@ -330,7 +330,13 @@ def on_library_management_file_test(data):
     astreams = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "tags" in streams[i] and "language" in streams[i]["tags"]]
     new_audio_position, original_astream_order = get_old_and_new_order(streams, reorder_original_language, original_language, settings)
     if new_audio_position == [] and original_astream_order == []:
+        data['add_file_to_pending_tasks'] = False
         logger.error("Task not added to queue - error processing stream positions - see above error re: attempting to remove list items from astreams")
+        return data
+    elif new_audio_position == [] and original_astream_order != []:
+        data['add_file_to_pending_tasks'] = False
+        logger.error("Task not added to queue - resulting file would have no audio streams")
+        return data
     if (reorder_original_language and (original_language == [] or all(i=="" for i in original_language))) and not reorder_additional_audio_streams:
         logger.error("Task not added to queue - original language not identified for file: '{}'".format(abspath))
         data['add_file_to_pending_tasks'] = False
@@ -394,6 +400,10 @@ def on_worker_process(data):
 
     new_audio_position, original_astream_order = get_old_and_new_order(streams, reorder_original_language, original_language, settings)
 
+    if new_audio_position == [] and original_astream_order != []:
+        logger.error("Skipping plugin - resulting file will have no audio.")
+        logger.debug("new_audio_position: '{}', original_astream_order: '{}'".format(new_audio_position, original_astream_order))
+        return data
     if new_audio_position != original_astream_order:
         # stream order changed, remap audio streams
         ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-strict', '-2', '-map', '0:v', '-c:v', 'copy', '-disposition:a', '-default']

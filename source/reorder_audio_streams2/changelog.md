@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.23</span>**
+- prevent file from being added to task queue or from being processed if the result would contain no audio streams
+
 **<span style="color:#56adda">0.0.22</span>**
 - reversed index correction from version 0.0.21 (it was correct originally) and put astream_order.remove in a try block
 
