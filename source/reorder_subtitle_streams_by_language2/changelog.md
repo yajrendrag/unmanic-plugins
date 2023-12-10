@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">1.0.7</span>**
+- fix import line to refer to correct plugin name
+
 **<span style="color:#56adda">1.0.6</span>**
 - fix found_search_string_streams position in custom stream mapping
 
