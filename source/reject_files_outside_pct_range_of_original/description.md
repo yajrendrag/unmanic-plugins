@@ -9,15 +9,15 @@ See examples below.
 ### Config description:
 
 #### <span style="color:blue">Mark the task as failed</span>
-During the worker processing, if this plugin determines that a file is larger than the original file, it will fail the task and no other plugins will be run.
+During the worker processing, if this plugin determines that a file is outside a percentage range of the original file size, it will fail the task and no other plugins will be run.
 
 Tasks that fail this way will be marked as failed in the Completed Tasks list.
 
 
-#### <span style="color:blue">Ignore files in future scans if end result is larger than source</span>
-If during post-processing, the final file is determined to be larger than the original file, the source file will be flagged to be ignored for all future library file tests.
+#### <span style="color:blue">Ignore files in future scans if end result is outside a percentage range of the source</span>
+If during post-processing, the final file is determined to be outside a percentage range of the original file, the source file will be flagged to be ignored for all future library file tests.
 
-If during the worker processing, the file is determined to be larger than the original file and the Mark the task as failed plugin option is enabled, the source file will be flagged to be ignored for all future library file tests.
+If during the worker processing, the file is determined to be outside a percentage range of the original file and the Mark the task as failed plugin option is enabled, the source file will be flagged to be ignored for all future library file tests.
 
 If during a library scan or file event, a file is found that would otherwise meet the criteria to be added as a new pending task, if that file has been previously flagged to be ignored, then it shall be ignored regardless of the file's status in the Completed Tasks list.
 
@@ -37,13 +37,13 @@ in order to keep the original.
 To do this, configure your Plugin Flow as follows:
 
 1. Video Encoder H265/HEVC - hevc_nvenc (NVIDIA GPU)
-2. Reject File if Larger than Original (This Plugin)
+2. Reject files if outside percentage range of original (This Plugin)
 3. Any other Plugins you wish to run against this library.
 
 **<span style="color:blue">Mark the task as failed</span>**
 > *(UNSELECTED)*
 
-**<span style="color:blue">Ignore files in future scans if end result is larger than source</span>**
+**<span style="color:blue">Ignore files in future scans if end result is outside the configured size range of the source</span>**
 > *(SELECTED)*
 
 ###### <span style="color:magenta">Transcoding to H265 with the NVIDIA NVENC Plugin - Fallback to CPU libx265 if larger:</span>
@@ -53,7 +53,7 @@ But this time with a re-attempt to transcode using the CPU.
 To do this, set the flow like this:
 
 1. Video Encoder H265/HEVC - hevc_nvenc (NVIDIA GPU)
-2. Reject File if Larger than Original (This Plugin)
+2. Reject files if outside percentage range of original (This Plugin)
 3. Video Encoder H265/HEVC - libx265 (CPU)
 4. Any other Plugins you wish to run against this library.
 
@@ -63,7 +63,7 @@ You should get much better results with this encoder, however the time to transc
 **<span style="color:blue">Mark the task as failed</span>**
 > *(UNSELECTED)*
 
-**<span style="color:blue">Ignore files in future scans if end result is larger than source</span>**
+**<span style="color:blue">Ignore files in future scans if end result is outside the configured size range of the source</span>**
 > *(SELECTED)*
 
 ###### <span style="color:magenta">Reject file as the last in the flow (carry out post-processing file movements):</span>
@@ -76,7 +76,7 @@ This allows other post-processing plugins to carry out tasks as they otherwise n
 **<span style="color:blue">Mark the task as failed</span>**
 > *(UNSELECTED)*
 
-**<span style="color:blue">Ignore files in future scans if end result is larger than source</span>**
+**<span style="color:blue">Ignore files in future scans if end result is outside the configured size range of the source</span>**
 > *(SELECTED)*
 
 ###### <span style="color:magenta">Reject file at any time during worker processing (fail the task - skip post-processing):</span>
@@ -87,5 +87,5 @@ Future library scans will ignore this file, even after you have removed it from 
 **<span style="color:blue">Mark the task as failed</span>**
 > *(SELECTED)*
 
-**<span style="color:blue">Ignore files in future scans if end result is larger than source</span>**
+**<span style="color:blue">Ignore files in future scans if end result is outside the configured size range of the source</span>**
 > *(SELECTED)*
