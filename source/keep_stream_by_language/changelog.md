@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.25</span>**
+- fix issue of no audio streams in resulting file when '*' selected and user checked keep undefined
+
 **<span style="color:#56adda">0.0.24</span>**
 - fix '*' selector to select all languages to keep
 
