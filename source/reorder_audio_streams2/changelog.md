@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.24</span>**
+- remove the data['add_file_to_pending_tasks'] = False lines (or set them to None instead) so the remaining plugins' file testing will work
+
 **<span style="color:#56adda">0.0.23</span>**
 - prevent file from being added to task queue or from being processed if the result would contain no audio streams
 
