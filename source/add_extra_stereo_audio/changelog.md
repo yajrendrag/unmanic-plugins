@@ -1,4 +1,10 @@
 
+**<span style="color:#56adda">0.0.11</span>**
+- add option to move stereo stream to first audio stream
+- remove setting of add to task list of False so subsequent plugins will execute
+- add iso639 module to get language name from code
+- add metadata stream title to stereo stream based on language, codec, and "STEREO"
+
 **<span style="color:#56adda">0.0.10</span>**
 - fix stream to encode to guard against streams with no audio language tags
 
