@@ -21,21 +21,26 @@
 """
 import logging
 import os
+import subprocess
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
-from reorder_audio_streams2.lib.ffmpeg import Probe, Parser
+from keep_only_video_and_audio_streams.lib.ffmpeg import Probe, Parser
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.reorder_audio_streams2")
+logger = logging.getLogger("Unmanic.Plugin.keep_only_video_and_audio_streams")
 
 class Settings(PluginSettings):
     settings = {
+        "extract_subtitles":      False,
     }
 
     def __init__(self, *args, **kwargs):
         super(Settings, self).__init__(*args, **kwargs)
         self.form_settings = {
+            "extract_subtitles": {
+            "label": "Check this option if you want to extract subtitles to the original file directory",
+            },
         }
 
 def streams_to_keep(streams):
@@ -118,13 +123,30 @@ def on_worker_process(data):
     else:
         settings = Settings()
 
+    extract_subs = settings.get_setting('extract_subtitles')
+
     all_streams = [streams[i]['index'] for i in range(len(streams))]
     stk = streams_to_keep(streams)
     if stk != all_streams:
 
-        # stream order changed, remap audio streams
+        # set common ffmpeg arguments
         ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-strict', '-2']
-        mapped_streams = ['-map 0:'+str(i) for i in stk]
+
+        # extract subtitles if enabled
+        if extract_subs:
+            sub_streams = [streams[i]['index'] for i in range(len(streams)) if streams[i]['codec_type'] in ["subtitle"]]
+            mapped_sub_streams = []
+            for i in sub_streams:
+                mapped_sub_streams += ['-map', '0:'+str(i), '-c:'+str(i), 'subrip']
+            subfile = os.path.splitext(data['original_file_path'])[0] + '.srt'
+            ffmpeg_subs_args = ['ffmpeg'] + ffmpeg_args + mapped_sub_streams + ['-y', str(subfile)]
+            logger.debug("subtitle extraction args: '{}'".format(ffmpeg_subs_args))
+            es = subprocess.check_call(ffmpeg_subs_args, shell=False)
+
+        # stream order changed, remap audio streams
+        mapped_streams = []
+        for i in stk:
+            mapped_streams += ['-map', '0:'+str(i)]
         ffmpeg_args += mapped_streams
         ffmpeg_args += ['-c', 'copy', '-map_chapters', '-1', '-y', str(outfile)]
         logger.debug("ffmpeg_args: '{}'".format(ffmpeg_args))

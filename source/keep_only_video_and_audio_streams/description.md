@@ -14,4 +14,5 @@ However, if there are multiple audio and/or multiple video streams, all of those
 ---
 ### Config description:
 
-There are no configuration options for this plugin.
+There is a single option to extract subtitles - which it will convert to srt (subrip) format.  this will probably not work with image subtitles.
+The subtitle files will be extracted to the directory of the original file.
