@@ -64,3 +64,6 @@
 [submodule "source/video_trim2/lib/ffmpeg"]
 	path = source/video_trim2/lib/ffmpeg
 	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/keep_only_video_and_audio_streams/lib/ffmpeg"]
+	path = source/keep_only_video_and_audio_streams/lib/ffmpeg
+	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
