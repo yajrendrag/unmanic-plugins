@@ -22,6 +22,7 @@
 import logging
 import os
 import subprocess
+import ffsubsync
 
 from unmanic.libs.unplugins.settings import PluginSettings
 

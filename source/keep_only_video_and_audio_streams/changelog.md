@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- add missing import statement
+
 **<span style="color:#56adda">0.0.4</span>**
 - add a synchronized subtitle for each extracted subtitle file
 
