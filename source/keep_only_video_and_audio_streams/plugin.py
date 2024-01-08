@@ -142,6 +142,12 @@ def on_worker_process(data):
                 ffmpeg_subs_args = ['ffmpeg'] + ffmpeg_args + ['-map', '0:'+str(i), '-c:'+str(i), 'subrip', '-y', str(subfile)]
                 logger.debug("subtitle extraction args: '{}'".format(ffmpeg_subs_args))
                 es = subprocess.check_call(ffmpeg_subs_args, shell=False)
+                if es:
+                    logger.error("Subtitle extraction failed - video: '{}', stream: '{}', language: '{}'".format(data['original_file_path'], i, str(sub_language[0])))
+                else:
+                    ss = subprocess.check_call(['ffs', data['original_file_path'], '-i', subfile, '--no-fix-framerate', '-o', os.path.splitext(subfile)[0]+'-sync.srt'], shell=False)
+                    if ss:
+                        logger.error("Subtitle sync failed - video: '{}', stream: '{}', language: '{}'".format(data['original_file_path'], i, str(sub_language[0])))
 
         # stream order changed, remap audio streams
         mapped_streams = []
