@@ -137,11 +137,11 @@ def on_worker_process(data):
             sub_streams = [streams[i]['index'] for i in range(len(streams)) if streams[i]['codec_type'] in ["subtitle"]]
             mapped_sub_streams = []
             for i in sub_streams:
-                mapped_sub_streams += ['-map', '0:'+str(i), '-c:'+str(i), 'subrip']
-            subfile = os.path.splitext(data['original_file_path'])[0] + '.srt'
-            ffmpeg_subs_args = ['ffmpeg'] + ffmpeg_args + mapped_sub_streams + ['-y', str(subfile)]
-            logger.debug("subtitle extraction args: '{}'".format(ffmpeg_subs_args))
-            es = subprocess.check_call(ffmpeg_subs_args, shell=False)
+                sub_language = [streams[i]["tags"]["language"] if streams[i]['codec_type'] in ["subtitle"] and "tags" in streams[i] and "language" in streams[i]["tags"] else i]
+                subfile = os.path.splitext(data['original_file_path'])[0] + '.' + str(sub_language[0]) + '.srt'
+                ffmpeg_subs_args = ['ffmpeg'] + ffmpeg_args + ['-map', '0:'+str(i), '-c:'+str(i), 'subrip', '-y', str(subfile)]
+                logger.debug("subtitle extraction args: '{}'".format(ffmpeg_subs_args))
+                es = subprocess.check_call(ffmpeg_subs_args, shell=False)
 
         # stream order changed, remap audio streams
         mapped_streams = []
