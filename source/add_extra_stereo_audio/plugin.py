@@ -75,7 +75,7 @@ def stream_to_stereo_encode(stream_language, channels, codec_name, probe_streams
     stream = audio_stream
     for  i in range(0, len(probe_streams)):
         if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == "audio":
-            if "tags" in probe_streams[i] and "title" in probe_streams[i]["tags"] and probe_streams[i]["tags"]["title"] == 'Commentary':
+            if "tags" in probe_streams[i] and "title" in probe_streams[i]["tags"] and 'commentary' in probe_streams[i]["tags"]["title"].lower():
                 continue
             try:
                 if probe_streams[i]["codec_name"] == "aac" and probe_streams[i]["channels"] == 2 and probe_streams[i]["channel_layout"] == "stereo" and probe_streams[i]["tags"]["language"] == stream_language: return stream
@@ -84,13 +84,14 @@ def stream_to_stereo_encode(stream_language, channels, codec_name, probe_streams
 
     for i in range(0, len(probe_streams)):
         if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == "audio":
+            audio_stream += 1
             if "tags" in probe_streams[i] and "language" in probe_streams[i]["tags"]:
                 logger.debug("i '{}', probe_streams[i][codec_type]: '{}', probe_streams[i][channels]: '{}', probe_streams[i][tags][language]: '{}', probe_streams[i][codec_name]: '{}'".format(i, probe_streams[i]["codec_type"], probe_streams[i]["channels"], probe_streams[i]["tags"]["language"], probe_streams[i]["codec_name"]))
             else:
                 logger.debug("i '{}', probe_streams[i][codec_type]: '{}', probe_streams[i][channels]: '{}', probe_streams[i][codec_name]: '{}', No audio language tags".format(i, probe_streams[i]["codec_type"], probe_streams[i]["channels"], probe_streams[i]["codec_name"]))
-            audio_stream += 1
+                continue
             if channels == '' or codec_name == '':
-                if  int(probe_streams[i]["channels"]) > 4:
+                if probe_streams[i]["tags"]["language"] == stream_language and int(probe_streams[i]["channels"]) > 4:
                     stream = audio_stream
                     break
             else:

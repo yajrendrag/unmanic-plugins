@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.12</span>**
+- make commentary check a substring test
+- added missing language check in case where channels or codec_name are left blank
+
 **<span style="color:#56adda">0.0.11</span>**
 - add option to move stereo stream to first audio stream
 - remove setting of add to task list of False so subsequent plugins will execute
