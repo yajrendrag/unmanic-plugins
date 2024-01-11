@@ -20,3 +20,8 @@ Each subtitle stream will be saved with the name of the file and extension of ".
 video_file.mkv, and has eng and spa subtitles, the subtitle files will be name video_file.eng.srt and video_file.spa.srt.
 If any subtitle stream does not have a language code, the language code in the name will be replaced by the absolute stream number, e.g.
 if the 4th stream in the file is a subtitle with no language code it will be saved as video_file.3.srt (ffmpeg numbers streams starting at 0).
+---
+### Installation Notes
+This plugin uses init.d folder to install plugin. After installing the plugin you will notice an error in the unmanic.log file about being
+unable to locate ffsubsync.  This is normal given the installation method.  After installing the plugin, restart the unmanic container.  If however, your unmanic installation is pip installed on bare metal, then you can avoid this step by doing pip install ffsubsync before installing 
+the plugin.

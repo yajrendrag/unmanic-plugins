@@ -1,4 +1,9 @@
 
+**<span style="color:#56adda">0.0.7</span>**
+- remove requirements.txt content
+- change to init.d based plugin installation
+- add missing LICENSE file
+
 **<span style="color:#56adda">0.0.6</span>**
 - specify numpy version
 
