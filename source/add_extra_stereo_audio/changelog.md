@@ -1,5 +1,8 @@
 
 **<span style="color:#56adda">0.0.12</span>**
+- fix stream_to_stereo_encode so it doesn't identify incorrect stream in case of files with mixture of tagged and untagged languages
+
+**<span style="color:#56adda">0.0.12</span>**
 - make commentary check a substring test
 - added missing language check in case where channels or codec_name are left blank
 

@@ -72,16 +72,19 @@ class Settings(PluginSettings):
 
 def stream_to_stereo_encode(stream_language, channels, codec_name, probe_streams):
     audio_stream = -1
-    stream = audio_stream
+
+    # first loop skips any streams that have 'commentary' (any capitalization) in the stream's tag title and skips all further testing if a 2 channel, stereo aac stream exists with language matching configured language
     for  i in range(0, len(probe_streams)):
         if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == "audio":
             if "tags" in probe_streams[i] and "title" in probe_streams[i]["tags"] and 'commentary' in probe_streams[i]["tags"]["title"].lower():
                 continue
             try:
-                if probe_streams[i]["codec_name"] == "aac" and probe_streams[i]["channels"] == 2 and probe_streams[i]["channel_layout"] == "stereo" and probe_streams[i]["tags"]["language"] == stream_language: return stream
+                if probe_streams[i]["codec_name"] == "aac" and probe_streams[i]["channels"] == 2 and probe_streams[i]["channel_layout"] == "stereo" and probe_streams[i]["tags"]["language"] == stream_language: return -1
             except KeyError:
-                if probe_streams[i]["codec_name"] == "aac" and probe_streams[i]["channels"] == 2 and probe_streams[i]["channel_layout"] == "stereo": return stream
+                continue
 
+    # if not skipped per above, find the first multichannel audio stream with language matching the configured language OR
+    # if all config parameters entered find the first multichannel audio with language, # channels, and codec_name matching configuration settings
     for i in range(0, len(probe_streams)):
         if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == "audio":
             audio_stream += 1
@@ -92,20 +95,17 @@ def stream_to_stereo_encode(stream_language, channels, codec_name, probe_streams
                 continue
             if channels == '' or codec_name == '':
                 if probe_streams[i]["tags"]["language"] == stream_language and int(probe_streams[i]["channels"]) > 4:
-                    stream = audio_stream
-                    break
+                    return audio_stream
             else:
                 try:
                     if str(probe_streams[i]["channels"]) == channels and probe_streams[i]["tags"]["language"] == stream_language and probe_streams[i]["codec_name"] == codec_name:
-                        stream = audio_stream
-                        break
+                        return audio_stream
                 except KeyError:
-                    if str(probe_streams[i]["channels"]) == channels and probe_streams[i]["codec_name"] == codec_name:
-                        stream = audio_stream
-                        break
+                    logger.debug("Should not get here and generate a KeyError - probe_streams[i]: '{}'".format(probe_streams[i]))
+                    continue
 
-    logger.debug("stream: '{}'".format(stream))
-    return stream
+    logger.debug("No audio stream selected.  audio_stream counter: '{}'".format(audio_stream))
+    return -1
 
 
 def on_library_management_file_test(data):
