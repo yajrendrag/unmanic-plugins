@@ -243,7 +243,7 @@ def on_library_management_file_test(data):
     astreams = [streams[i]["index"]  for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and (("tags" in streams[i] and "language" in streams[i]["tags"] and streams[i]["tags"]["language"] == 'und') or
                 ("tags" not in streams[i]) or ("tags" in streams[i] and "language" not in streams[i]["tags"]))]
     if len(astreams) > 1:
-        logger.error("Task not added to queue - file has more than 1 audio stream")
+        logger.error("Task not added to queue - file has more than 1 undefined/unknown audio stream")
         return data
     elif len(astreams) == 0:
         logger.error("Task not added to queue - file has no audio streams")
@@ -299,10 +299,10 @@ def on_worker_process(data):
     astreams = [streams[i]["index"]  for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and (("tags" in streams[i] and "language" in streams[i]["tags"] and streams[i]["tags"]["language"] == 'und') or
                 ("tags" not in streams[i]) or ("tags" in streams[i] and "language" not in streams[i]["tags"]))]
     if len(astreams) > 1:
-        logger.error("Metadata not being modified for file: '{}'; file has more than 1 audio stream".format(abspath))
+        logger.error("Metadata not being modified for file: '{}'; file has more than 1 undefined/unknown audio stream".format(abspath))
         return data
     elif len(astreams) == 0:
-        logger.error("Metadata not being modified for file: '{}'; file has more than 1 audio stream".format(abspath))
+        logger.error("Metadata not being modified for file: '{}'; file has no undefined/unknown audio streams".format(abspath))
         return data
 
     # file has a single audio stream, get original language
@@ -315,9 +315,9 @@ def on_worker_process(data):
         ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-strict', '-2', '-map', '0', '-c', 'copy', '-disposition:a', '-default']
         suffix = os.path.splitext(abspath)[1]
         if suffix == '.mp4':
-            ffmpeg_args += ['-metadata:s:a:0', 'language='+original_language[0], '-disposition:a:0', 'default', '-map_chapters', '-1', '-y', str(outfile)]
+            ffmpeg_args += ['-metadata:s:'+str(astreams[0]), 'language='+original_language[0], '-disposition:'+str(astreams[0]), 'default', '-map_chapters', '-1', '-y', str(outfile)]
         else:
-            ffmpeg_args += ['-metadata:s:a:0', 'language='+original_language[0], '-disposition:a:0', 'default', '-y', str(outfile)]
+            ffmpeg_args += ['-metadata:s:'+str(astreams[0]), 'language='+original_language[0], '-disposition:'+str(astreams[0]), 'default', '-y', str(outfile)]
         logger.debug("ffmpeg_args: '{}'".format(ffmpeg_args))
 
         # Apply ffmpeg args to command
