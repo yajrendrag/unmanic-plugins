@@ -10,9 +10,6 @@
 [submodule "source/keep_stream_by_language/lib/ffmpeg"]
 	path = source/keep_stream_by_language/lib/ffmpeg
 	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
-[submodule "source/video_transcoder2/lib/ffmpeg"]
-	path = source/video_transcoder2/lib/ffmpeg
-	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
 [submodule "source/reorder_audio_streams_by_language2/lib/ffmpeg"]
 	path = source/reorder_audio_streams_by_language2/lib/ffmpeg
 	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
