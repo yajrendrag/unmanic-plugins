@@ -16,9 +16,6 @@
 [submodule "source/encoder_audio_libfdk_aac/lib/ffmpeg"]
 	path = source/encoder_audio_libfdk_aac/lib/ffmpeg
 	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
-[submodule "source/reorder_subtitle_streams_by_language2/lib/ffmpeg"]
-	path = source/reorder_subtitle_streams_by_language2/lib/ffmpeg
-	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
 [submodule "source/remove_audio_stream_by_channels/lib/ffmpeg"]
 	path = source/remove_audio_stream_by_channels/lib/ffmpeg
 	url = https://github.com/yajrendrag/unmanic.plugin.helpers.ffmpeg.git
