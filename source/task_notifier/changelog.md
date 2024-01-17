@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.4</span>**
+- add result text to error messages
+- documentation updates
+
 **<span style="color:#56adda">0.0.3</span>**
 - add unmanic_notifier shell script
 - option to run a custom command after the notificiation

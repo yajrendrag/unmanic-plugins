@@ -82,13 +82,13 @@ def on_postprocessor_task_results(data):
     config = apprise.AppriseConfig()
     result = config.add(apprise_config_path)
     if not result:
-        logger.error("Error adding apprise configuration")
+        logger.error("Error adding apprise configuration: '{}'".format(result))
         return data
     result = notify.add(config)
     if not result:
-        logger.error("Error adding configuration data to apprise notification object")
+        logger.error("Error adding configuration data to apprise notification object: '{}'".format(result))
         return data
     result = notify.notify(body='Unmanic ' + str(task_status) + str('\n') + str(source), title = 'Unmanic Task Status')
     if not result:
-        logger.error("Error sending apprise notification")
+        logger.error("Error sending apprise notification: '{}'".format(result))
     return data
