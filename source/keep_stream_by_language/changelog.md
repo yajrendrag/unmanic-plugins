@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.26</span>**
+- add an optional fail safe check to prevent unintentional deletion of all audio or subtitle streams - option is on by default
+
 **<span style="color:#56adda">0.0.25</span>**
 - fix issue of no audio streams in resulting file when '*' selected and user checked keep undefined
 

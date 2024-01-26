@@ -40,6 +40,7 @@ class Settings(PluginSettings):
         "subtitle_languages":    '',
         "keep_undefined":        True,
         "keep_commentary":       False,
+        "fail_safe":             True,
     }
 
 
@@ -57,6 +58,9 @@ class Settings(PluginSettings):
             },
             "keep_commentary":   {
                 "label": "uncheck to discard commentary audio streams regardless of any language tags",
+            },
+            "fail_safe":   {
+                "label": "check to include fail safe check to prevent unintentional deletion of all audio &/or all subtitle streams",
             }
         }
 
@@ -68,33 +72,22 @@ class PluginStreamMapper(StreamMapper):
     def set_settings(self, settings):
         self.settings = settings
 
+    def null_streams(self, streams):
+        alcl, audio_streams_list = streams_list(self.settings.get_setting('audio_languages'), streams, 'audio')
+        slcl, subtitle_streams_list = streams_list(self.settings.get_setting('subtitle_languages'), streams, 'subtitle')
+        if (any(l in audio_streams_list for l in alcl) or alcl == ['*'] or audio_streams_list == []) and (any(l in subtitle_streams_list for l in slcl) or slcl == ['*'] or subtitle_streams_list == []):
+            return True
+        logger.info("One of the lists of languages does not contain a language matching any streams in the file - the entire stream type would be removed if processed, aborting.\n alcl: '{}', audio streams in file: '{}';\n slcl: '{}', subtitle streams in file: '{}'".format(alcl, audio_streams_list, slcl, subtitle_streams_list))
+        return False
+
     def same_streams(self, streams):
-        audio_language_config_list = self.settings.get_setting('audio_languages')
-        alcl = list(audio_language_config_list.split(','))
-        alcl = [alcl[i].strip() for i in range(0,len(alcl))]
-        alcl.sort()
-        if alcl == ['']: alcl = []
-        subtitle_language_config_list = self.settings.get_setting('subtitle_languages')
-        slcl = list(subtitle_language_config_list.split(','))
-        slcl = [slcl[i].strip() for i in range(0,len(slcl))]
-        slcl.sort()
-        if slcl == ['']: slcl = []
-        try:
-            audio_streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio"]
-        except KeyError:
-            logger.info("no audio tags in file")
+        alcl, audio_streams_list = streams_list(self.settings.get_setting('audio_languages'), streams, 'audio')
+        slcl, subtitle_streams_list = streams_list(self.settings.get_setting('subtitle_languages'), streams, 'subtitle')
+        if not audio_streams_list or not subtitle_streams_list:
             return False
-        audio_streams_list.sort()
-        try:
-            subtitle_streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "subtitle"]
-        except KeyError:
-            logger.info("no subtitle tags in file")
-            return False
-        subtitle_streams_list.sort()
         logger.debug("audio config list: '{}', audio streams in file: '{}'".format(alcl, audio_streams_list))
         logger.debug("subtitle config list: '{}', subtitle streams in file: '{}'".format(slcl, subtitle_streams_list))
         if (alcl == audio_streams_list or alcl == ['*'])  and (slcl == subtitle_streams_list or slcl == ['*']):
-        #if alcl == audio_streams_list and slcl == subtitle_streams_list:
             return True
         else:
             return False
@@ -135,6 +128,20 @@ class PluginStreamMapper(StreamMapper):
             'stream_mapping':  [],
             'stream_encoding': [],
         }
+
+def streams_list(languages, streams, stream_type):
+    language_config_list = languages
+    lcl = list(language_config_list.split(','))
+    lcl = [lcl[i].strip() for i in range(0,len(lcl))]
+    lcl.sort()
+    if lcl == ['']: lcl = []
+    try:
+        streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == stream_type]
+        streams_list.sort() 
+    except KeyError:
+        streams_list = []
+        logger.info("no '{}' tags in file".format(stream_type))
+    return lcl,streams_list
 
 def kept_streams(settings):
     al = settings.get_setting('audio_languages')
@@ -213,8 +220,15 @@ def on_library_management_file_test(data):
     # Set the input file
     mapper.set_input_file(abspath)
 
+    # Get fail-safe setting
+    fail_safe = settings.get_setting('fail_safe')
+
     if not file_streams_already_kept(settings, abspath):
         logger.debug("File '{}' has not previously had streams kept by keep_streams_by_language plugin".format(abspath))
+        if fail_safe:
+            if not mapper.null_streams(probe_streams):
+                logger.debug("File '{}' does not contain streams matching any of the configured languages - if * was configured or the file has no streams of a given type, this check will not prevent the plugin from running for that strem type.".format(abspath))
+                return data
         if mapper.same_streams(probe_streams):
             logger.debug("File '{}' only has same streams as keep configuration specifies - so, does not contain streams that require processing.".format(abspath))
         elif mapper.streams_need_processing():
@@ -314,6 +328,15 @@ def on_worker_process(data):
 
         # Set the input file
         mapper.set_input_file(abspath)
+
+        # Get fail-safe setting
+        fail_safe = settings.get_setting('fail_safe')
+
+        # Test for null intersection of configured languages and actual languages
+        if fail_safe:
+            if mapper.null_streams(probe_streams):
+                logger.info("File '{}' does not contain streams matching any of the configured languages - if * was configured or the file has no streams of a given type, this check will not prevent the plugin from running for that strem type.".format(abspath))
+                return data
 
         if mapper.streams_need_processing():
             # Set the output file
