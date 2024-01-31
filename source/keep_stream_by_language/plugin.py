@@ -24,6 +24,7 @@
 import logging
 import os
 from configparser import NoSectionError, NoOptionError
+import iso639
 
 from unmanic.libs.unplugins.settings import PluginSettings
 from unmanic.libs.directoryinfo import UnmanicDirectoryInfo
@@ -75,7 +76,7 @@ class PluginStreamMapper(StreamMapper):
     def null_streams(self, streams):
         alcl, audio_streams_list = streams_list(self.settings.get_setting('audio_languages'), streams, 'audio')
         slcl, subtitle_streams_list = streams_list(self.settings.get_setting('subtitle_languages'), streams, 'subtitle')
-        if (any(l in audio_streams_list for l in alcl) or alcl == ['*'] or audio_streams_list == []) and (any(l in subtitle_streams_list for l in slcl) or slcl == ['*'] or subtitle_streams_list == []):
+        if (all(l in audio_streams_list for l in alcl) or alcl == ['*'] or audio_streams_list == []) and (all(l in subtitle_streams_list for l in slcl) or slcl == ['*'] or subtitle_streams_list == []):
             return True
         logger.info("One of the lists of languages does not contain a language matching any streams in the file - the entire stream type would be removed if processed, aborting.\n alcl: '{}', audio streams in file: '{}';\n slcl: '{}', subtitle streams in file: '{}'".format(alcl, audio_streams_list, slcl, subtitle_streams_list))
         return False
@@ -102,11 +103,20 @@ class PluginStreamMapper(StreamMapper):
             else:
                 language_list = self.settings.get_setting('subtitle_languages')
             languages = list(filter(None, language_list.split(',')))
+            languages = [languages[i].strip() for i in range(len(languages))]
+            if '*' not in languages and languages:
+                try:
+                    languages = [iso639.Language.from_part1(languages[i]).part2b if len(languages[i]) == 2 else iso639.Language.from_part2b(languages[i]).part2b for i in range(len(languages))]
+                except iso639.language.LanguageNotFoundError:
+                    raise iso639.language.LanguageNotFoundError("config list: ", languages)
+
             for language in languages:
                 language = language.strip()
-                if language and (language.lower() in stream_tags.get('language', '').lower() or language.lower() == '*'):
-                #if language and language.lower() in stream_tags.get('language', '').lower():
-                    # Found a matching language. Process this stream to keep it
+                try:
+                    stream_tag_language = iso639.Language.from_part1(stream_tags.get('language', '').lower()).part2b if len(stream_tags.get('language', '').lower()) == 2 else iso639.Language.from_part2b(stream_tags.get('language', '').lower()).part2b
+                except iso639.language.LanguageNotFoundError:
+                    raise iso639.language.LanguageNotFoundError("stream tag language: ", stream_tags.get('language', '').lower())
+                if language and (language.lower() in stream_tag_language or language.lower() == '*'):
                     return True
         elif keep_undefined:
             logger.warning(
@@ -135,12 +145,22 @@ def streams_list(languages, streams, stream_type):
     lcl = [lcl[i].strip() for i in range(0,len(lcl))]
     lcl.sort()
     if lcl == ['']: lcl = []
+    if '*' not in lcl and lcl:
+        try:
+            lcl = [iso639.Language.from_part1(lcl[i]).part2b if len(lcl[i]) == 2 else iso639.Language.from_part2b(lcl[i]).part2b for i in range(len(lcl))]
+        except iso639.language.LanguageNotFoundError:
+            raise iso639.language.LanguageNotFoundError("config list: ", lcl)
     try:
         streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == stream_type]
         streams_list.sort() 
     except KeyError:
         streams_list = []
         logger.info("no '{}' tags in file".format(stream_type))
+    if streams_list:
+        try:
+            streams_list = [iso639.Language.from_part1(streams_list[i]).part2b if len(streams_list[i]) == 2 else iso639.Language.from_part2b(streams_list[i]).part2b for i in range(len(streams_list))]
+        except iso639.language.LanguageNotFoundError:
+            raise iso639.language.LanguageNotFoundError("streams list: ", streams_list)
     return lcl,streams_list
 
 def kept_streams(settings):
@@ -153,8 +173,14 @@ def kept_streams(settings):
     ku = settings.get_setting('keep_undefined')
     if not ku:
         ku = settings.settings.get('keep_undefined')
+    kc = settings.get_setting('keep_commentary')
+    if not kc:
+        kc = settings.settings.get('keep_commentary')
+    fs = settings.get_setting('fail_safe')
+    if not fs:
+        fs = settings.settings.get('fail_safe')
 
-    return 'kept_streams=audio_langauges={}:subtitle_languages={}:keep_undefined={}'.format(al, sl, ku)
+    return 'kept_streams=audio_langauges={}:subtitle_languages={}:keep_undefined={}:keep_commentary={}:fail_safe={}'.format(al, sl, ku, kc, fs)
 
 def file_streams_already_kept(settings, path):
     directory_info = UnmanicDirectoryInfo(os.path.dirname(path))
@@ -246,15 +272,24 @@ def keep_languages(mapper, ct, language_list, streams, keep_undefined, keep_comm
     codec_type = ct[0].lower()
     languages = list(filter(None, language_list.split(',')))
     languages = [languages[i].lower().strip() for i in range(0,len(languages))]
+    if '*' not in languages and languages:
+        try:
+            languages = [iso639.Language.from_part1(languages[i]).part2b if len(languages[i]) == 2 else iso639.Language.from_part2b(languages[i]).part2b for i in range(len(languages))]
+        except iso639.language.LanguageNotFoundError:
+            raise iso639.language.LanguageNotFoundError("config list: ", languages)
     streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == ct and "tags" in streams[i] and "language" in streams[i]["tags"] and
                     (codec_type == 's' or keep_commentary == True or (keep_commentary == False and ("codec_type" in streams[i] and streams[i]["codec_type"] == ct and "tags" in streams[i] and ("title" in streams[i]["tags"] and
                      "commentary" not in streams[i]["tags"]["title"].lower() or "title" not in streams[i]["tags"]))) or languages == ['*'])]
-    if not streams_list and languages == ['*']: streams_list = ['*']
-    for i, language in enumerate(streams_list):
-        language = language.lower().strip()
-        if language  and not (keep_undefined and language == "und") and (language in languages or languages == ['*']):
-        #if language and not (keep_undefined and language == "und") and language in languages:
-            mapadder(mapper, i, codec_type)
+    try:
+        streams_list = [iso639.Language.from_part1(streams_list[i]).part2b if len(streams_list[i]) == 2 else iso639.Language.from_part2b(streams_list[i]).part2b for i in range(len(streams_list))]
+    except iso639.language.LanguageNotFoundError:
+        raise iso639.language.LanguageNotFoundError("streams language list: ", streams_list)
+    if streams_list:
+        for i, language in enumerate(streams_list):
+            lang = language.lower().strip()
+            if lang and not (keep_undefined and lang == "und") and (lang in languages or languages == ['*']):
+                logger.debug("keeping language '{}' from '{}' stream '{}.".format(lang, ct, i))
+                mapadder(mapper, i, codec_type)
 
 def keep_undefined(mapper, streams, keep_commentary):
     if keep_commentary:
@@ -271,9 +306,11 @@ def stream_iterator(mapper, stream_list, streams, codec):
         try:
             lang = streams[stream_list[i]]["tags"]["language"].lower().strip()
         except KeyError:
+            logger.debug("keeping untagged stream '{}.".format(i))
             mapadder(mapper, i, codec)
         else:
             if lang == 'und':
+                logger.debug("keeping stream '{}' marked as undefined.".format(i))
                 mapadder(mapper, i, codec)
 
 def mapadder(mapper, stream, codec):
@@ -334,7 +371,7 @@ def on_worker_process(data):
 
         # Test for null intersection of configured languages and actual languages
         if fail_safe:
-            if mapper.null_streams(probe_streams):
+            if not mapper.null_streams(probe_streams):
                 logger.info("File '{}' does not contain streams matching any of the configured languages - if * was configured or the file has no streams of a given type, this check will not prevent the plugin from running for that strem type.".format(abspath))
                 return data
 
@@ -344,7 +381,7 @@ def on_worker_process(data):
 
             # clear stream mappings, copy all video
             mapper.stream_mapping = ['-map', '0:v']
-            #mapper.stream_encoding = ['-c:v', 'copy']
+            mapper.stream_encoding = []
 
             # keep specific language streams if present
             keep_languages(mapper, 'audio', settings.get_setting('audio_languages'), probe_streams, keep_undefined_lang_tags, keep_commentary)
@@ -358,14 +395,6 @@ def on_worker_process(data):
             mapper.stream_encoding += ['-c', 'copy']
             ffmpeg_args = mapper.get_ffmpeg_args()
 
-            # override video stream encoding - finds adjacent elements of ('-c:v:0', 'copy') and deletes them from the ffmpeg_args since we added global copy above
-            adjacent_arg_elements = [(ffmpeg_args[i-1] if i > 0 else None, ffmpeg_args[i] if i < len(ffmpeg_args)-1 else None) for i in range(0, len(ffmpeg_args))]
-            items_to_delete = 0
-            for i in range(len(adjacent_arg_elements)):
-                if adjacent_arg_elements[i] == ('-c:v:0', 'copy'):
-                    items_to_delete = i-1
-                    break
-            if items_to_delete > 0: del ffmpeg_args[items_to_delete:items_to_delete + 2]
             logger.debug("ffmpeg_args: '{}'".format(ffmpeg_args))
 
             # Apply ffmpeg args to command

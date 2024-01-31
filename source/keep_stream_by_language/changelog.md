@@ -1,4 +1,11 @@
 
+**<span style="color:#56adda">0.0.27</span>**
+- fix fail safe function in worker process
+- add iso639 module to convert all language tags to is 639.2b for comparison purposes so user doesn't have to specify both 2 and 3 char language codes
+- change fail safe test to find all configured languages are present in the file
+- fix mapper.stream_encoding so no extraneous stream copies are in generated ffmpeg command
+- fix mapped languages edge case in keep_languages when * is specified and language tags are empty list
+
 **<span style="color:#56adda">0.0.26</span>**
 - add an optional fail safe check to prevent unintentional deletion of all audio or subtitle streams - option is on by default
 
