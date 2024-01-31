@@ -36,6 +36,7 @@ logger = logging.getLogger("Unmanic.Plugin.add_extra_ac3_multichannel_audio")
 class Settings(PluginSettings):
     settings = {
         "skip_files_less_than_4k_resolution":         False,
+        "encoder": "",
     }
 
     def __init__(self, *args, **kwargs):
@@ -43,8 +44,27 @@ class Settings(PluginSettings):
         self.form_settings = {
             "skip_files_less_than_4k_resolution":               {
                 "label": "check if you want to skip files with resolutions less than 4k (3840x2160)",
-            }
+            },
+            "encoder": self.__set_encoder_form_settings(),
         }
+
+    def __set_encoder_form_settings(self):
+        values = {
+            "label":      "Enter encoder",
+            "decription": "Select ac3 or libfdk_aac for the encoder - libfdk_aac requires ffmpeg5.x"
+            "input_type": "select",
+            "select_options": [
+                {
+                    "value": "ac3",
+                    "label": "ac3",
+                },
+                {
+                    "value": "libfdk_aac",
+                    "label": "libfdk_aac",
+                },
+            ],
+        }
+        return values
 
 def stream_to_ac3_encode(probe_streams, abspath):
     try:
@@ -160,7 +180,7 @@ def on_worker_process(data):
         settings = Settings()
 
     stream_to_encode, new_audio_stream, absolute_stream_num = stream_to_ac3_encode(probe_streams, abspath)
-    encoder = 'ac3'
+    encoder = settings.get_setting('encoder')
     channels = '6'
     if new_audio_stream:
         # Get generated ffmpeg args

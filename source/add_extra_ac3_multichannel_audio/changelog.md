@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.10</span>**
+- add a configuration option to encode with libfdk_aac or ac3
+- renamed plugin add_extra_multichannel_audio
+
 **<span style="color:#56adda">0.0.9</span>**
 - readded fix for finding existing ac3 stream of same language as lossless stream and not adding a new stream in that eventuality
 
