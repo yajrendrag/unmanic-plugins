@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.12</span>**
+- fix logger and import lines to reflect name change
+
 **<span style="color:#56adda">0.0.11</span>**
 - fix encoder selection menu
 

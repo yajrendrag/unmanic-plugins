@@ -27,10 +27,10 @@ from operator import itemgetter
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
-from add_extra_ac3_multichannel_audio.lib.ffmpeg import Probe, Parser
+from add_extra_multichannel_audio.lib.ffmpeg import Probe, Parser
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.add_extra_ac3_multichannel_audio")
+logger = logging.getLogger("Unmanic.Plugin.add_extra_multichannel_audio")
 
 
 class Settings(PluginSettings):
