@@ -51,7 +51,7 @@ class Settings(PluginSettings):
     def __set_encoder_form_settings(self):
         values = {
             "label":      "Enter encoder",
-            "decription": "Select ac3 or libfdk_aac for the encoder - libfdk_aac requires ffmpeg5.x"
+            "decription": "Select ac3 or libfdk_aac for the encoder - libfdk_aac requires ffmpeg5.x",
             "input_type": "select",
             "select_options": [
                 {

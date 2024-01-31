@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.11</span>**
+- fix encoder selection menu
+
 **<span style="color:#56adda">0.0.10</span>**
 - add a configuration option to encode with libfdk_aac or ac3
 - renamed plugin add_extra_multichannel_audio
