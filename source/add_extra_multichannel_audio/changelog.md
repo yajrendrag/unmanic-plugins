@@ -1,4 +1,9 @@
 
+**<span style="color:#56adda">0.0.13</span>**
+- fix stream title to match encoder selected
+- fix formatting on encoder selection menu
+- added option to remove original audio stream - new audio gets added in original stream's location
+
 **<span style="color:#56adda">0.0.12</span>**
 - fix logger and import lines to reflect name change
 
