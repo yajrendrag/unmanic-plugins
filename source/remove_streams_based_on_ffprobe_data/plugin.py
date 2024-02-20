@@ -141,7 +141,7 @@ def on_worker_process(data):
 
     if streams_to_remove != []:
         # process the file by copying all streams except those identified to be removed
-        ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0']
+        ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-strict', '-2', '-max_muxing_queue_size', '9999', '-map', '0']
         for stream in range(0, len(streams_to_remove)):
             ffmpeg_args += ['-map', '-0:'+str(streams_to_remove[stream])]
         ffmpeg_args += ['-c', 'copy', '-y', str(outpath)]

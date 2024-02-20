@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.4</span>**
+- add -strict -2 to ffmpeg command to accommodate what may be experimental features for some containers
+
 **<span style="color:#56adda">0.0.3</span>**
 - add test for presence of "tags" in streams_to_remove statement in stream_has_ffprobe_data function
 - add lower() function to guard against user entering caps in field names
