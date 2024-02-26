@@ -147,10 +147,12 @@ def on_worker_process(data):
         ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-strict', '-2']
 
         # set stream maps
-        stream_map = ['-map', '0', '-c', 'copy']
+        stream_map = ['-map', '0:v', '-c:v', 'copy']
         for i in range(len(all_astreams)):
             if all_astreams[i] in stream_to_encode:
                 stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac', '6', '-b:a:'+str(i), bit_rate, '-metadata:s:a:'+str(i), 'title="'+encoder+' Surround"']
+            else:
+                stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), 'copy']
         stream_map += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy']
         ffmpeg_args += stream_map
 
