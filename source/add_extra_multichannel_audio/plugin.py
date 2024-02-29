@@ -216,7 +216,7 @@ def on_worker_process(data):
             stream_map=['-map', '0:v', '-c:v', 'copy']
             for i in range(len(astreams)):
                 if i != stream_to_encode:
-                    stream_map += ['map', '0:a:'+str(i), '-c:a:'+str(i), 'copy']
+                    stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), 'copy']
                 else:
                     stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac', channels, '-b:a:'+str(i), bit_rate, '-metadata:s:a:'+str(i), 'title="'+encoder+' 5.1 surround"']
 

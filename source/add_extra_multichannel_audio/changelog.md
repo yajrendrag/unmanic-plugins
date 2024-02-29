@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.14</span>**
+- fix map command missing leading '-'
+
 **<span style="color:#56adda">0.0.13</span>**
 - fix stream title to match encoder selected
 - fix formatting on encoder selection menu
