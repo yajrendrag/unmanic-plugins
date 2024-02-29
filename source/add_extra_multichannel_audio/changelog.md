@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.15</span>**
+- comment out data['add_file_to_pending_tasks'] = False in file test so subsequent plugins can test file
+
 **<span style="color:#56adda">0.0.14</span>**
 - fix map command missing leading '-'
 

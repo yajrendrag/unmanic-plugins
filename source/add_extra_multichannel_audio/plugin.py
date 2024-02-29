@@ -142,7 +142,7 @@ def on_library_management_file_test(data):
         else:
             logger.info("Multichannel audio stream '{}' is being encoded as extra '{}' audio channel '{}'".format(stream_to_encode, encoder, new_audio_stream))
     else:
-        data['add_file_to_pending_tasks'] = False
+#        data['add_file_to_pending_tasks'] = False
         logger.info("do not add file '{}' to task list - no multichannel audio streams found or one already exists with same language as lossless audio stream".format(abspath))
 
     return data
