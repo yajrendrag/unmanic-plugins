@@ -90,14 +90,16 @@ class PluginStreamMapper(StreamMapper):
         logger.info("One of the lists of languages does not contain a language matching any streams in the file - the entire stream type would be removed if processed, aborting.\n alcl: '{}', audio streams in file: '{}';\n slcl: '{}', subtitle streams in file: '{}'".format(alcl, audio_streams_list, slcl, subtitle_streams_list))
         return False
 
-    def same_streams(self, streams):
+    def same_streams_or_no_work(self, streams, keep_undefined):
         alcl, audio_streams_list = streams_list(self.settings.get_setting('audio_languages'), streams, 'audio')
         slcl, subtitle_streams_list = streams_list(self.settings.get_setting('subtitle_languages'), streams, 'subtitle')
         if not audio_streams_list or not subtitle_streams_list:
             return False
+        untagged_streams = [i for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] in ["audio", "subtitle"] and ("tags" not in streams[i] or ("tags" in streams[i] and "language" not in streams[i]["tags"]))]
+        no_work_to_do = (all(l in slcl for l in subtitle_streams_list) and all(l in alcl for l in audio_streams_list) and (keep_undefined == True or (keep_undefined == False and untagged_streams == [])))
         logger.debug("audio config list: '{}', audio streams in file: '{}'".format(alcl, audio_streams_list))
         logger.debug("subtitle config list: '{}', subtitle streams in file: '{}'".format(slcl, subtitle_streams_list))
-        if (alcl == audio_streams_list or alcl == ['*'])  and (slcl == subtitle_streams_list or slcl == ['*']):
+        if ((alcl == audio_streams_list or alcl == ['*'])  and (slcl == subtitle_streams_list or slcl == ['*'])) or no_work_to_do:
             return True
         else:
             return False
@@ -257,6 +259,7 @@ def on_library_management_file_test(data):
 
     # Get fail-safe setting
     fail_safe = settings.get_setting('fail_safe')
+    keep_undefined = settings.get_setting('keep_undefined')
 
     if not file_streams_already_kept(settings, abspath):
         logger.debug("File '{}' has not previously had streams kept by keep_streams_by_language plugin".format(abspath))
@@ -264,8 +267,8 @@ def on_library_management_file_test(data):
             if not mapper.null_streams(probe_streams):
                 logger.debug("File '{}' does not contain streams matching any of the configured languages - if * was configured or the file has no streams of a given type, this check will not prevent the plugin from running for that strem type.".format(abspath))
                 return data
-        if mapper.same_streams(probe_streams):
-            logger.debug("File '{}' only has same streams as keep configuration specifies - so, does not contain streams that require processing.".format(abspath))
+        if mapper.same_streams_or_no_work(probe_streams, keep_undefined):
+            logger.debug("File '{}' only has same streams as keep configuration specifies OR otherwise does not require any work to keep ony specified streams - so, does not contain streams that require processing.".format(abspath))
         elif mapper.streams_need_processing():
             # Mark this file to be added to the pending tasks
             data['add_file_to_pending_tasks'] = True
