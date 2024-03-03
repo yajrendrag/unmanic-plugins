@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.30</span>**
+- fix keep undefined audio_streams_list list builder - improper grouping on last 'or' term
+
 **<span style="color:#56adda">0.0.29</span>**
 - fix keep undefined audio_streams_list list builder - last time should have been an 'or'
 

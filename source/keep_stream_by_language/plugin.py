@@ -304,8 +304,8 @@ def keep_undefined(mapper, streams, keep_commentary):
     if keep_commentary:
         audio_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio" and ("tags" not in streams[i] or ("tags" in streams[i] and "language" not in streams[i]["tags"]))]
     else:
-        audio_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio" and ("tags" not in streams[i] or ("tags" in streams[i] and "language" not in streams[i]["tags"])) or
-                              ("tags" in streams[i] and "title" in streams[i]["tags"] and "commentary" not in streams[i]["tags"]["title"].lower())]
+        audio_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "audio" and ("tags" not in streams[i] or ("tags" in streams[i] and "language" not in streams[i]["tags"]) or
+                              ("tags" in streams[i] and "title" in streams[i]["tags"] and "commentary" not in streams[i]["tags"]["title"].lower()))]
     subtitle_streams_list = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == "subtitle" and ("tags" not in streams[i] or ("tags" in streams[i] and "language" not in streams[i]["tags"]))]
     stream_iterator(mapper, subtitle_streams_list, streams, 's')
     stream_iterator(mapper, audio_streams_list, streams, 'a')
