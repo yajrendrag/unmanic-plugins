@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.32</span>**
+- added more debug logging for same_streams_or_no_work
+
 **<span style="color:#56adda">0.0.31</span>**
 - add check to same_streams expanding the test for no work by identifying scenarios where the only streams to keep are the only ones in the file already whether tagged or untagged
 

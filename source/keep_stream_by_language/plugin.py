@@ -96,9 +96,14 @@ class PluginStreamMapper(StreamMapper):
         if not audio_streams_list or not subtitle_streams_list:
             return False
         untagged_streams = [i for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] in ["audio", "subtitle"] and ("tags" not in streams[i] or ("tags" in streams[i] and "language" not in streams[i]["tags"]))]
-        no_work_to_do = (all(l in slcl for l in subtitle_streams_list) and all(l in alcl for l in audio_streams_list) and (keep_undefined == True or (keep_undefined == False and untagged_streams == [])))
+        subs_in_slcl = all(l in slcl for l in subtitle_streams_list)
+        audio_in_alcl = all(l in alcl for l in audio_streams_list)
+        no_work_to_do = (subs_in_slcl and audio_in_alcl and (keep_undefined == True or (keep_undefined == False and untagged_streams == [])))
         logger.debug("audio config list: '{}', audio streams in file: '{}'".format(alcl, audio_streams_list))
         logger.debug("subtitle config list: '{}', subtitle streams in file: '{}'".format(slcl, subtitle_streams_list))
+        logger.debug("untagged streams: '{}'".format(untagged_streams))
+        logger.debug("subs in slcl: '{}'; audio in alcl: '{}'".format(subs_in_slcl, audio_in_alcl))
+        logger.debug("no work to do: '{}'".format(no_work_to_do))
         if ((alcl == audio_streams_list or alcl == ['*'])  and (slcl == subtitle_streams_list or slcl == ['*'])) or no_work_to_do:
             return True
         else:
