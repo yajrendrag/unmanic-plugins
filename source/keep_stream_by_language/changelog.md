@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.28</span>**
+- fix fail safe function - it was only working when the config list was shorter than streams list
+
 **<span style="color:#56adda">0.0.27</span>**
 - fix fail safe function in worker process
 - add iso639 module to convert all language tags to is 639.2b for comparison purposes so user doesn't have to specify both 2 and 3 char language codes

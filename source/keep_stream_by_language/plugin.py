@@ -76,7 +76,16 @@ class PluginStreamMapper(StreamMapper):
     def null_streams(self, streams):
         alcl, audio_streams_list = streams_list(self.settings.get_setting('audio_languages'), streams, 'audio')
         slcl, subtitle_streams_list = streams_list(self.settings.get_setting('subtitle_languages'), streams, 'subtitle')
-        if (all(l in audio_streams_list for l in alcl) or alcl == ['*'] or audio_streams_list == []) and (all(l in subtitle_streams_list for l in slcl) or slcl == ['*'] or subtitle_streams_list == []):
+        if len(alcl) > len(audio_streams_list):
+            audio=all(l in alcl for l in audio_streams_list)
+        else:
+            audio=all(l in audio_streams_list for l in alcl)
+        if len(slcl) > len(subtitle_streams_list):
+            subtitle=all(l in slcl for l in subtitle_streams_list)
+        else:
+            subtitle=all(l in subtitle_streams_list for l in slcl)
+        if (audio or alcl == ['*'] or audio_streams_list == []) and (subtitle or slcl == ['*'] or subtitle_streams_list == []):
+#        if (all(l in audio_streams_list for l in alcl) or alcl == ['*'] or audio_streams_list == []) and (all(l in subtitle_streams_list for l in slcl) or slcl == ['*'] or subtitle_streams_list == []):
             return True
         logger.info("One of the lists of languages does not contain a language matching any streams in the file - the entire stream type would be removed if processed, aborting.\n alcl: '{}', audio streams in file: '{}';\n slcl: '{}', subtitle streams in file: '{}'".format(alcl, audio_streams_list, slcl, subtitle_streams_list))
         return False
