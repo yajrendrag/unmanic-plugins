@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.29</span>**
+- fix keep undefined audio_streams_list list builder - last time should have been an 'or'
+
 **<span style="color:#56adda">0.0.28</span>**
 - fix fail safe function - it was only working when the config list was shorter than streams list
 
