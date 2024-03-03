@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.33</span>**
+- fix no_work_to_do - wasn't reaching when one of the language lists in the file was empty
+- restored fail safe test to original 'any' based definition - only tests for null intersection of configured languages to keep and actual languages in file
+
 **<span style="color:#56adda">0.0.32</span>**
 - added more debug logging for same_streams_or_no_work
 
