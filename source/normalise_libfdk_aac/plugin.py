@@ -94,7 +94,7 @@ class PluginStreamMapper(StreamMapper):
         return {
             'stream_mapping':  ['-map', '0:a:{}'.format(stream_id)],
             'stream_encoding': [
-                '-c:a:{}'.format(stream_id), 'libfdk_aac', '-ac:a:{} {}'.format(stream_id, channels),
+                '-c:a:{}'.format(stream_id), 'libfdk_aac', '-ac:a:{}'.format(stream_id), '{}'.format(channels),
                 '-filter:a:{}'.format(stream_id), audio_filtergraph(self.settings),
             ]
         }

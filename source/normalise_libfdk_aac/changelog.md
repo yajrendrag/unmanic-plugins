@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.4</span>**
+- fix stream_encoding list
+
 **<span style="color:#56adda">0.0.3</span>**
 - add '-ac' parameter to encoder to avoid incompatible channel layout error
 
