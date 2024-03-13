@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.3</span>**
+- add '-ac' parameter to encoder to avoid incompatible channel layout error
+
 **<span style="color:#56adda">0.0.2</span>**
 - fix normalise check to use `aac` as ffmpeg writes only `aac` to codec_name
 
