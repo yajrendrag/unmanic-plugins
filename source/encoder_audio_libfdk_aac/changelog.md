@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- add debug logger output for ENCODER value
+
 **<span style="color:#56adda">0.0.4</span>**
 - fix test stream functiojn to test tags for ENCODER value containing 'libfdk_aac'
 

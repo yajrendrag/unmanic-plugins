@@ -138,6 +138,8 @@ class PluginStreamMapper(StreamMapper):
 
     def test_stream_needs_processing(self, stream_info: dict):
         # Ignore streams already of the required codec_name
+        if ('tags' in stream_info and 'ENCODER' in stream_info.get('tags') and self.encoder in stream_info.get('tags')['ENCODER']):
+            logger.debug("codec name: '{}', ENCODER: '{}'".format(stream_info.get('codec_name'), stream_info.get('tags')['ENCODER']))
         if stream_info.get('codec_name').lower() in [self.codec] and
             ('tags' in stream_info and 'ENCODER' in stream_info.get('tags') and
              self.encoder in stream_info.get('tags')['ENCODER']):
