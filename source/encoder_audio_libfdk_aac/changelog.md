@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.6</span>**
+- fix multiline format issue
+
 **<span style="color:#56adda">0.0.5</span>**
 - add debug logger output for ENCODER value
 
