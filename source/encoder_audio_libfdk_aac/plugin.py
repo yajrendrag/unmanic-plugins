@@ -97,7 +97,7 @@ class Settings(PluginSettings):
 class PluginStreamMapper(StreamMapper):
     def __init__(self):
         super(PluginStreamMapper, self).__init__(logger, ['audio'])
-        self.codec = 'libfdk_aac'
+        self.codec = 'aac'
         self.encoder = 'libfdk_aac'
         self.settings = None
 
@@ -138,7 +138,9 @@ class PluginStreamMapper(StreamMapper):
 
     def test_stream_needs_processing(self, stream_info: dict):
         # Ignore streams already of the required codec_name
-        if stream_info.get('codec_name').lower() in [self.codec]:
+        if stream_info.get('codec_name').lower() in [self.codec] and
+            ('tags' in stream_info and 'ENCODER' in stream_info.get('tags') and
+             self.encoder in stream_info.get('tags')['ENCODER']):
             return False
         return True
 
