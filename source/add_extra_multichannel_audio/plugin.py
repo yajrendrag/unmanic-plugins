@@ -81,6 +81,8 @@ def s2_encode(probe_streams, encoder, replace_original, abspath):
     existing_mc_stream = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == encoder and probe_streams[i]["channels"] == 6]
     mc_stream_exists_already = [existing_mc_stream[i] for i in range(0, len(existing_mc_stream)) if "tags" in probe_streams[existing_mc_stream[i]] and "language" in probe_streams[existing_mc_stream[i]]["tags"] and probe_streams[existing_mc_stream[i]]["tags"]["language"] in probe_streams[absolute_stream_num]["tags"]["language"]]
     if mc_stream_exists_already == []:
+        logger.debug("Existing mc stream test: '{}'".format(existing_mc_stream))
+        logger.debug("audio stream to encode: '{}', new audio stream: '{}', absolute stream: '{}'".format(audio_stream_to_encode, new_audio_stream, absolute_stream_num))
         return audio_stream_to_encode, new_audio_stream, absolute_stream_num, True
     else:
         logger.info("6 channel '{}' stream with matching language already exists, skipping file '{}'".format(encoder, abspath))

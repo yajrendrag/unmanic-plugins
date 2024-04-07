@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.16</span>**
+- added debug logger output for testing existing multichannel streams
+
 **<span style="color:#56adda">0.0.15</span>**
 - comment out data['add_file_to_pending_tasks'] = False in file test so subsequent plugins can test file
 
