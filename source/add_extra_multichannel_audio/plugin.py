@@ -80,7 +80,7 @@ def s2_encode(probe_streams, encoder, replace_original, abspath):
     except:
         logger.error("Error finding audio stream to encode")
         return 0, 0, 0, False
-    if encoder != 'libfdk_aac:
+    if encoder != 'libfdk_aac':
         existing_mc_stream = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == encoder and probe_streams[i]["channels"] == 6]
     else:
         existing_mc_stream = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == 'aac' and (
