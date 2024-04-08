@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.17</span>**
+- add fix to select the correct audio stream when the multichannel audio stream is not the first audio stream
+- add fix to identify already existing multichannel audio when encoder is libfdk_aac
+
 **<span style="color:#56adda">0.0.16</span>**
 - added debug logger output for testing existing multichannel streams
 

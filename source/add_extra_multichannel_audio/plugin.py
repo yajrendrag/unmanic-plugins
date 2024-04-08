@@ -69,16 +69,22 @@ class Settings(PluginSettings):
 def s2_encode(probe_streams, encoder, replace_original, abspath):
     try:
         streams_list = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] in ["truehd", "eac3", "dts"]]
+        all_audio_streams=[i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio']
         # below returns the audio stream with the maximum number of audio channels > 5, it's audio stream #, and absolute stream # as a tuple, and final index selects key number 1 from the tuple (audio stream #)
-        audio_stream_to_encode = max([(probe_streams[streams_list[i]]["channels"], i, ind) for i,ind in enumerate(streams_list) if probe_streams[streams_list[i]]["channels"] >= 6], key = itemgetter(0))[1]
+        # audio_stream_to_encode = max([(probe_streams[streams_list[i]]["channels"], i, ind) for i,ind in enumerate(streams_list) if probe_streams[streams_list[i]]["channels"] >= 6], key = itemgetter(0))[1]
         absolute_stream_num = max([(probe_streams[streams_list[i]]["channels"], i, ind) for i,ind in enumerate(streams_list) if probe_streams[streams_list[i]]["channels"] >= 6], key = itemgetter(0))[2]
-        new_audio_stream = len([i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio'])
+        audio_stream_to_encode = [i for i in range(len(all_audio_streams)) if all_audio_streams[i] == absolute_stream_num][0]
+        new_audio_stream = len(all_audio_streams)
         if replace_original:
             new_audio_stream = audio_stream_to_encode
     except:
         logger.error("Error finding audio stream to encode")
         return 0, 0, 0, False
-    existing_mc_stream = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == encoder and probe_streams[i]["channels"] == 6]
+    if encoder != 'libfdk_aac:
+        existing_mc_stream = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == encoder and probe_streams[i]["channels"] == 6]
+    else:
+        existing_mc_stream = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == 'aac' and (
+                              probe_streams[i]["channels"] == 6 and 'tags' in probe_streams[i] and 'ENCODER' in probe_streams[i]["tags"] and encoder in probe_streams[i]["tags"]["ENCODER"])]
     mc_stream_exists_already = [existing_mc_stream[i] for i in range(0, len(existing_mc_stream)) if "tags" in probe_streams[existing_mc_stream[i]] and "language" in probe_streams[existing_mc_stream[i]]["tags"] and probe_streams[existing_mc_stream[i]]["tags"]["language"] in probe_streams[absolute_stream_num]["tags"]["language"]]
     if mc_stream_exists_already == []:
         logger.debug("Existing mc stream test: '{}'".format(existing_mc_stream))
