@@ -5,7 +5,7 @@
     plugins.__init__.py
 
     Written by:               yajrendrag <yajdude@gmail.com>
-    Date:                     17 April 2024, (09:00 Am)
+    Date:                     17 April 2024, (09:00 AM)
 
     Copyright:
         Copyright (C) 2024 Jay Gardner
