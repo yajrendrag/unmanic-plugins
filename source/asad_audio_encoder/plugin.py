@@ -262,7 +262,7 @@ def on_worker_process(data):
             if channel_rate != "keep each stream's existing rate":
                 bit_rate = str(parse_size(channel_rate) * int(channels))
             stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac', str(channels)]
-            if channel_rate != "blank_rate"
+            if channel_rate != "blank_rate":
                 stream_map += ['-b:a:'+str(i), str(bit_rate)]
             all_streams.remove(absolute_stream)
 
