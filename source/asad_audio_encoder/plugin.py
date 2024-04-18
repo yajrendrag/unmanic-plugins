@@ -61,7 +61,7 @@ class Settings(PluginSettings):
                 "input_type": "select",
                 "select_options": [
                     {
-                        "value": "libmp3lame",
+                        "value": "mp3",
                         "label": "libmp3lame",
                     },
                     {
@@ -69,7 +69,7 @@ class Settings(PluginSettings):
                         "label": "libfdk_aac",
                     },
                     {
-                        "value": "libopus",
+                        "value": "opus",
                         "label": "libopus",
                     },
                     {
