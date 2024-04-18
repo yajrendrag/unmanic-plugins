@@ -46,7 +46,7 @@ suffix = {
 class Settings(PluginSettings):
     settings = {
         "encoder": "libfdk_aac",
-        "channel_rate": "64k",
+        "channel_rate": "Default/None",
         "customize":  False,
         "custom_audio": "",
         "custom_suffix": "",
@@ -121,8 +121,8 @@ class Settings(PluginSettings):
                         "label": "keep each stream's existing rate",
                     },
                     {
-                        "value": "Default/None",
-                        "label": "blank_rate",
+                        "value": "blank_rate",
+                        "label": "Default/None",
                     },
                 ]
             },
