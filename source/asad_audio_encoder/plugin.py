@@ -112,6 +112,10 @@ class Settings(PluginSettings):
                         "value": "keep each stream's existing rate",
                         "label": "keep each stream's existing rate",
                     },
+                    {
+                        "value": "Default/None",
+                        "label": "blank_rate",
+                    },
                 ]
             },
             "customize": {
@@ -257,7 +261,11 @@ def on_worker_process(data):
             bit_rate = t[2]
             if channel_rate != "keep each stream's existing rate":
                 bit_rate = str(parse_size(channel_rate) * int(channels))
-            stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac', str(channels), '-b:a:'+str(i), str(bit_rate)]
+            if channel_rate = "blank_rate"
+                bit_rate_flag = []
+            else:
+                bit_rate_flag = [', -b:a:'+str(i), str(bit_rate)]
+            stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac', str(channels)+str(bit_rate_flag)]
             all_streams.remove(absolute_stream)
 
         for i in range(len(all_streams)):
