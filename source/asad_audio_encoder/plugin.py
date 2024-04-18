@@ -38,7 +38,7 @@ suffix = {
     "libfdk_aac": "m4a",
     "libmp3lame": "mp3",
     "libopus": "ogg",
-    "vorbis": "ogg",
+    "libvorbis": "ogg",
     "flac": "flac",
     "alac": "m4a",
 }
@@ -61,20 +61,20 @@ class Settings(PluginSettings):
                 "input_type": "select",
                 "select_options": [
                     {
-                        "value": "mp3",
-                        "label": "libmp3lame",
+                        "value": "libmp3lame",
+                        "label": "mp3",
                     },
                     {
                         "value": "libfdk_aac",
                         "label": "libfdk_aac",
                     },
                     {
-                        "value": "opus",
-                        "label": "libopus",
+                        "value": "libopus",
+                        "label": "opus",
                     },
                     {
-                        "value": "vorbis",
-                        "label": "libvorbis",
+                        "value": "libvorbis",
+                        "label": "vorbis",
                     },
                     {
                         "value": "flac",
@@ -93,20 +93,28 @@ class Settings(PluginSettings):
                 "input_type": "select",
                 "select_options": [
                     {
+                        "value": "32k",
+                        "label": "32k",
+                    },
+                    {
+                        "value": "48k",
+                        "label": "48k",
+                    },
+                    {
                         "value": "64k",
                         "label": "64k",
+                    },
+                    {
+                        "value": "96k",
+                        "label": "96k",
                     },
                     {
                         "value": "128k",
                         "label": "128k",
                     },
                     {
-                        "value": "192k",
-                        "label": "192k",
-                    },
-                    {
-                        "value": "256k",
-                        "label": "256k",
+                        "value": "160k",
+                        "label": "160k",
                     },
                     {
                         "value": "keep each stream's existing rate",
