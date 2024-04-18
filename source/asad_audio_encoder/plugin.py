@@ -46,7 +46,7 @@ suffix = {
 class Settings(PluginSettings):
     settings = {
         "encoder": "libfdk_aac",
-        "channel_rate": "Default/None",
+        "channel_rate": "blank_rate",
         "customize":  False,
         "custom_audio": "",
         "custom_suffix": "",
