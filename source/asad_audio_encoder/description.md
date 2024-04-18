@@ -39,3 +39,17 @@ For information on the available encoder settings:
 - Select the customize box if you wish to add custom audio encoder options or specifiy a custom file suffix.
 - Text Areas for custom audio options and custom suffix will appear if check box is checked otherwise these fields are hidden.
 
+#### FFmpeg command
+
+```
+ffmpeg \
+    -hide_banner \
+    -loglevel info \
+    -i /path/to/input/audio.wav \
+    -max_muxing_queue_size 9999 -strict -2 \
+    -map 0:a:<stream number> -c:a:<stream number> <encoder> -ac <audio channels count> \
+    -b:a:<stream number> <bitrate> # This line omitted when bitrate Default/None \
+    -map 0:<cover art/video stream number> -c:<cover art/video stream number> copy \
+    <CUSTOM AUDIO OPTIONS HERE> \
+    /path/to/output/audio.<file suffix>
+```

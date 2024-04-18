@@ -5,7 +5,7 @@
     plugins.__init__.py
 
     Written by:               yajrendrag <yajdude@gmail.com>
-    Date:                     17 April 2024, (09:00 Am)
+    Date:                     17 April 2024, (09:00 AM)
 
     Copyright:
         Copyright (C) 2024 Jay Gardner
@@ -38,7 +38,7 @@ suffix = {
     "libfdk_aac": "m4a",
     "libmp3lame": "mp3",
     "libopus": "ogg",
-    "vorbis": "ogg",
+    "libvorbis": "ogg",
     "flac": "flac",
     "alac": "m4a",
 }
@@ -46,7 +46,7 @@ suffix = {
 class Settings(PluginSettings):
     settings = {
         "encoder": "libfdk_aac",
-        "channel_rate": "64k",
+        "channel_rate": "0",
         "customize":  False,
         "custom_audio": "",
         "custom_suffix": "",
@@ -62,7 +62,7 @@ class Settings(PluginSettings):
                 "select_options": [
                     {
                         "value": "libmp3lame",
-                        "label": "libmp3lame",
+                        "label": "mp3",
                     },
                     {
                         "value": "libfdk_aac",
@@ -70,11 +70,11 @@ class Settings(PluginSettings):
                     },
                     {
                         "value": "libopus",
-                        "label": "libopus",
+                        "label": "opus",
                     },
                     {
-                        "value": "vorbis",
-                        "label": "libvorbis",
+                        "value": "libvorbis",
+                        "label": "vorbis",
                     },
                     {
                         "value": "flac",
@@ -93,24 +93,36 @@ class Settings(PluginSettings):
                 "input_type": "select",
                 "select_options": [
                     {
+                        "value": "32k",
+                        "label": "32k",
+                    },
+                    {
+                        "value": "48k",
+                        "label": "48k",
+                    },
+                    {
                         "value": "64k",
                         "label": "64k",
+                    },
+                    {
+                        "value": "96k",
+                        "label": "96k",
                     },
                     {
                         "value": "128k",
                         "label": "128k",
                     },
                     {
-                        "value": "192k",
-                        "label": "192k",
-                    },
-                    {
-                        "value": "256k",
-                        "label": "256k",
+                        "value": "160k",
+                        "label": "160k",
                     },
                     {
                         "value": "keep each stream's existing rate",
                         "label": "keep each stream's existing rate",
+                    },
+                    {
+                        "value": "0",
+                        "label": "Default/None",
                     },
                 ]
             },
@@ -257,7 +269,9 @@ def on_worker_process(data):
             bit_rate = t[2]
             if channel_rate != "keep each stream's existing rate":
                 bit_rate = str(parse_size(channel_rate) * int(channels))
-            stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac', str(channels), '-b:a:'+str(i), str(bit_rate)]
+            stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac', str(channels)]
+            if channel_rate != "0":
+                stream_map += ['-b:a:'+str(i), str(bit_rate)]
             all_streams.remove(absolute_stream)
 
         for i in range(len(all_streams)):
