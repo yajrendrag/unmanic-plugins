@@ -4,7 +4,6 @@
 - Changed codec names
 - Changed Default settings
 - (Opus and Vorbis don't work with cover art yet, coming soon™)
-- 
 
 **<span style="color:#56adda">0.0.1</span>**
 - initial version
