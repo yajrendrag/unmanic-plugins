@@ -45,6 +45,7 @@ suffix = {
 
 class Settings(PluginSettings):
     settings = {
+        "force_encoding": False,
         "encoder": "libfdk_aac",
         "channel_rate": "0",
         "customize":  False,
@@ -55,6 +56,9 @@ class Settings(PluginSettings):
     def __init__(self, *args, **kwargs):
         super(Settings, self).__init__(*args, **kwargs)
         self.form_settings = {
+            "force_encoding": {
+                "label": "Check this option if you want to force encoding if the encoder already matches the selected encoder",
+            },
             "encoder": {
                 "label":      "Enter encoder",
                 "description": "Select audio encoder for the encoder:",
@@ -150,13 +154,21 @@ class Settings(PluginSettings):
             values["display"] = 'hidden'
         return values
 
-def s2_encode(streams, probe_format, encoder, channel_rate, abspath):
+def s2_encode(streams, probe_format, encoder, force_encoding, channel_rate, abspath):
     try:
-        all_audio_streams=[(i, streams[i]["channels"], probe_format["bit_rate"]) for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "bit_rate" in probe_format]
+        all_audio_streams = [i for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio']
     except:
         logger.error("Error finding audio stream to encode")
         return [0,0,0]
-    return all_audio_streams
+
+    streams_to_encode = [(i, streams[i]["channels"], probe_format["bit_rate"]) for i in range(len(streams))
+                         if ("codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "codec_name" in streams[i] and streams[i]["codec_name"] != encoder and "bit_rate" in probe_format)
+                         or (force_encoding == True and "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "bit_rate" in probe_format)]
+
+    if streams_to_encode != []:
+        return streams_to_encode
+    else:
+        return [0,0,0]
 
 def on_library_management_file_test(data):
     """
@@ -192,11 +204,12 @@ def on_library_management_file_test(data):
     else:
         settings = Settings()
 
-    # get encoder & channel_rate
+    # get encoder, channel_rate & force_encoding
     encoder = settings.get_setting('encoder')
     channel_rate = settings.get_setting('channel_rate')
+    force_encoding = settings.get_setting('force_encoding')
 
-    if s2_encode(probe_streams, probe_format, encoder, channel_rate, abspath) != [0,0,0]:
+    if s2_encode(probe_streams, probe_format, encoder, force_encoder, channel_rate, abspath) != [0,0,0]:
         # Mark this file to be added to the pending tasks
         data['add_file_to_pending_tasks'] = True
         logger.debug("File '{}' should be added to task list. Probe found streams require processing.".format(abspath))
@@ -249,6 +262,8 @@ def on_worker_process(data):
     channel_rate = settings.get_setting('channel_rate')
     custom_audio = settings.get_setting('custom_audio')
     custom_suffix = settings.get_setting('custom_suffix')
+    force_encoding = settings.get_setting('force_encoding')
+
     if custom_suffix:
         sfx = custom_suffix
     else:
@@ -258,7 +273,7 @@ def on_worker_process(data):
     ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-strict', '-2']
 
     # Build stream maps for audio streams to be encoded
-    streams_to_process = s2_encode(probe_streams, probe_format, encoder, channel_rate, abspath)
+    streams_to_process = s2_encode(probe_streams, probe_format, encoder, force_encoding, channel_rate, abspath)
     if streams_to_process != [0,0,0]:
 
         all_streams = [i for i in range(len(probe_streams))]
