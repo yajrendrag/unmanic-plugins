@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.4</span>**
+- fix erroneous reference to force_encoder
+
 **<span style="color:#56adda">0.0.3</span>**
 - added force encoding option
 - added check so file not reprocessed if stream encoder equals configured encoder

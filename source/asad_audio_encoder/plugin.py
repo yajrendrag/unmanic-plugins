@@ -209,7 +209,7 @@ def on_library_management_file_test(data):
     channel_rate = settings.get_setting('channel_rate')
     force_encoding = settings.get_setting('force_encoding')
 
-    if s2_encode(probe_streams, probe_format, encoder, force_encoder, channel_rate, abspath) != [0,0,0]:
+    if s2_encode(probe_streams, probe_format, encoder, force_encoding, channel_rate, abspath) != [0,0,0]:
         # Mark this file to be added to the pending tasks
         data['add_file_to_pending_tasks'] = True
         logger.debug("File '{}' should be added to task list. Probe found streams require processing.".format(abspath))
