@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.1.0</span>**
+- add codec_name:encoder dictionary for use in streams_to_encode stream test
+- add debug output in s2_encode
+
 **<span style="color:#56adda">0.0.4</span>**
 - fix erroneous reference to force_encoder
 

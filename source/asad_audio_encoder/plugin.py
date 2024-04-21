@@ -43,6 +43,15 @@ suffix = {
     "alac": "m4a",
 }
 
+#encoder / codec_name Dictionary
+codec_name = {
+    "libfdk_aac": "aac",
+    "libmp3lame": "mp3",
+    "libopus": "opus",
+    "libvorbis": "vorbis",
+    "flac": "flac",
+    "alac": "alac",
+}
 class Settings(PluginSettings):
     settings = {
         "force_encoding": False,
@@ -162,8 +171,9 @@ def s2_encode(streams, probe_format, encoder, force_encoding, channel_rate, absp
         return [0,0,0]
 
     streams_to_encode = [(i, streams[i]["channels"], probe_format["bit_rate"]) for i in range(len(streams))
-                         if ("codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "codec_name" in streams[i] and streams[i]["codec_name"] != encoder and "bit_rate" in probe_format)
+                         if ("codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "codec_name" in streams[i] and streams[i]["codec_name"] != codec_name[encoder] and "bit_rate" in probe_format)
                          or (force_encoding == True and "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "bit_rate" in probe_format)]
+    logger.debug("streams_to_encode: '{}'".format(streams_to_encode))
 
     if streams_to_encode != []:
         return streams_to_encode
