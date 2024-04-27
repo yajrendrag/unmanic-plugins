@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.4</span>**
+- fix audio replacement function - variables were reversed
+- fix rename relaed function to explicitly exclude video suffix file
+
 **<span style="color:#56adda">0.0.3</span>**
 - added renaming of related files (same basename with other extensions, .e.g., .srt, .nfo, etc)
 

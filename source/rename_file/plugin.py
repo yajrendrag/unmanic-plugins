@@ -94,7 +94,10 @@ def rename_related(abspath, newpath):
     basefile = os.path.splitext(abspath)[0]
     basefile_new = os.path.splitext(newpath)[0]
     related_files = glob.glob(glob.escape(basefile) + '.*')
-    related_files = [file for file in related_files if file != abspath]
+#    related_files = [file for file in related_files if file != abspath]
+    logger.debug("related_files: '{}'".format(related_files))
+    related_files = [file for file in related_files if os.path.splitext(file)[1] != os.path.splitext(abspath)[1]]
+    logger.debug("related_files: '{}'".format(related_files))
     for file in related_files:
         sfx = os.path.splitext(file)[1]
         os.rename(basefile + sfx, basefile_new + sfx)
@@ -189,6 +192,7 @@ def append(data, settings, abspath, streams):
     logger.debug("basefile: '{}', suffix: '{}', newpath: '{}'".format(basefile, suffix, newpath))
     if newpath != abspath:
         os.rename (abspath, newpath)
+        logger.debug("abspath: '{}', newpath: '{}'".format(abspath, newpath))
         rename_related(abspath, newpath)
     else:
         logger.info("Newpath = existing path - nothing to rename")
@@ -248,9 +252,10 @@ def replace(data, settings, abspath, streams):
         channel_layout = streams[astream]["channel_layout"]
         channels = streams[astream]["channels"]
         if channel_layout == "stereo" and channels == '2':
-            acodec = audio_codec + channel_layout + '.0'
+            acodec = audio_codec + ' ' + str(channels) + '.0'
         elif channels > 4:
-            acodec = audio_codec + str(channel_layout).replace('(side)','')
+            acodec = audio_codec + ' ' + str(channel_layout).replace('(side)','')
+    logger.debug("acodec: '{}'".format(acodec))
 
     if basename.find(codec) > 0:
         basename = basename.replace(codec, video_codec)
@@ -261,7 +266,8 @@ def replace(data, settings, abspath, streams):
         else:
             basename = basename.replace(resolution, str(vrez_height))
 
-    if basename.find(acodec) > 0:
+    logger.debug("find_audio: '{}'".format(basename.find(audio)))
+    if basename.find(audio) > 0:
         basename = basename.replace(audio, acodec)
 
     newpath = dirname + '/' + basename
@@ -296,6 +302,8 @@ def on_postprocessor_task_results(data):
 
     status = data.get('task_processing_success')
     logger.debug("status: '{}'".format(status))
+    logger.debug("source: '{}'".format(data.get('source_data')))
+    logger.debug("destinations: '{}'".format(data.get('destination_files')))
 
     if status:
         append_or_replace = settings.get_setting('modify_name_fields')
