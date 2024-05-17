@@ -159,14 +159,14 @@ class PluginStreamMapper(StreamMapper):
                 software_filters.append('crop={}'.format(self.crop_value))
             if self.settings.get_setting('target_resolution') not in ['source']:
                 vid_width, vid_height = self.scale_resolution(stream_info)
-                if vid_width:
-                    # Apply scale with only width to keep aspect ratio
+                if vid_height:
+                    # Apply scale with only height to keep aspect ratio
                     if self.settings.get_setting('video_encoder') in qsv_encoder.provides():
                         required_hw_smart_filters.append({'scale': [vid_width, vid_height]})
                     elif self.settings.get_setting('video_encoder') in nvenc_encoder.provides():
                         required_hw_smart_filters.append({'scale': [vid_width, vid_height]})
                     else:
-                        software_filters.append('scale={}:-1'.format(vid_width))
+                        software_filters.append('scale=-1:{}'.format(vid_height))
 
         # Apply custom software filters
         if self.settings.get_setting('apply_custom_filters'):

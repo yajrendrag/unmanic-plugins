@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.5</span>**
+- Fix video scaling smart filter for videos that do not use a 16:9 aspect ratio
+
 **<span style="color:#56adda">0.1.4</span>**
 - add missing 'generic_kwargs' from return statement in nvenc.py basic config section
 
