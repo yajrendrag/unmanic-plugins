@@ -30,6 +30,16 @@ from unmanic.libs.unplugins.settings import PluginSettings
 
 from rename_file.lib.ffmpeg import Probe, Parser
 
+resolution = {
+    "640x480": "480p",
+    "1280x720": "720p",
+    "1920x1080": "1080p",
+    "2560x1440": "1440p",
+    "2560x1440": "1080p",
+    "3840x2160": "2160p",
+    "7680x4320": "4320p",
+}
+
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.rename_file")
 
@@ -122,14 +132,21 @@ def append(data, settings, abspath, streams):
     if append_video_resolution:
         vrezw = [streams[i]["width"] for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'video']
         vrezh = [streams[i]["height"] for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'video']
+        field_order = [streams[i]["field_order"] for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'video']
         try:
             vrezw = vrezw[0]
             vrezh = vrezh[0]
+            field_order = field_order[0]
         except IndexError:
             vrez = ''
             logger.info("Not including video resolution - could not extract video resolution from file: '{}'".format(abspath))
         else:
             vrez = str(vrezw) + "x" + str(vrezh)
+            try:
+                vrez = resolution[vrez]
+                if field_order != "progressive": vrez = vrez.replace("p","i")
+            except KeyError:
+                logger.info("Leaving video resolution as WxH - cannot match to standard resolution: '{}'".format(vrez))
     else:
         vrez = ''
 

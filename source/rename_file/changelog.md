@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- change video resolution format from WxH to Common Name, e.g., 1080p
+
 **<span style="color:#56adda">0.0.4</span>**
 - fix audio replacement function - variables were reversed
 - fix rename relaed function to explicitly exclude video suffix file
