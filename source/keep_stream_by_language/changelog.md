@@ -1,4 +1,11 @@
 
+**<span style="color:#56adda">0.0.35</span>**
+- revamp iso639 function to match stream by iso 639 partX type to avoid error by assuming 3 letter codes were part2b vs part2t
+
+**<span style="color:#56adda">0.0.34</span>**
+- revise subtitle mapping to include all streams via "-map 0:s?" when "*" specified for subtitle languages
+- should avoid error when copying image based subtitle streams
+
 **<span style="color:#56adda">0.0.33</span>**
 - fix no_work_to_do - wasn't reaching when one of the language lists in the file was empty
 - restored fail safe test to original 'any' based definition - only tests for null intersection of configured languages to keep and actual languages in file
