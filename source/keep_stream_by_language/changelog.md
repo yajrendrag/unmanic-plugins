@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.1.1</span>**
+- add test for None on iso639 Language.match
+- update version to 0.1.x series
+
 **<span style="color:#56adda">0.0.35</span>**
 - revamp iso639 function to match stream by iso 639 partX type to avoid error by assuming 3 letter codes were part2b vs part2t
 
