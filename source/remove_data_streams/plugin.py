@@ -49,7 +49,7 @@ class PluginStreamMapper(StreamMapper):
             'data',
         ]
 
-        if stream_info.get('codec_name').lower() in data_stream_codecs or stream_info.get('codec_type').lower() in data_stream_codec_types:
+        if (stream_info.get('codec_name') and stream_info.get('codec_name').lower() in data_stream_codecs) or (stream_info.get('codec_type') and stream_info.get('codec_type').lower() in data_stream_codec_types):
             return True
         return False
 

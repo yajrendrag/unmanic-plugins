@@ -1,3 +1,7 @@
+
+**<span style="color:#56adda">0.0.8</span>**
+- add test to ensure ffprobe fields exist in test_stream_needs_processing function
+
 **<span style="color:#56adda">0.0.7</span>**
 - fix error test in probe.py & update to forked
   unmanic.plugin.helpers.ffmpeg repo
