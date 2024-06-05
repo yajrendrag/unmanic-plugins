@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.9</span>**
+- change -map_metadata:c to -map_metadata
+
 **<span style="color:#56adda">0.0.8</span>**
 - add test to ensure ffprobe fields exist in test_stream_needs_processing function
 
