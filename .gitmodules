@@ -61,3 +61,6 @@
 [submodule "source/asad_audio_encoder/lib/ffmpeg"]
 	path = source/asad_audio_encoder/lib/ffmpeg
 	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/stream_arranger/lib/ffmpeg"]
+	path = source/stream_arranger/lib/ffmpeg
+	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
