@@ -239,7 +239,7 @@ def on_worker_process(data):
     else:
         settings = Settings()
 
-    primary_sory_key = settings.get_setting('primary_sort_key')
+    primary_sort_key = settings.get_setting('primary_sort_key')
     channel_sort_direction = settings.get_setting('channel_sort_direction')
     langs = settings.get_setting('lang_list')
     langs = list(langs.split(','))
@@ -251,7 +251,7 @@ def on_worker_process(data):
 
     if not streams_already_arranged(settings, data.get('file_in')):
 
-        audio_stream_order = arrange_audio_streams(streams, primary_sory_key, channel_sort_direction, langs)
+        audio_stream_order = arrange_audio_streams(streams, primary_sort_key, channel_sort_direction, langs)
 
         # Set ffmpeg args
         ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy']
