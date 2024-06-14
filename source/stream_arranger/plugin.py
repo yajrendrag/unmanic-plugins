@@ -184,7 +184,7 @@ def arrange_audio_streams(streams, primary_sort_key, channel_sort_direction, lan
 
     all_astreams = [i for i in range(len(streams)) if streams[i]['codec_type'] == 'audio']
     astream_order=[]
-    if primary_sort_key == 'languages':
+    if primary_sort_key == 'channels':
         for c in channels:
             for i in range(len(astreams)):
                 if astreams[i]['channels'] == c: astream_order += [astreams[i]['index']]
@@ -254,9 +254,12 @@ def on_worker_process(data):
         audio_stream_order = arrange_audio_streams(streams, primary_sort_key, channel_sort_direction, langs)
 
         # Set ffmpeg args
-        ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy']
-        for stream in audio_stream_order:
-            ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), 'copy']
+        ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy', '-disposition:a', '-default']
+        for i,stream in enumerate(audio_stream_order):
+            if i == 0:
+                ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), 'copy', '-disposition:a:0', 'default']
+            else:
+                ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), 'copy']
         ffmpeg_args += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy', '-y', str(outpath)]
 
         logger.debug("ffmpeg_args: '{}'".format(ffmpeg_args))
