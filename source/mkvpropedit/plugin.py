@@ -46,15 +46,19 @@ class Settings(PluginSettings):
         self.form_settings = {
             "add_track_statistics_tags":   {
                 "label": "Add Track Statistics Tags",
+                "description": "Uses --add-track-statistics-tags on a file to update metadata which FFmpeg doesn't typically update such as stream bitrate.",
             },
             "add_encode_source_to_global_tags":        {
                 "label": "Add Encode Source To Global Tags",
+                "description": "This adds a global tag to the file metadata called 'Encode source' that contains the filename of the original file that unmanic ran on",
             },
             "remove_title_tag": {
                 "label": "Remove Title Tag",
+                "description": "This removes the title tag from the metadata which depending on where the file was sourced from, sometimes contains the original filename instead of the actual movie title",
             },
             "other_args":           {
                 "label": "Other Arguments",
+                "description": "Pass in any other arguments to mkvpropedit to run on your file that are no handled by the above toggles",
             },
         }
 
