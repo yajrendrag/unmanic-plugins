@@ -24,6 +24,7 @@
 
 import logging
 import os
+import re
 import subprocess
 import xml.etree.cElementTree as ET
 
@@ -61,6 +62,17 @@ class Settings(PluginSettings):
                 "description": "Pass in any other arguments to mkvpropedit to run on your file that are no handled by the above toggles",
             },
         }
+
+def parse_progress(line_text):
+    match = re.search(r'Progress[^\d]+(\d+)%', line_text)
+    if match:
+        progress = match.group(1)
+    else:
+        progress = '0'
+
+    return {
+        'percent': progress
+    }
 
 
 def on_worker_process(data):
@@ -165,5 +177,7 @@ def on_worker_process(data):
         logger.error("Please install mkvpropedit to proceed.")
     else:
         process_file()
+
+    data['command_progress_parser'] = parse_progress
 
     return data
