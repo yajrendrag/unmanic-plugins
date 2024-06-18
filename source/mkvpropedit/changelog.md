@@ -1,3 +1,8 @@
+
+**<span style="color:#56adda">0.0.3</span>**
+
+- Set file_out to None instead of creating a hardlinked copy as the file_out
+
 **<span style="color:#56adda">0.0.2</span>**
 
 - Fix invalid plugin tags
