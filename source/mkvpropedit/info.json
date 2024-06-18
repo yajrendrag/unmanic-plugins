@@ -6,8 +6,8 @@
   "id": "mkvpropedit",
   "name": "MKVPropEdit",
   "priorities": {
-    "on_worker_process": 0
+    "on_worker_process": 99
   },
-  "tags": ["command", "mkv", "tweaks"],
-  "version": "0.0.1"
+  "tags": "command, mkv, tweaks",
+  "version": "0.0.2"
 }

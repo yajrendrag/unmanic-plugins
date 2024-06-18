@@ -68,7 +68,7 @@ def parse_progress(line_text):
     if match:
         progress = match.group(1)
     else:
-        progress = '0'
+        progress = ''
 
     return {
         'percent': progress
