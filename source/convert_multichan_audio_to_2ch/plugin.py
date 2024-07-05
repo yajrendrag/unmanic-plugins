@@ -33,14 +33,19 @@ logger = logging.getLogger("Unmanic.Plugin.convert_multichan_audio_to_2ch")
 
 class Settings(PluginSettings):
     settings = {
-        "use_libfdk_aac":         False,
+        "use_libfdk_aac":         True,
+        "keep_mc":                False,
+
     }
 
     def __init__(self, *args, **kwargs):
         super(Settings, self).__init__(*args, **kwargs)
         self.form_settings = {
             "use_libfdk_aac":               {
-                "label": "check if you want to use libfdk_aac (requires ffmpeg 5), otherwise aac is used",
+                "label": "check if you want to use libfdk_aac (requires ffmpeg >= 5), otherwise native aac is used",
+            },
+            "keep_mc":      {
+                "label": "check to keep the multichannel streams, otherwise, they are removed",
             }
         }
 
@@ -143,15 +148,38 @@ def on_worker_process(data):
         settings = Settings()
 
     streams = streams_to_stereo_encode(probe_streams)
+    all_astreams=[probe_streams[i]['index'] for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio']
+    mc_streams= [probe_streams[i]['index'] for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and probe_streams[i]['channels'] > 2]
+
+    logger.debug("streams: '{}'".format(streams))
+    logger.debug("all_astreams: '{}'".format(all_astreams))
+    logger.debug("mc_streams: '{}'".format(mc_streams))
 
     encoder = 'aac'
     if settings.get_setting('use_libfdk_aac'): encoder = 'libfdk_aac'
 
+    keep_mc = settings.get_setting('keep_mc')
+
     if streams != []:
         # Get generated ffmpeg args
         ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy']
-        for stream in range(0, len(streams)):
-            ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), '128k']
+        if not keep_mc:
+            for stream,abs_stream in enumerate(all_astreams):
+                if abs_stream not in mc_streams:
+                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), 'copy']
+                else:
+                    rate = str(int(int(probe_streams[abs_stream]['bit_rate'])/(1000 * probe_streams[abs_stream]['channels']))*2) + 'k'
+                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate]
+        else:
+            stream_map = {}
+            for stream,abs_stream in enumerate(all_astreams):
+                ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), 'copy']
+                stream_map[stream] = abs_stream
+            next_audio_stream_index = len(all_astreams) - 1
+            for stream in range(0, len(streams)):
+                next_audio_stream_index += 1
+                rate = str(int(int(probe_streams[stream_map[stream]]['bit_rate'])/(1000 * probe_streams[stream_map[stream]]['channels']))*2) + 'k'
+                ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(next_audio_stream_index), encoder, '-ac', '2', '-b:a:'+str(next_audio_stream_index), rate]
         ffmpeg_args += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy', '-y', str(outpath)]
 
         logger.debug("ffmpeg args: '{}'".format(ffmpeg_args))

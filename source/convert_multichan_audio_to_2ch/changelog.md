@@ -1,5 +1,10 @@
 
-**<span style="color:#56adda">0.0.2</span>**
+**<span style="color:#56adda">0.0.4</span>**
+- add option to keep or discard multichannel streams
+- changed default encoder to libfdk_aac
+- set rate for stereo to 2x channel rate of source multichannel stream
+
+**<span style="color:#56adda">0.0.3</span>**
 - add check for existing stereo stream of multichannel stream languages
 
 **<span style="color:#56adda">0.0.2</span>**
