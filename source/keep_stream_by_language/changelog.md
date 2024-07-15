@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.2</span>**
+- fix error in iso language check in stream_tag_language in test streams function (last line wasn't edited properly in cut/paste)
+
 **<span style="color:#56adda">0.1.1</span>**
 - add test for None on iso639 Language.match
 - update version to 0.1.x series
