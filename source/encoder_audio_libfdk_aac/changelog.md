@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.8</span>**
+- set channels to 6 if channels > 6
+
 **<span style="color:#56adda">0.0.7</span>**
 - add 'ac' parameter to ffmpeg command to ensure proper channel_layout field for compatiability with normalization plugin to avoid unsupported channel layout error
 
