@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- add try-except block to catch audio streams without bit_rate parameter
+
 **<span style="color:#56adda">0.0.4</span>**
 - add option to keep or discard multichannel streams
 - changed default encoder to libfdk_aac

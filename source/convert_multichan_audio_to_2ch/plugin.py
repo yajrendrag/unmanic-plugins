@@ -178,7 +178,10 @@ def on_worker_process(data):
             next_audio_stream_index = len(all_astreams) - 1
             for stream in range(0, len(streams)):
                 next_audio_stream_index += 1
-                rate = str(int(int(probe_streams[stream_map[stream]]['bit_rate'])/(1000 * probe_streams[stream_map[stream]]['channels']))*2) + 'k'
+                try:
+                    rate = str(int(int(probe_streams[stream_map[stream]]['bit_rate'])/(1000 * probe_streams[stream_map[stream]]['channels']))*2) + 'k'
+                except KeyError:
+                    rate = '128k'
                 ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(next_audio_stream_index), encoder, '-ac', '2', '-b:a:'+str(next_audio_stream_index), rate]
         ffmpeg_args += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy', '-y', str(outpath)]
 
