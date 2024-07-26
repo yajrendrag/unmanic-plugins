@@ -101,7 +101,7 @@ def on_library_management_file_test(data):
         for stream in range(0, len(streams)):
             logger.debug("Audio stream '{}' is multichannel audio - convert stream".format(streams[stream]))
     else:
-        data['add_file_to_pending_tasks'] = False
+#        data['add_file_to_pending_tasks'] = False
         logger.debug("do not add file '{}' to task list - no multichannel audio streams".format(abspath))
 
     return data

@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.6</span>**
+- remove setting data['add_file_to_pending_tasks'] = False to allow other plugins to continue
+
 **<span style="color:#56adda">0.0.5</span>**
 - add try-except block to catch audio streams without bit_rate parameter
 
