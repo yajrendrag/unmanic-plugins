@@ -205,7 +205,7 @@ def get_executable_venv_python(script_dependencies, temp_working_directory, depe
 
     # Create venv and update executable
     exec_subprocess("{} -m venv venv".format(executable), "", cwd=temp_working_directory)
-    executable = os.path.join("venv", "bin", "python3")
+    executable = os.path.join(temp_working_directory, "venv", "bin", "python3")
 
     # Install dependencies
     os.environ['PIP_CACHE_DIR'] = cache_path
