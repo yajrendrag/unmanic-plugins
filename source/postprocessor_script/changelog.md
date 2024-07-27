@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.8</span>**
+- Fix error when setting up pip env for python script execution
+
 **<span style="color:#56adda">0.0.7</span>**
 - Fix plugin when run along side another plugin that moves or removes the source file
 
