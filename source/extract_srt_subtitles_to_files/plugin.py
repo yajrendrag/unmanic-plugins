@@ -24,6 +24,7 @@ import os
 import re
 
 from unmanic.libs.unplugins.settings import PluginSettings
+from unmanic.libs.directoryinfo import UnmanicDirectoryInfo
 
 from extract_srt_subtitles_to_files.lib.ffmpeg import StreamMapper, Probe, Parser
 
@@ -154,6 +155,25 @@ class PluginStreamMapper(StreamMapper):
 
         return args
 
+def srt_already_extracted(settings, path):
+    directory_info = UnmanicDirectoryInfo(os.path.dirname(path))
+
+    try:
+        already_extracted = directory_info.get('extract_srt_subtitles_to_files', os.path.basename(path))
+    except NoSectionError as e:
+        already_extracted = ''
+    except NoOptionError as e:
+        already_extracted = ''
+    except Exception as e:
+        logger.debug("Unknown exception {}.".format(e))
+        already_extracted = ''
+
+    if already_extracted:
+        logger.debug("File's srt subtitle streams were previously extracted with {}.".format(already_extracted))
+        return True
+
+    # Default to...
+    return False
 
 def on_library_management_file_test(data):
     """
@@ -200,13 +220,14 @@ def on_library_management_file_test(data):
     mapper.set_settings(settings)
     mapper.set_probe(probe)
 
-    if mapper.streams_need_processing():
+    if not srt_already_extracted(settings, abspath):
         # Mark this file to be added to the pending tasks
         data['add_file_to_pending_tasks'] = True
-        logger.debug("File '{}' should be added to task list. Probe found streams require processing.".format(abspath))
+        logger.debug("File '{}' should be added to task list. File has not been previously had SRT extracted.".format(abspath))
     else:
-        logger.debug("File '{}' does not contain streams require processing.".format(abspath))
+        logger.debug("File '{}' has been previously had SRT extracted.".format(abspath))                           
 
+    return data
 
 def on_worker_process(data):
     """
@@ -245,39 +266,93 @@ def on_worker_process(data):
         settings = Settings(library_id=data.get('library_id'))
     else:
         settings = Settings()
+        
+    if not srt_already_extracted(settings, data.get('file_in')):
+        # Get stream mapper
+        mapper = PluginStreamMapper()
+    
+        mapper.set_settings(settings)
+        mapper.set_probe(probe)
+    
+        split_original_file_path = os.path.splitext(data.get('original_file_path'))
+        original_file_directory = os.path.dirname(data.get('original_file_path'))
+    
+        if mapper.streams_need_processing():
+            # Set the input file
+            mapper.set_input_file(abspath)
+    
+            # Get generated ffmpeg args
+            ffmpeg_args = mapper.get_ffmpeg_args()
+    
+            # Append STR extract args
+            for sub_stream in mapper.sub_streams:
+                stream_mapping = sub_stream.get('stream_mapping', [])
+                subtitle_tag = sub_stream.get('subtitle_tag')
+    
+                ffmpeg_args += stream_mapping
+                ffmpeg_args += [
+                    "-y",
+                    os.path.join(original_file_directory, "{}{}.srt".format(split_original_file_path[0], subtitle_tag)),
+                ]
+    
+            # Apply ffmpeg args to command
+            data['exec_command'] = ['ffmpeg']
+            data['exec_command'] += ffmpeg_args
+    
+            # Set the parser
+            parser = Parser(logger)
+            parser.set_probe(probe)
+            data['command_progress_parser'] = parser.parse_progress
+    return data
+    
+def on_postprocessor_task_results(data):
+    """
+    Runner function - provides a means for additional postprocessor functions based on the task success.
 
-    # Get stream mapper
-    mapper = PluginStreamMapper()
+    The 'data' object argument includes:
+        task_processing_success         - Boolean, did all task processes complete successfully.
+        file_move_processes_success     - Boolean, did all postprocessor movement tasks complete successfully.
+        destination_files               - List containing all file paths created by postprocessor file movements.
+        source_data                     - Dictionary containing data pertaining to the original source file.
 
-    mapper.set_settings(settings)
-    mapper.set_probe(probe)
+    :param data:
+    :return:
 
-    split_original_file_path = os.path.splitext(data.get('original_file_path'))
-    original_file_directory = os.path.dirname(data.get('original_file_path'))
+    """
+    # We only care that the task completed successfully.
+    # If a worker processing task was unsuccessful, dont mark the file streams as kept
+    # TODO: Figure out a way to know if a file's streams were kept but another plugin was the
+    #   cause of the task processing failure flag
+    if not data.get('task_processing_success'):
+        return data
 
-    if mapper.streams_need_processing():
-        # Set the input file
-        mapper.set_input_file(abspath)
+    # Configure settings object (maintain compatibility with v1 plugins)
+    if data.get('library_id'):
+        settings = Settings(library_id=data.get('library_id'))
+    else:
+        settings = Settings()
 
-        # Get generated ffmpeg args
-        ffmpeg_args = mapper.get_ffmpeg_args()
+    abspath = data.get('source_data').get('abspath')
+    probe_data=Probe(logger, allowed_mimetypes=['video'])
+    if probe_data.file(abspath):
+        probe_streams=probe_data.get_probe()["streams"]
+    else:
+        probe_streams=[]
+        
+    # Loop over the destination_files list and update the directory info file for each one
+    for destination_file in data.get('destination_files'):
+        langs = ""
+        langs = settings.get_setting('languages_to_extract')
+        if probe_streams:
+            subs = [probe_streams[i]["tags"]["language"] for i in range(len(probe_streams)) if probe_streams[i]["codec_type"] == "subtitle" and "tags" in probe_streams[i] and "language" in probe_streams[i]["tags"]]
+            if langs:
+                subs = [i for i in subs if i in langs]
+            subs = ' '.join(subs)
+        else:
+            subs=""
+        directory_info = UnmanicDirectoryInfo(os.path.dirname(destination_file))
+        directory_info.set('extract_srt_subtitles_to_files', os.path.basename(destination_file), subs)
+        directory_info.save()
+        logger.info("SRT subtitles processed for '{}' and recorded in .unmanic file.".format(destination_file))
 
-        # Append STR extract args
-        for sub_stream in mapper.sub_streams:
-            stream_mapping = sub_stream.get('stream_mapping', [])
-            subtitle_tag = sub_stream.get('subtitle_tag')
-
-            ffmpeg_args += stream_mapping
-            ffmpeg_args += [
-                "-y",
-                os.path.join(original_file_directory, "{}{}.srt".format(split_original_file_path[0], subtitle_tag)),
-            ]
-
-        # Apply ffmpeg args to command
-        data['exec_command'] = ['ffmpeg']
-        data['exec_command'] += ffmpeg_args
-
-        # Set the parser
-        parser = Parser(logger)
-        parser.set_probe(probe)
-        data['command_progress_parser'] = parser.parse_progress
+    return data                                                                                
