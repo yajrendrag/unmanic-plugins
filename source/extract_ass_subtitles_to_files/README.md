@@ -1,4 +1,4 @@
-# Extract text subtitle streams to SRT files
+# Extract text subtitle streams to ASS/SSA files
 Plugin for [Unmanic](https://github.com/Unmanic)
 
 ---
