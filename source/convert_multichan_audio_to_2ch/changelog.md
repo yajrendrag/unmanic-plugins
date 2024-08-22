@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.7</span>**
+- add another try-except block for audio streams without bit_rate param when not keeping mc stream
+
 **<span style="color:#56adda">0.0.6</span>**
 - remove setting data['add_file_to_pending_tasks'] = False to allow other plugins to continue
 
