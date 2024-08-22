@@ -26,10 +26,10 @@ import re
 from unmanic.libs.unplugins.settings import PluginSettings
 from unmanic.libs.directoryinfo import UnmanicDirectoryInfo
 
-from extract_srt_subtitles_to_files.lib.ffmpeg import StreamMapper, Probe, Parser
+from extract_ass_subtitles_to_files.lib.ffmpeg import StreamMapper, Probe, Parser
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.extract_srt_subtitles_to_files")
+logger = logging.getLogger("Unmanic.Plugin.extract_ass_subtitles_to_files")
 
 
 class Settings(PluginSettings):
@@ -70,7 +70,7 @@ class PluginStreamMapper(StreamMapper):
     def test_stream_needs_processing(self, stream_info: dict):
         """Any text based will need to be processed"""
 
-        if stream_info.get('codec_name', '').lower() not in ['srt', 'subrip', 'mov_text']:
+        if stream_info.get('codec_name', '').lower() not in ['ass', 'subrip', 'mov_text']:
             return False
 
         languages = self._get_language_list()
@@ -155,11 +155,11 @@ class PluginStreamMapper(StreamMapper):
 
         return args
 
-def srt_already_extracted(settings, path):
+def ass_already_extracted(settings, path):
     directory_info = UnmanicDirectoryInfo(os.path.dirname(path))
 
     try:
-        already_extracted = directory_info.get('extract_srt_subtitles_to_files', os.path.basename(path))
+        already_extracted = directory_info.get('extract_ass_subtitles_to_files', os.path.basename(path))
     except NoSectionError as e:
         already_extracted = ''
     except NoOptionError as e:
@@ -169,7 +169,7 @@ def srt_already_extracted(settings, path):
         already_extracted = ''
 
     if already_extracted:
-        logger.debug("File's srt subtitle streams were previously extracted with {}.".format(already_extracted))
+        logger.debug("File's ass subtitle streams were previously extracted with {}.".format(already_extracted))
         return True
 
     # Default to...
@@ -220,12 +220,12 @@ def on_library_management_file_test(data):
     mapper.set_settings(settings)
     mapper.set_probe(probe)
 
-    if not srt_already_extracted(settings, abspath):
+    if not ass_already_extracted(settings, abspath):
         # Mark this file to be added to the pending tasks
         data['add_file_to_pending_tasks'] = True
-        logger.debug("File '{}' should be added to task list. File has not been previously had SRT extracted.".format(abspath))
+        logger.debug("File '{}' should be added to task list. File has not been previously had ass extracted.".format(abspath))
     else:
-        logger.debug("File '{}' has been previously had SRT extracted.".format(abspath))                           
+        logger.debug("File '{}' has been previously had ass extracted.".format(abspath))                           
 
     return data
 
@@ -267,7 +267,7 @@ def on_worker_process(data):
     else:
         settings = Settings()
         
-    if not srt_already_extracted(settings, data.get('file_in')):
+    if not ass_already_extracted(settings, data.get('file_in')):
         # Get stream mapper
         mapper = PluginStreamMapper()
     
@@ -292,7 +292,7 @@ def on_worker_process(data):
                 ffmpeg_args += stream_mapping
                 ffmpeg_args += [
                     "-y",
-                    os.path.join(original_file_directory, "{}{}.srt".format(split_original_file_path[0], subtitle_tag)),
+                    os.path.join(original_file_directory, "{}{}.ass".format(split_original_file_path[0], subtitle_tag)),
                 ]
     
             # Apply ffmpeg args to command
@@ -351,8 +351,8 @@ def on_postprocessor_task_results(data):
         else:
             subs=""
         directory_info = UnmanicDirectoryInfo(os.path.dirname(destination_file))
-        directory_info.set('extract_srt_subtitles_to_files', os.path.basename(destination_file), subs)
+        directory_info.set('extract_ass_subtitles_to_files', os.path.basename(destination_file), subs)
         directory_info.save()
-        logger.info("SRT subtitles processed for '{}' and recorded in .unmanic file.".format(destination_file))
+        logger.info("ass subtitles processed for '{}' and recorded in .unmanic file.".format(destination_file))
 
     return data                                                                                

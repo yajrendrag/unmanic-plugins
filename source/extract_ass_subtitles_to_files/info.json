@@ -1,13 +1,13 @@
 {
-    "author": "Josh.5, Bambanah",
+    "author": "Josh.5, Bambanah, soultaco83",
     "compatibility": [
         1,
         2
     ],
-    "description": "Extract text based subtitle streams to *.srt files.",
+    "description": "Extract text based subtitle streams to *.ass files.",
     "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.extract_srt_subtitles_to_files/master/icon.png",
-    "id": "extract_srt_subtitles_to_files",
-    "name": "Extract text subtitle streams to SRT files",
+    "id": "extract_ass_subtitles_to_files",
+    "name": "Extract text subtitle streams to ASS/SSA files",
     "platform": [
         "all"
     ],
