@@ -70,7 +70,7 @@ class PluginStreamMapper(StreamMapper):
     def test_stream_needs_processing(self, stream_info: dict):
         """Any text based will need to be processed"""
 
-        if stream_info.get('codec_name', '').lower() not in ['ass', 'subrip', 'mov_text']:
+        if stream_info.get('codec_name', '').lower() not in ['ass', 'ssa']:
             return False
 
         languages = self._get_language_list()
