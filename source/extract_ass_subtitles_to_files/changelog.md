@@ -1,3 +1,6 @@
+**<span style="color:#56adda">0.0.12</span>**
+- Removed Subrip from extraction codec
+
 **<span style="color:#56adda">0.0.11</span>**
 - Added .unmanic file
 
