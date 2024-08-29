@@ -1,5 +1,5 @@
-**<span style="color:#56adda">0.0.11</span>**
-- Added .unmanic file
+**<span style="color:#56adda">0.0.10</span>**
+- Added user of .unmanic file to track processed files
 
 **<span style="color:#56adda">0.0.9</span>**
 - Add settings to specify:
