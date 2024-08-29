@@ -144,9 +144,6 @@ def on_worker_process(data):
         tree.write(tags_filename)
 
     def process_file():
-        # Copy the input file to the output file
-        os.link(data.get('file_in'), data.get('file_out'))
-
         # Start off with calling mkvpropedit
         command = ['mkvpropedit']
 
@@ -162,10 +159,10 @@ def on_worker_process(data):
             command.extend(other_args.split())
 
         # Pass in working file name
-        command.append(data.get('file_out'))
+        command.append(data.get('file_in'))
 
         # Execute the command
-        if command == ['mkvpropedit', data.get('file_out')]:
+        if command == ['mkvpropedit', data.get('file_in')]:
             logger.error("No arguments provided for mkvpropedit, skipping...")
             return
 
@@ -179,5 +176,8 @@ def on_worker_process(data):
         process_file()
 
     data['command_progress_parser'] = parse_progress
+
+    # Set the output file to None since mkvpropedit does not create a new file
+    data['file_out'] = None
 
     return data
