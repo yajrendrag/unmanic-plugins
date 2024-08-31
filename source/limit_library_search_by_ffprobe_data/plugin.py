@@ -83,19 +83,20 @@ def file_ends_in_allowed_values(probe_info, stream_field, allowed_values):
         return False
 
     try:
-        context = jsonata.Context()
-        discovered_values = context(stream_field, probe_info)
+        expr = jsonata.Jsonata(stream_field)
+        discovered_values = expr.evaluate(probe_info)
+    except KeyError as e:
+        logger.debug("Failed to match the JSONata query keys to in the FFprobe data of the file '%s'.", file_path)
     except ValueError as e:
-        logger.debug("Failed to match the JSONata query to in the FFprobe data of the file '%s'.", file_path)
+        logger.debug("Failed to match the JSONata query values to in the FFprobe data of the file '%s'.", file_path)
         #logger.debug("Exception:", exc_info=e)
         return False
 
     for allowed_value in allowed_values.split(','):
         # Ignore empty values (if plugin is configured with a trailing ','
-        if allowed_value:
-            if allowed_value in discovered_values:
-                logger.debug("File '%s' contains one of the configured values '%s'.", file_path, allowed_value)
-                return True
+        if allowed_value and discovered_values and allowed_value in discovered_values:
+            logger.debug("File '%s' contains one of the configured values '%s'.", file_path, allowed_value)
+            return True
 
     # File is not in the allowed video values
     logger.debug("File '%s' does not contain one of the specified values '%s'.", file_path, allowed_values)
