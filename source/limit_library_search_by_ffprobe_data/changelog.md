@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- Use a different jsonata library that provides better stability with this plugin
+
 **<span style="color:#56adda">0.0.4</span>**
 - Bump jsonata python dependency to v0.2.5
 
