@@ -2,9 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-    Written by:               Josh.5 <jsunnex@gmail.com>
+    Written by:               Modified by Soultaco83 (Forked from Josh.5 Extract SRT)
     Date:                     18 April 2021, (1:41 AM)
-
     Copyright:
         Copyright (C) 2021 Josh Sunnex
 
@@ -17,7 +16,6 @@
 
         You should have received a copy of the GNU General Public License along with this program.
         If not, see <https://www.gnu.org/licenses/>.
-
 """
 import logging
 import os
@@ -70,7 +68,7 @@ class PluginStreamMapper(StreamMapper):
     def test_stream_needs_processing(self, stream_info: dict):
         """Any text based will need to be processed"""
 
-        if stream_info.get('codec_name', '').lower() not in ['ass', 'subrip', 'mov_text']:
+        if stream_info.get('codec_name', '').lower() not in ['ass', 'ssa']:
             return False
 
         languages = self._get_language_list()
