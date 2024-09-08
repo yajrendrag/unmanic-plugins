@@ -1,0 +1,19 @@
+{
+    "author": "yajrendrag",
+    "compatibility": [
+        1,
+        2
+    ],
+    "description": "Create text subtitle from designated audio stream.",
+    "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.extract_srt_subtitles_to_files/master/icon.png",
+    "id": "subtitle_from_audio",
+    "name": "Create srt subtitle file from audio stream",
+    "platform": [
+        "all"
+    ],
+    "priorities": {
+        "on_worker_process": 2
+    },
+    "tags": "subtitle",
+    "version": "0.0.1"
+}
