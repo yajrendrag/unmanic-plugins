@@ -271,6 +271,14 @@ def on_postprocessor_task_results(data):
 
     audio_language_to_convert = settings.get_setting('audio_stream_lang_to_text')
     abspath = data.get('source_data').get('abspath')
+    probe_data=Probe(logger, allowed_mimetypes=['video'])
+    if probe_data.file(abspath):
+        probe_streams=probe_data.get_probe()["streams"]
+    else:
+        probe_streams=[]
+    astreams = [i for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and 'tags' in probe_streams[i] and 'language' in probe_streams[i]['tags'] and probe_streams[i]['tags']['language'] == audio_language_to_convert]
+    if astreams == []:
+        audio_language_to_convert = '0'
     base = os.path.splitext(abspath)[0]
     srt_file_sans_lang = base + '.srt'
     srt_file = base + '.' + audio_language_to_convert + '.srt'
