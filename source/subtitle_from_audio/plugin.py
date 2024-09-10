@@ -75,8 +75,9 @@ def srt_already_created(settings, original_file_path, probe_streams):
     audio_stream_to_convert_if_lang_not_present = settings.get_setting('audio_stream_to_convert_if_lang_not_present')
     astreams = [i for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and 'tags' in probe_streams[i] and 'language' in probe_streams[i]['tags'] and probe_streams[i]['tags']['language'] == audio_language_to_convert]
     if astreams == [] and audio_stream_to_convert_if_lang_not_present == "pick_first_audio":
+        first_audio_stream = [i for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio'][0]
         try:
-            audio_language_to_convert = probe_streams[i]['tags']['language']
+            audio_language_to_convert = probe_streams[first_audio_stream]['tags']['language']
         except KeyError:
             audio_language_to_convert = '0'
             logger.info("Using number for language name of srt file - user specified language was not present and user selected to create srt from first audio stream")
