@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.3</span>**
+- & -> and
+
 **<span style="color:#56adda">0.0.2</span>**
 - set first_audio_stream index
 

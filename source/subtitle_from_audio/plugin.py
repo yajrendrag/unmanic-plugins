@@ -151,8 +151,10 @@ def on_library_management_file_test(data):
     return data
 
 def parse_progress(line_text):
+    global duration
+
     match = re.search(r'(\[\d+:\d+.\d+\s+-->\s+)(\d+:\d+.\d+)].*$', line_text)
-    if match & (duration > 0.0):
+    if match and (duration > 0.0):
         time_str=match.group(2)
         tc_h, tc_m = time_str.split(':')
         secs = int(tc_h)*3600.0 + float(tc_m)*60.0
