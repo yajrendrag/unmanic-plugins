@@ -406,13 +406,18 @@ def on_worker_process(data):
         return data
     if new_audio_position != original_astream_order:
         # stream order changed, remap audio streams
-        ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-strict', '-2', '-map', '0:v', '-c:v', 'copy', '-disposition:a', '-default']
+        # ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-strict', '-2', '-map', '0:v', '-c:v', 'copy', '-disposition:a', '-default']
+        ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-strict', '-2', '-map', '0:v', '-disposition:a', '-default']
         for i in range(len(new_audio_position)):
             if i == 0:
-                ffmpeg_args += ['-map', '0:a:'+str(new_audio_position[i]), '-c:a:'+str(new_audio_position[i]), 'copy', '-disposition:a:0', 'default']
+                # ffmpeg_args += ['-map', '0:a:'+str(new_audio_position[i]), '-c:a:'+str(new_audio_position[i]), 'copy', '-disposition:a:0', 'default']
+                ffmpeg_args += ['-map', '0:a:'+str(new_audio_position[i]), '-disposition:a:0', 'default']
             else:
-                ffmpeg_args += ['-map', '0:a:'+str(new_audio_position[i]), '-c:a:'+str(new_audio_position[i]), 'copy']
-        ffmpeg_args += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy', '-y', str(outfile)]
+                # ffmpeg_args += ['-map', '0:a:'+str(new_audio_position[i]), '-c:a:'+str(new_audio_position[i]), 'copy']
+                ffmpeg_args += ['-map', '0:a:'+str(new_audio_position[i])]
+        # ffmpeg_args += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy', '-y', str(outfile)]
+        ffmpeg_args += ['-map', '0:s?', '-map', '0:d?', '-map', '0:t?', '-c', 'copy', '-y', str(outfile)]
+
         logger.debug("ffmpeg_args: '{}'".format(ffmpeg_args))
 
         # Apply ffmpeg args to command

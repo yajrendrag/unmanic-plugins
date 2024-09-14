@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.25</span>**
+- stream indicies in copy encoder were incorrect - should have applied enumeration on new_audio_position to determine output stream index
+- remove all c:x:y copy and use a single -c copy so that determining new stream index in output file isn't required
+
 **<span style="color:#56adda">0.0.24</span>**
 - remove the data['add_file_to_pending_tasks'] = False lines (or set them to None instead) so the remaining plugins' file testing will work
 
