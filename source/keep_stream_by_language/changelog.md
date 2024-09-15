@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.3</span>**
+- fix no_work_to_do determination when audio_streams_list or subtitle_streams_list are empty
+
 **<span style="color:#56adda">0.1.2</span>**
 - fix error in iso language check in stream_tag_language in test streams function (last line wasn't edited properly in cut/paste)
 

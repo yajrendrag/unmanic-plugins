@@ -87,8 +87,17 @@ class PluginStreamMapper(StreamMapper):
 #        if not audio_streams_list or not subtitle_streams_list:
 #            return False
         untagged_streams = [i for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] in ["audio", "subtitle"] and ("tags" not in streams[i] or ("tags" in streams[i] and "language" not in streams[i]["tags"]))]
-        subs_in_slcl = all(l in slcl for l in subtitle_streams_list)
-        audio_in_alcl = all(l in alcl for l in audio_streams_list)
+
+        # if subtitle or audio _streams_list is empty the "all" statements will not test properly so the if statements work around this
+        # and then we set the audio/subtitle_in a/slcl to True so no_work_to_do is properly determined.
+        if subtitle_streams_list and slcl != ['*']:
+            subs_in_slcl = all(l in slcl for l in subtitle_streams_list)
+        else:
+            subs_in_slcl = True
+        if audio_streams_list and alcl != ['*']:
+            audio_in_alcl = all(l in alcl for l in audio_streams_list)
+        else:
+            audio_in_alcl = True
         no_work_to_do = (subs_in_slcl and audio_in_alcl and (keep_undefined == True or (keep_undefined == False and untagged_streams == [])))
         logger.debug("audio config list: '{}', audio streams in file: '{}'".format(alcl, audio_streams_list))
         logger.debug("subtitle config list: '{}', subtitle streams in file: '{}'".format(slcl, subtitle_streams_list))
