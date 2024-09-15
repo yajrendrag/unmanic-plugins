@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.4</span>**
+- add no_work_to_do test to worker process
+
 **<span style="color:#56adda">0.1.3</span>**
 - fix no_work_to_do determination when audio_streams_list or subtitle_streams_list are empty
 

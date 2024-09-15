@@ -410,8 +410,10 @@ def on_worker_process(data):
             if not mapper.null_streams(probe_streams):
                 logger.info("File '{}' does not contain streams matching any of the configured languages - if * was configured or the file has no streams of a given type, this check will not prevent the plugin from running for that strem type.".format(abspath))
                 return data
-
-        if mapper.streams_need_processing():
+        if mapper.same_streams_or_no_work(probe_streams, keep_undefined_lang_tags):
+            logger.debug("File '{}' only has same streams as keep configuration specifies OR otherwise does not require any work to keep ony specified streams - so, does not contain streams that require processing.".format(abspath))
+        elif mapper.streams_need_processing():
+            logger.debug("File '{}' Proceeding with worker - probe found streams require processing.".format(abspath))
             # Set the output file
             mapper.set_output_file(data.get('file_out'))
 
@@ -444,7 +446,8 @@ def on_worker_process(data):
             parser = Parser(logger)
             parser.set_probe(probe)
             data['command_progress_parser'] = parser.parse_progress
-
+        else:
+            logger.debug("Worker will not process file '{}'; it does not contain streams that require processing.".format(abspath))
     return data
 
 def on_postprocessor_task_results(data):
