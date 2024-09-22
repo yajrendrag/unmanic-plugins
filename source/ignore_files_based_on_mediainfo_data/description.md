@@ -65,4 +65,15 @@ The Python library used to parse the JSONata query does not support single quote
 
 The mediainfo python library (pymediainfo) uses somewhat different syntax for some fields than the shell based version of the mediainfo tool - you may need to use a python interpretor to
 inspect streams for the correct syntax for some fields.  See https://pymediainfo.readthedocs.io/en/stable/ 
+
+:::note
+**jsonata**
+
+Be advised that as of version 0.0.3 of this plugin, the jsonata module uses a different jsonata python module than earlier versions of the plugin.  If you manually pip installed
+jsonata or used a startup.sh script that pip installed jsonata, you should:
+- remove the python3 -m pip install jsonata line from your startup.sh file
+- if that is the only install (other than the apt get update line above this in your startup.sh file), you can simply delete the startup.sh file
+- after one or the other of above, remove the plugin from your plugin library
+- stop the unmanic container, remove the unmanic container, then restart the unmanic container, and then reinstall the plugin.  after that, don't forget to add the plugin back
+to any libraries that used it and reconfigure it (it may have saved the settings which is fine).
 :::
