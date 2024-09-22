@@ -67,6 +67,8 @@ The mediainfo python library (pymediainfo) uses somewhat different syntax for so
 inspect streams for the correct syntax for some fields.  See https://pymediainfo.readthedocs.io/en/stable/ 
 
 :::note
+**jsonata**
+
 Be advised that as of version 0.0.3 of this plugin, the jsonata module uses a different jsonata python module than earlier versions of the plugin.  If you manually pip installed
 jsonata or used a startup.sh script that pip installed jsonata, you should:
 - remove the python3 -m pip install jsonata line from your startup.sh file
