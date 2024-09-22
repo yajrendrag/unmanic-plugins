@@ -77,4 +77,3 @@ jsonata or used a startup.sh script that pip installed jsonata, you should:
 - stop the unmanic container, remove the unmanic container, then restart the unmanic container, and then reinstall the plugin.  after that, don't forget to add the plugin back
 to any libraries that used it and reconfigure it (it may have saved the settings which is fine).
 :::
-:::
