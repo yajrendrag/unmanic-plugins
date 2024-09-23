@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.6</span>**
+- Fix bug causing files to be perpetually added to the task queue if mode is set to advanced, but the smart filters were previously applied
+
 **<span style="color:#56adda">0.1.5</span>**
 - Fix video scaling smart filter for videos that do not use a 16:9 aspect ratio
 
