@@ -30,7 +30,7 @@ from unmanic.libs.unplugins.settings import PluginSettings
 from subtitle_from_audio.lib.ffmpeg import Probe
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.extract_srt_subtitles_to_files")
+logger = logging.getLogger("Unmanic.Plugin.subtitle_from_audio")
 
 duration = 3600.00
 

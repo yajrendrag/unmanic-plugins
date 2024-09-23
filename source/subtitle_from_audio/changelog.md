@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.6</span>**
+- fix logger plugin reference
+
 **<span style="color:#56adda">0.0.5</span>**
 - fix post processor to recognize when audio stream doesn't match configured language and use a numbered subtitle output file
 
