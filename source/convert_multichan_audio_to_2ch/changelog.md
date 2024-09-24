@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.8</span>**
+- add title tag to audio stream - unlikely this will work in mp4 files as there is no standard title tag for audio streams in mp4 containers
+
 **<span style="color:#56adda">0.0.7</span>**
 - add another try-except block for audio streams without bit_rate param when not keeping mc stream
 
