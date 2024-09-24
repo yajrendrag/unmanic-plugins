@@ -230,7 +230,7 @@ def on_worker_process(data):
 
         tag_args = tag_streams(streams_needing_tags, abspath)
 
-        ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0', '-c', 'copy', str(tag_args), '-y', outfile]
+        ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0', '-c', 'copy', tag_args, '-y', outfile]
 
         # Apply ffmpeg args to command
         data['exec_command'] = ['ffmpeg']
