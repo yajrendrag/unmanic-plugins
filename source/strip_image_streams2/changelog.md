@@ -1,3 +1,7 @@
+
+**<span style="color:#56adda">0.0.10</span>**
+- add bmp to list of image codecs
+
 **<span style="color:#56adda">0.0.9</span>**
 - correct plugin.py lib/ffmpeg import to refer to correct plugin ID
 

@@ -43,6 +43,7 @@ class PluginStreamMapper(StreamMapper):
         image_video_codecs = [
             'alias_pix',
             'apng',
+            'bmp',
             'brender_pix',
             'dds',
             'dpx',
