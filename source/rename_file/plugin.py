@@ -295,7 +295,7 @@ def replace(data, settings, abspath, streams):
             basename = basename.replace(rez, "")
             logger.info("removing resolution from filename, resolution cannot be extracted from file")
         else:
-            basename = basename.replace(resolution, str(vrez_height))
+            basename = basename.replace(rez, str(vrez_height))
 
     logger.debug("find_audio: '{}'".format(basename.find(audio)))
     if basename.find(audio) > 0:

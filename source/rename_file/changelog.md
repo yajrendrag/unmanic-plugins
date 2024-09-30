@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.8</span>**
+- change reference to file's parsed resolution to rez from resolution
+
 **<span style="color:#56adda">0.0.7</span>**
 - fix typo in variable name
 
