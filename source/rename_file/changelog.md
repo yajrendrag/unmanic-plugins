@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.6</span>**
+- fix replace function resolution
+- provide for destination file change due to a remux or mover operation
+
 **<span style="color:#56adda">0.0.5</span>**
 - change video resolution format from WxH to Common Name, e.g., 1080p
 

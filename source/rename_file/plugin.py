@@ -233,9 +233,9 @@ def replace(data, settings, abspath, streams):
         logger.error("Error Parsing audio codec from file: '{}'".format(abspath))
 
     try:
-        resolution = parsed_info["resolution"]
+        rez = parsed_info["resolution"]
     except KeyError:
-        resolution = ""
+        rez = ""
         logger.error("Error Parsing resolution from file: '{}'".format(abspath))
 
     video_stream = [stream for stream in range(len(streams)) if streams[stream]["codec_type"] == "video"]
@@ -248,10 +248,20 @@ def replace(data, settings, abspath, streams):
     try:
         vrez_height = streams[video_stream[0]]["height"]
         vrez_width = streams[video_stream[0]]["width"]
+        field_order = streams[video_stream[0]]["field_order"]
+        logger.debug("h: '{}', w: '{}'".format(vrez_height,vrez_width))
     except:
         vrez_height = ""
         vrez_width = ""
-        logger.info("Error extracting resolution from file: '{}'".format(abspath))
+        logger.debug("Error extracting resolution from file: '{}'".format(abspath))
+        vrez=""
+    else:
+        vrez = str(vrez_width) + "x" + str(vrez_height)
+        try:
+            vrez = resolution[vrez]
+            if field_order != "progressive": vrez = vrez.replace("p","i")
+        except KeyError:
+            logger.info("Leaving video resolution as WxH - cannot match to standard resolution: '{}'".format(vrez))
 
     astreams_default = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "disposition" in streams[i] and "default" in streams[i]["disposition"] and streams[i]["disposition"] == 1]
     astreams_first = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio']
@@ -277,9 +287,13 @@ def replace(data, settings, abspath, streams):
     if basename.find(codec) > 0:
         basename = basename.replace(codec, video_codec)
 
-    if basename.find(resolution) > 0:
-        if 'x' or 'X' in resolution:
-            basename = basename.replace(resolution, str(vrez_width) + 'x' + str(vrez_height))
+    logger.debug("rez: '{}', vrez: '{}'".format(rez, vrez))
+    if basename.find(rez) > 0:
+        if 'i' in vrez or 'p' in vrez:
+            basename = basename.replace(rez, vrez)
+        elif vrez == "":
+            basename = basename.replace(rez, "")
+            logger.info("removing resolution from filename, resolution cannot be extracted from file")
         else:
             basename = basename.replace(resolution, str(vrez_height))
 
@@ -325,6 +339,13 @@ def on_postprocessor_task_results(data):
     if status:
         append_or_replace = settings.get_setting('modify_name_fields')
         abspath = data.get('source_data').get('abspath')
+        logger.debug("abspath: '{}'".format(abspath))
+        destfile = data.get('destination_files')[0]
+        logger.debug("destfile: '{}'".format(destfile))
+
+        # correct for remuxed or moved files
+        if not os.path.isfile(abspath) and os.path.isfile(destfile):
+            abpspath = destfile
 
         probe = Probe(logger, allowed_mimetypes=['video'])
         if not probe.file(abspath):
