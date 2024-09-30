@@ -345,7 +345,7 @@ def on_postprocessor_task_results(data):
 
         # correct for remuxed or moved files
         if not os.path.isfile(abspath) and os.path.isfile(destfile):
-            abpspath = destfile
+            abspath = destfile
 
         probe = Probe(logger, allowed_mimetypes=['video'])
         if not probe.file(abspath):

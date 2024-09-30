@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.7</span>**
+- fix typo in variable name
+
 **<span style="color:#56adda">0.0.6</span>**
 - fix replace function resolution
 - provide for destination file change due to a remux or mover operation
