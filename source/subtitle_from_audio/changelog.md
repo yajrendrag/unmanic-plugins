@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.7</span>**
+- fix parser to produce integer progress value (ie, no decimal) to better fit in GUI
+
 **<span style="color:#56adda">0.0.6</span>**
 - fix logger plugin reference
 

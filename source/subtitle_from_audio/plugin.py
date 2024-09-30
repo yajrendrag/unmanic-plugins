@@ -162,7 +162,7 @@ def parse_progress(line_text):
         elif time_str.count(':') == 2:
             tc_h, tc_m, tc_s = time_str.split(':')
             secs = int(tc_h)*3600.0 + int(tc_m)*60.0 + float(tc_s)
-        progress = round((secs / duration) * 100.0,1)
+        progress = int(round((secs / duration) * 100.0,0))
     else:
         progress = ''
 
