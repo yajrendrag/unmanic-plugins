@@ -35,7 +35,6 @@ resolution = {
     "1280x720": "720p",
     "1920x1080": "1080p",
     "2560x1440": "1440p",
-    "2560x1440": "1080p",
     "3840x2160": "2160p",
     "7680x4320": "4320p",
 }
@@ -46,6 +45,7 @@ logger = logging.getLogger("Unmanic.Plugin.rename_file")
 class Settings(PluginSettings):
     settings = {
         "modify_name_fields":           True,
+        "get_rez_from_height":          False,
         "append_video_resolution":      "",
         "append_audio_codec":           "",
         "append_audio_channel_layout":  "",
@@ -57,6 +57,9 @@ class Settings(PluginSettings):
         self.form_settings = {
             "modify_name_fields": {
                  "label": "Check this option if you want replace existing fields names with new values from ffprobe of transcoded file; uncheck if your wish to append new fields to file name from ffprobe metadata",
+            },
+            "get_rez_from_height": {
+                 "label": "check this if you want the resolution named only from the height dimension, e.g., 854x480 (a non standard) would be named 480i or 480p depending on field_order param",
             },
             "append_video_resolution":       self.__set_append_video_resolution_form_settings(),
             "append_audio_codec":            self.__set_append_audio_codec_form_settings(),
@@ -117,6 +120,7 @@ def append(data, settings, abspath, streams):
     append_audio_codec = settings.get_setting('append_audio_codec')
     append_audio_channel_layout = settings.get_setting('append_audio_channel_layout')
     append_audio_language = settings.get_setting('append_audio_language')
+    non_std_rez = settings.get_setting('get_rez_from_height')
 
     logger.debug("abspath: '{}', append_video_resolution: '{}', append_audio_codec: '{}', append_audio_channel_layout: '{}', append_audio_language: '{}'".format(abspath, append_video_resolution, append_audio_codec, append_audio_channel_layout, append_audio_language))
 
@@ -146,7 +150,12 @@ def append(data, settings, abspath, streams):
                 vrez = resolution[vrez]
                 if field_order != "progressive": vrez = vrez.replace("p","i")
             except KeyError:
-                logger.info("Leaving video resolution as WxH - cannot match to standard resolution: '{}'".format(vrez))
+                if not non_std_rez:
+                    logger.info("Leaving video resolution as WxH - cannot match to standard resolution: '{}'".format(vrez))
+                else:
+                    vrez = str(vrezh) + "p"
+                    if field_order != "progressive": vrez = vrez.replace("p","i")
+                    logger.info("using non standard resolution name - cannot match to standard resolution: '{}'".format(vrez))
     else:
         vrez = ''
 
@@ -219,6 +228,7 @@ def replace(data, settings, abspath, streams):
     dirname = os.path.dirname(abspath)
     parsed_info = PTN.parse(basename, standardise=False)
     logger.debug("Parsed info: '{}'".format(parsed_info))
+    non_std_rez = settings.get_setting('get_rez_from_height')
 
     try:
         codec = parsed_info["codec"]
@@ -253,7 +263,7 @@ def replace(data, settings, abspath, streams):
     except:
         vrez_height = ""
         vrez_width = ""
-        logger.debug("Error extracting resolution from file: '{}'".format(abspath))
+        logger.info("removing resolution from filename, resolution cannot be extracted from file")
         vrez=""
     else:
         vrez = str(vrez_width) + "x" + str(vrez_height)
@@ -261,7 +271,12 @@ def replace(data, settings, abspath, streams):
             vrez = resolution[vrez]
             if field_order != "progressive": vrez = vrez.replace("p","i")
         except KeyError:
-            logger.info("Leaving video resolution as WxH - cannot match to standard resolution: '{}'".format(vrez))
+            if not non_std_rez:
+                logger.info("Leaving video resolution as WxH - cannot match to standard resolution: '{}'".format(vrez))
+            else:
+                vrez = str(vrezh) + "p"
+                if field_order != "progressive": vrez = vrez.replace("p","i")
+                logger.info("using non standard resolution name - cannot match to standard resolution: '{}'".format(vrez))
 
     astreams_default = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "disposition" in streams[i] and "default" in streams[i]["disposition"] and streams[i]["disposition"] == 1]
     astreams_first = [i for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio']
@@ -289,13 +304,7 @@ def replace(data, settings, abspath, streams):
 
     logger.debug("rez: '{}', vrez: '{}'".format(rez, vrez))
     if basename.find(rez) > 0:
-        if 'i' in vrez or 'p' in vrez:
-            basename = basename.replace(rez, vrez)
-        elif vrez == "":
-            basename = basename.replace(rez, "")
-            logger.info("removing resolution from filename, resolution cannot be extracted from file")
-        else:
-            basename = basename.replace(rez, str(vrez_height))
+        basename = basename.replace(rez, vrez)
 
     logger.debug("find_audio: '{}'".format(basename.find(audio)))
     if basename.find(audio) > 0:

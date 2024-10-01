@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.9</span>**
+- add option to use non-standard resolution based on height only and field_order value
+- cleaned up logger output and made consistent between replace and append modes
+
 **<span style="color:#56adda">0.0.8</span>**
 - change reference to file's parsed resolution to rez from resolution
 
