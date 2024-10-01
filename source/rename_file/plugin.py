@@ -274,7 +274,7 @@ def replace(data, settings, abspath, streams):
             if not non_std_rez:
                 logger.info("Leaving video resolution as WxH - cannot match to standard resolution: '{}'".format(vrez))
             else:
-                vrez = str(vrezh) + "p"
+                vrez = str(vrez_height) + "p"
                 if field_order != "progressive": vrez = vrez.replace("p","i")
                 logger.info("using non standard resolution name - cannot match to standard resolution: '{}'".format(vrez))
 

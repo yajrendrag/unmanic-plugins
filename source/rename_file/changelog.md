@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.10</span>**
+- fix error in replace function variable - vrezh->vrez_height
+
 **<span style="color:#56adda">0.0.9</span>**
 - add option to use non-standard resolution based on height only and field_order value
 - cleaned up logger output and made consistent between replace and append modes
