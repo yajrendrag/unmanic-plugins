@@ -191,7 +191,10 @@ def append(data, settings, abspath, streams):
                 channel_layout = ''
                 logger.info("Not including channel layout - could not extract channel layout from file: '{}'".format(abspath))
             else:
-                if "(side)" in channel_layout: channel_layout = channel_layout.replace("(side)","")
+                if "(side)" in channel_layout:
+                    channel_layout = channel_layout.replace("(side)","")
+                elif: channel_layout == "stereo":
+                    channel_layout = "2.0"
         else:
             channel_layout = ''
 
@@ -293,7 +296,7 @@ def replace(data, settings, abspath, streams):
         audio_codec = streams[astream]["codec_name"]
         channel_layout = streams[astream]["channel_layout"]
         channels = streams[astream]["channels"]
-        if channel_layout == "stereo" and channels == '2':
+        if channel_layout == "stereo" and channels == 2:
             acodec = audio_codec + ' ' + str(channels) + '.0'
         elif channels > 4:
             acodec = audio_codec + ' ' + str(channel_layout).replace('(side)','')
