@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.12</span>**
+- fix typo in elif: clause
+
 **<span style="color:#56adda">0.0.11</span>**
 - fix error in channels test - should be int not str
 

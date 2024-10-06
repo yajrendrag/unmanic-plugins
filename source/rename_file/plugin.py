@@ -193,7 +193,7 @@ def append(data, settings, abspath, streams):
             else:
                 if "(side)" in channel_layout:
                     channel_layout = channel_layout.replace("(side)","")
-                elif: channel_layout == "stereo":
+                elif channel_layout == "stereo":
                     channel_layout = "2.0"
         else:
             channel_layout = ''
