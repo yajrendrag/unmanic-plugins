@@ -152,6 +152,10 @@ def detect_language(video_file, tmp_dir):
     video = video.subclip(600, duration-430)
     duration = video.duration - 30
 
+    if duration < 600:
+        logger.info("File '{}' too short to process (<10 minutes), skipping".format(viddeo_file))
+        return None
+
     # Sample 3 random spots from the trimmed video
     sample_times = sorted(random.sample(range(int(duration)), 3))
     logger.debug("sample_times: '{}'".format(sample_times))
@@ -162,7 +166,7 @@ def detect_language(video_file, tmp_dir):
     for sample_time in sample_times:
 
         # Extract 30 seconds of audio clip from the video
-        audio_clip = video.subclip(sample_time, min(sample_time + 30, duration))
+        audio_clip = video.subclip(sample_time, sample_time + 30)
         audio_file = f"{tmp_dir}/sample_{str(sample_time)}.wav"
         audio_clip.audio.write_audiofile(audio_file, codec='pcm_s16le')
         logger.debug("audio_file: '{}'".format(audio_file))
@@ -230,17 +234,21 @@ def on_worker_process(data):
 
         tag_args = tag_streams(streams_needing_tags, abspath)
 
-        ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0', '-c', 'copy'] + tag_args + [ '-y', outfile]
+        if tag_args:
+            ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0', '-c', 'copy'] + tag_args + [ '-y', outfile]
 
-        # Apply ffmpeg args to command
-        data['exec_command'] = ['ffmpeg']
-        data['exec_command'] += ffmpeg_args
+            # Apply ffmpeg args to command
+            data['exec_command'] = ['ffmpeg']
+            data['exec_command'] += ffmpeg_args
 
-        logger.debug("command: '{}'".format(data['exec_command']))
+            logger.debug("command: '{}'".format(data['exec_command']))
 
-        # Set the parser
-        parser = Parser(logger)
-        parser.set_probe(probe_data)
-        data['command_progress_parser'] = parser.parse_progress
+            # Set the parser
+            parser = Parser(logger)
+            parser.set_probe(probe_data)
+            data['command_progress_parser'] = parser.parse_progress
+        else:
+            logger.info("File not processed - no streams iddentified or duasrtion too short")
 
     return data
+
