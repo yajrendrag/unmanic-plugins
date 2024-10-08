@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.13</span>**
+- add check for audio metadata presence in ffprobe data
+
 **<span style="color:#56adda">0.0.12</span>**
 - fix typo in elif: clause
 

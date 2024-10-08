@@ -293,13 +293,15 @@ def replace(data, settings, abspath, streams):
 
     acodec = ''
     if astream:
-        audio_codec = streams[astream]["codec_name"]
-        channel_layout = streams[astream]["channel_layout"]
-        channels = streams[astream]["channels"]
+        audio_codec = streams[astream]["codec_name"] if "codec_name" in streams[astream] else ""
+        channel_layout = streams[astream]["channel_layout"] if "channel_layout" in streams[astream] else ""
+        channels = streams[astream]["channels"] if "channels" in streams[astream] else ""
         if channel_layout == "stereo" and channels == 2:
             acodec = audio_codec + ' ' + str(channels) + '.0'
-        elif channels > 4:
+        elif channels > 4 and channel_layout:
             acodec = audio_codec + ' ' + str(channel_layout).replace('(side)','')
+        elif channels > 4 and not channel_layout:
+            acodec = audio_codec.upper() + ' ' + audio if audio_codec.upper() not in audio else audio
     logger.debug("acodec: '{}'".format(acodec))
 
     if basename.find(codec) > 0:
