@@ -1,6 +1,10 @@
 
+**<span style="color:#56adda">0.0.12</span>**
+- added logger.debug
+- moved original_file_path assignment statement to avoid using before defined
+
 **<span style="color:#56adda">0.0.11</span>**
-- writ srt file to the destination directory
+- write srt file to the destination directory
 
 **<span style="color:#56adda">0.0.10</span>**
 - use lang names in post processor to determine if configured lang is in file so that srt file is saved with lang code

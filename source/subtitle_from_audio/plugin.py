@@ -236,6 +236,7 @@ def on_worker_process(data):
 
     # Get the path to the file
     abspath = data.get('file_in')
+    original_file_path = data.get('original_file_path')
 
     # Get file probe
     probe_data = Probe(logger, allowed_mimetypes=['video'])
@@ -254,15 +255,18 @@ def on_worker_process(data):
         settings = Settings()
 
     srt_exists, audio_language_to_convert = srt_already_created(settings, abspath, probe_streams)
+    logger.debug("srt_exists: '{}', audio_language_to_convert: '{}'".format(srt_exists, audio_language_to_convert))
+
     if not srt_exists and audio_language_to_convert != "":
         lang_in_model = lang_code_to_name(audio_language_to_convert)
+        logger.debug("lang_in_model: '{}'".format(lang_in_model))
+
         if lang_in_model:
             try:
                 duration = float(probe_format["duration"])
             except KeyError:
                 duration = 0.0
 
-            original_file_path = data.get('original_file_path')
             output_dir = os.path.dirname(original_file_path)
             split_original_file_path = os.path.splitext(original_file_path)
 
