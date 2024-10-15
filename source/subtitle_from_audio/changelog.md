@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.9</span>**
+- change language code to language name in whisper command 
+
 **<span style="color:#56adda">0.0.8</span>**
 - add iso639 module to allow specifying any type of code and translate to language name
 - test to ensure language name is supported by whisper model, otherwise abort

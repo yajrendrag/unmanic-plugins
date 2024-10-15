@@ -267,7 +267,7 @@ def on_worker_process(data):
             split_original_file_path = os.path.splitext(original_file_path)
 
             if audio_language_to_convert != '0':
-                whisper_args = ['--model', 'small', '--device', 'cuda', '--output_dir', output_dir, '--language', audio_language_to_convert, '--output_format', 'srt', original_file_path]
+                whisper_args = ['--model', 'small', '--device', 'cuda', '--output_dir', output_dir, '--language', lang_in_model, '--output_format', 'srt', original_file_path]
             else:
                 whisper_args = ['--model', 'small', '--device', 'cuda', '--output_dir', output_dir, '--output_format', 'srt', original_file_path]
 
