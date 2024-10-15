@@ -321,7 +321,13 @@ def on_postprocessor_task_results(data):
         probe_streams=probe_data.get_probe()["streams"]
     else:
         probe_streams=[]
-    astreams = [i for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and 'tags' in probe_streams[i] and 'language' in probe_streams[i]['tags'] and probe_streams[i]['tags']['language'] == audio_language_to_convert]
+    astreams = []
+    for i in range(len(probe_streams)):
+        if probe_streams[i]['codec_type'] == 'audio' and 'tags' in probe_streams[i] and 'language' in probe_streams[i]['tags']:
+            stream_lang_name = lang_code_to_name(probe_streams[i]['tags']['language'])
+            configured_lang_name = lang_code_to_name(audio_language_to_convert)
+            if stream_lang_name == configured_lang_name:
+                astreams.append(i)
     if astreams == []:
         audio_language_to_convert = '0'
     base = os.path.splitext(abspath)[0]

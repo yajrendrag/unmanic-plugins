@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.10</span>**
+- use lang names in post processor to determine if configured lang is in file so that srt file is saved with lang code
+
 **<span style="color:#56adda">0.0.9</span>**
 - change language code to language name in whisper command 
 
