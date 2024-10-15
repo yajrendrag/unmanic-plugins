@@ -24,10 +24,24 @@ import os
 import re
 from pathlib import Path
 import whisper
+import iso639
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
 from subtitle_from_audio.lib.ffmpeg import Probe
+
+langs = ('Afrikaans', 'Albanian', 'Amharic', 'Arabic', 'Armenian', 'Assamese', 'Azerbaijani', 'Bashkir', 'Basque',
+         'Belarusian', 'Bengali', 'Bosnian', 'Breton', 'Bulgarian', 'Burmese', 'Cantonese', 'Castilian', 'Catalan',
+         'Chinese', 'Croatian', 'Czech', 'Danish', 'Dutch', 'English', 'Estonian', 'Faroese', 'Finnish', 'Flemish',
+         'French', 'Galician', 'Georgian', 'German', 'Greek', 'Gujarati', 'Haitian', 'Haitian Creole', 'Hausa', 'Hawaiian',
+         'Hebrew', 'Hindi', 'Hungarian', 'Icelandic', 'Indonesian', 'Italian', 'Japanese', 'Javanese', 'Kannada', 'Kazakh',
+         'Khmer', 'Korean', 'Lao', 'Latin', 'Latvian', 'Letzeburgesch', 'Lingala', 'Lithuanian', 'Luxembourgish',
+         'Macedonian', 'Malagasy', 'Malay', 'Malayalam', 'Maltese', 'Mandarin', 'Maori', 'Marathi', 'Moldavian', 'Moldovan',
+         'Mongolian', 'Myanmar', 'Nepali', 'Norwegian', 'Nynorsk', 'Occitan', 'Panjabi', 'Pashto', 'Persian', 'Polish',
+         'Portuguese', 'Punjabi', 'Pushto', 'Romanian', 'Russian', 'Sanskrit', 'Serbian', 'Shona', 'Sindhi', 'Sinhala',
+         'Sinhalese', 'Slovak', 'Slovenian', 'Somali', 'Spanish', 'Sundanese', 'Swahili', 'Swedish', 'Tagalog', 'Tajik',
+         'Tamil', 'Tatar', 'Telugu', 'Thai', 'Tibetan', 'Turkish', 'Turkmen', 'Ukrainian', 'Urdu', 'Uzbek', 'Valencian',
+         'Vietnamese', 'Welsh', 'Yiddish', 'Yoruba')
 
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.subtitle_from_audio")
@@ -96,6 +110,27 @@ def srt_already_created(settings, original_file_path, probe_streams):
     # Default to...
     return False, audio_language_to_convert
 
+def lang_code_to_name(lang):
+    try:
+        lang_part = "part1" if iso639.Language.match(lang).part1 is not None and lang in iso639.Language.match(lang).part1 else \
+                    "part2b" if iso639.Language.match(lang).part2b is not None and lang in iso639.Language.match(lang).part2b else \
+                    "part2t" if iso639.Language.match(lang).part2t is not None and lang in iso639.Language.match(lang).part2t else \
+                    "part3" if lang in iso639.Language.match(lang).part3 else ""
+    except iso639.language.LanguageNotFoundError:
+        lang_part = ''
+
+    if lang_part:
+        lang_func = {"part1": iso639.Language.from_part1,
+                     "part2t": iso639.Language.from_part2t,
+                     "part2b": iso639.Language.from_part2b,
+                     "part3": iso639.Language.from_part3}
+
+        lang_name=lang_func[lang_part](lang).name
+        if lang_name in langs:
+            return lang_name
+
+    return ""
+
 def on_library_management_file_test(data):
     """
     Runner function - enables additional actions during the library management file tests.
@@ -142,9 +177,13 @@ def on_library_management_file_test(data):
     # Add task to pending tasks if srt file has not been created &/or if language stream doesn't exist but user selects logic for another stream
     srt_exists, audio_language_to_convert = srt_already_created(settings, abspath, probe_streams)
     if not srt_exists and audio_language_to_convert != "":
-        # Mark this file to be added to the pending tasks
-        data['add_file_to_pending_tasks'] = True
-        logger.info("File '{}' should be added to task list. File has not been previously had SRT created.".format(abspath))
+        lang_in_model = lang_code_to_name(audio_language_to_convert)
+        if lang_in_model:
+            # Mark this file to be added to the pending tasks
+            data['add_file_to_pending_tasks'] = True
+            logger.info("File '{}' should be added to task list. File has not been previously had SRT created.".format(abspath))
+        else:
+            logger.info("File '{}' should not be added to task list; language code '{}' is not supported by whisper model".format(abspath, audio_language_to_convert))
     else:
         logger.info("File '{}' has previously had SRT created or audio language was not present and user elected to abort.".format(abspath))
 
@@ -216,30 +255,36 @@ def on_worker_process(data):
 
     srt_exists, audio_language_to_convert = srt_already_created(settings, abspath, probe_streams)
     if not srt_exists and audio_language_to_convert != "":
-        try:
-            duration = float(probe_format["duration"])
-        except KeyError:
-            duration = 0.0
+        lang_in_model = lang_code_to_name(audio_language_to_convert)
+        if lang_in_model:
+            try:
+                duration = float(probe_format["duration"])
+            except KeyError:
+                duration = 0.0
 
-        original_file_path = data.get('original_file_path')
-        output_dir = os.path.dirname(original_file_path)
-        split_original_file_path = os.path.splitext(original_file_path)
+            original_file_path = data.get('original_file_path')
+            output_dir = os.path.dirname(original_file_path)
+            split_original_file_path = os.path.splitext(original_file_path)
 
-        if audio_language_to_convert != '0':
-            whisper_args = ['--model', 'small', '--device', 'cuda', '--output_dir', output_dir, '--language', audio_language_to_convert, '--output_format', 'srt', original_file_path]
+            if audio_language_to_convert != '0':
+                whisper_args = ['--model', 'small', '--device', 'cuda', '--output_dir', output_dir, '--language', audio_language_to_convert, '--output_format', 'srt', original_file_path]
+            else:
+                whisper_args = ['--model', 'small', '--device', 'cuda', '--output_dir', output_dir, '--output_format', 'srt', original_file_path]
+
+            # Apply ffmpeg args to command
+            data['exec_command'] = ['whisper']
+            data['exec_command'] += whisper_args
+
+            logger.debug("command: '{}'".format(data['exec_command']))
+
+            # Set the parser
+            data['command_progress_parser'] = parse_progress
+
+            data['file_out'] = None
+
         else:
-            whisper_args = ['--model', 'small', '--device', 'cuda', '--output_dir', output_dir, '--output_format', 'srt', original_file_path]
+            logger.info("Aborting - language code '{}' in '{}' is not supported by whisper model".format(audio_language_to_convert, original_file_path))
 
-        # Apply ffmpeg args to command
-        data['exec_command'] = ['whisper']
-        data['exec_command'] += whisper_args
-
-        logger.debug("command: '{}'".format(data['exec_command']))
-
-        # Set the parser
-        data['command_progress_parser'] = parse_progress
-
-        data['file_out'] = None
     return data
 
 def on_postprocessor_task_results(data):
