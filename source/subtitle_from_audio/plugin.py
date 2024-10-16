@@ -25,6 +25,7 @@ import re
 from pathlib import Path
 import whisper
 import iso639
+import shutil
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -341,7 +342,11 @@ def on_postprocessor_task_results(data):
     srt_file = base_dest + '.' + audio_language_to_convert + '.srt'
     path = Path(srt_file_sans_lang)
     if path.is_file():
-        os.rename(srt_file_sans_lang,srt_file)
+        try:
+            os.rename(srt_file_sans_lang,srt_file)
+        except OSError:
+            # avoid invalide cross-device link error
+            shutil.copy2(srt_file_sans_lang,srt_file)
     else:
         logger.error("Cannot create srt file.  basename is: '{}' and srt file path should be: '{}'".format(base, srt_file))
     return data

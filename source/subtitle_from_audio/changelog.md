@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.13</span>**
+- add shutil.copy2 instead of os.rename to avoid invalid cross-device link error
+
 **<span style="color:#56adda">0.0.12</span>**
 - added logger.debug
 - moved original_file_path assignment statement to avoid using before defined
