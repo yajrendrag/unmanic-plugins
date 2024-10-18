@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- update description 
+
 **<span style="color:#56adda">0.0.4</span>**
 - fix audio file samples to pick 30 second long samples in all cases
 - add test to ensure file is >= 10 minutes otherwise samples could be less than 30 seconds
