@@ -6,7 +6,8 @@
     Date:                     22 September 2024, (5:45 PM)
 
     Copyright:
-        Copyright (C) 2024 Jay Gardner
+        Unmanic plugin code Copyright (C) 2024 Jay Gardner
+        Portions of this module rely on OpenAI's Whisper Speech Recognition which are governed by their license.
 
         This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
         Public License as published by the Free Software Foundation, version 3.
@@ -17,6 +18,11 @@
 
         You should have received a copy of the GNU General Public License along with this program.
         If not, see <https://www.gnu.org/licenses/>.
+
+        Whisper Module:
+        This Unmanic plugin module uses Whisper by OpenAI (<https://github.com/openai/whisper/>) which is governed by it's own
+        license.  The text of this license has accompanied this program.  If for some reason you do not have it, please refer
+        to <https://github.com/openai/whisper/blob/main/LICENSE/>.
 
 """
 import logging

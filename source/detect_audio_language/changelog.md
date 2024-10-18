@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.6</span>**
+- attribution to OpenAI Whisper Module
+- addition of OpenAI Whisper License
+
 **<span style="color:#56adda">0.0.5</span>**
 - update description 
 
