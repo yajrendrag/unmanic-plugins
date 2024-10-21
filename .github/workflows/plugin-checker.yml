@@ -146,76 +146,28 @@ jobs:
     name: Build the plugin repository
     steps:
 
-    # Fetch and read sucess file
+    # Fetch and read success file
     - name: Download success file from previous job
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: ./artifacts/
     - name: Read success file
       id: previous_jobs_success
       run: |
         IS_SUCCESS=$(cat ./artifacts/success_file/success_file.txt)
-        echo ::set-output name=IS_SUCCESS::${IS_SUCCESS}
+        echo "IS_SUCCESS=${IS_SUCCESS:?}" >> $GITHUB_OUTPUT
         rm -rfv ./artifacts
 
     # Checkout
     - name: Checkout
       if: steps.previous_jobs_success.outputs.IS_SUCCESS == 'true'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         submodules: recursive
 
-    # Ensure repo is checked out
-    - name: Check repo for config file
-      if: success()
-      id: ensure_repo
-      run: |
-        if [ ! -e ./config.json ]; then
-            echo "Unable to build repo. Was not checked out."
-            exit 1
-        fi
-
-    # Import scripts from template branch
-    - name: Pull in scripts from template branch
-      if: success()
-      id: read_template_tree
-      run: |
-        git fetch origin template
-        git read-tree --prefix=template -u origin/template
-        cp -rf ./template/scripts ./
-        git rm -r --cached template
-        if [ ! -e ./scripts/generate_repository.py ]; then
-            echo "Unable to build repo. Could not find generator script."
-            exit 1
-        fi
-
-    # Setup python environment
-    - name: Set up Python 3.8
-      if: success()
-      uses: actions/setup-python@v4
+    # Execute plugin repo gen action
+    - name: Generate and Deploy Unmanic Plugin Repository
+      uses: Unmanic/action.generate-unmanic-plugin-repo@master
       with:
-        python-version: 3.8
-
-    # Setup node environment
-    - name: Set up node 16
-      uses: actions/setup-node@v3
-      with:
-        node-version: '16'
-
-    # Generate repo
-    - name: Generate repository from source
-      if: success()
-      id: generate_repo
-      run: |
-        python ./scripts/generate_repository.py
-
-    # Deploy to repo branch
-    - name: Deploy repository
-      if: success() && (github.ref == 'refs/heads/master')
-      uses: s0/git-publish-subdir-action@develop
-      env:
-        REPO: self
-        BRANCH: repo
-        FOLDER: repo
-        SQUASH_HISTORY: true
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        deploy_repo: 'true'
+        github_token: ${{ secrets.GH_TOKEN }}
