@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - '**'
+      - 'pr-**'
       - '!template'
   pull_request:
     branches:
@@ -20,7 +21,7 @@ jobs:
     steps:
     # Checkout
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
@@ -134,7 +135,7 @@ jobs:
       run: echo 'true' > success_file.txt
     - name: Upload success file
       if: success()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: success_file
         path: success_file.txt
