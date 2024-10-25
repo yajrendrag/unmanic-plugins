@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+    Written by:               yajrendrag <yajdude@gmail.com>
+    Date:                     25 October 2024, (11:00 AM)
+
+    Copyright:
+        Copyright (C) 2024 Jay Gardner
+
+        This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
+        Public License as published by the Free Software Foundation, version 3.
+
+        This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+        implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+        for more details.
+
+        You should have received a copy of the GNU General Public License along with this program.
+        If not, see <https://www.gnu.org/licenses/>.
+
+"""
+import logging
+from unmanic.libs.unplugins.settings import PluginSettings
+import requests
+import re
+import urllib.parse
+
+# Configure plugin logger
+logger = logging.getLogger("Unmanic.Plugin.notify_plex_partial")
+
+
+class Settings(PluginSettings):
+    settings = {
+        'Plex URL':                'http://localhost:32400',
+        'Plex Token':              '',
+        'Unmanic Library Mapping':	'',
+        'Notify on Task Failure?': False,
+    }
+
+
+def update_plex(plex_url, plex_token, media_dir):
+    # Call to Plex to trigger an update
+    plex_url = plex_url + '/library/sections/all/refresh/?path=' + urllib.parse.quote(media_dir, safe='') + '&X-Plex-Token=' + plex_token
+    response = requests.get(plex_url)
+    if response.status_code == 200:
+        logger.info("Notifying Plex ({}) to update its library.".format(plex_url))
+    else:
+        logger.error("Error requesting Plex to update: '{}'".format(media_dir))
+
+def on_postprocessor_task_results(data):
+    """
+    Runner function - provides a means for additional postprocessor functions based on the task success.
+
+    The 'data' object argument includes:
+        task_processing_success         - Boolean, did all task processes complete successfully.
+        file_move_processes_success     - Boolean, did all postprocessor movement tasks complete successfully.
+        destination_files               - List containing all file paths created by postprocessor file movements.
+        source_data                     - Dictionary containing data pertaining to the original source file.
+
+    :param data:
+    :return:
+
+    """
+    # Configure settings object (maintain compatibility with v1 plugins)
+    if data.get('library_id'):
+        settings = Settings(library_id=data.get('library_id'))
+    else:
+        settings = Settings()
+
+    if not data.get('task_processing_success') and not settings.get_setting('Notify on Task Failure?'):
+        return data
+
+    media_dir = data.get('destination_files')[0]
+    lib_map = settings.get_setting('Unmanic Library Mapping')
+    unmanic_dir=re.search(r'.*:(.*$)', lib_map)
+    if unmanic_dir:
+        unmanic_dir = unmanic_dir.group(1)
+    else:
+        logger.error("unable to find identify unmanic dir from mapping: '{}'".format(lib_map))
+        return data
+    host_dir=re.search(r'(.*):', lib_map)
+    if host_dir:
+        host_dir = host_dir.group(1)
+    else:
+        logger.error("unable to find identify host dir from mapping: '{}'".format(lib_map))
+        return data
+    plex_url = settings.get_setting('Plex URL')
+    plex_token = settings.get_setting('Plex Token')
+    try:
+        media_dir = media_dir.replace(unmanic_dir,host_dir)
+    except:
+        logger.error("cannot form host media directory path - unmanic_dir: '{}', host_dir: '{}', media_dir: '{}'".format(unmanic_dir, host_dir, media_dir))
+        return data
+    update_plex(plex_url, plex_token, media_dir)
+
+    return data

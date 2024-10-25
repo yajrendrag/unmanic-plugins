@@ -1,0 +1,19 @@
+{
+    "author": "yajrendrag",
+    "compatibility": [
+        1,
+        2
+    ],
+    "description": "partial pex library update based on folder with changed files.",
+    "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.notify_plex/master/icon.png",
+    "id": "notify_plex_partial",
+    "name": "Notify Plex Partial",
+    "platform": [
+        "all"
+    ],
+    "priorities": {
+        "on_postprocessor_task_results": 0
+    },
+    "tags": "post-processor",
+    "version": "0.0.5"
+}
