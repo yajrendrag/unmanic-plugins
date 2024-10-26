@@ -37,10 +37,22 @@ class Settings(PluginSettings):
         'Notify on Task Failure?': False,
     }
 
+def get_section(media_dir, plex_url, plex_token):
+    libs_url = plex_url + '/library/sections/?X-Plex-Token=' + plex_token
+    sections = requests.get(libs_url)
+    if sections:
+        section_parse = re.findall(r'Location id=\"(.*)\" path=\"(.*)\" ', sections.text)
+        if len(section_parse):
+            for s in section_parse:
+                if s[1] in media_dir:
+                    return s[0]
+    else:
+        logger.error("Library section not found - '{}' - aborting".format(media_dir))
+        return ""
 
-def update_plex(plex_url, plex_token, media_dir):
+def update_plex(plex_url, plex_token, media_dir, section_id):
     # Call to Plex to trigger an update
-    plex_url = plex_url + '/library/sections/all/refresh/?path=' + urllib.parse.quote(media_dir, safe='') + '&X-Plex-Token=' + plex_token
+    plex_url = plex_url + '/library/sections/' + str(section_id) + '/refresh/?path=' + urllib.parse.quote(media_dir, safe='') + '&X-Plex-Token=' + plex_token
     response = requests.get(plex_url)
     if response.status_code == 200:
         logger.info("Notifying Plex ({}) to update its library.".format(plex_url))
@@ -91,6 +103,9 @@ def on_postprocessor_task_results(data):
     except:
         logger.error("cannot form host media directory path - unmanic_dir: '{}', host_dir: '{}', media_dir: '{}'".format(unmanic_dir, host_dir, media_dir))
         return data
-    update_plex(plex_url, plex_token, media_dir)
+    section_id = get_section(media_dir, plex_url, plex_token)
+    if not section_id:
+        return data
+    update_plex(plex_url, plex_token, media_dir, section_id)
 
     return data

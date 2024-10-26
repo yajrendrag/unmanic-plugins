@@ -10,8 +10,9 @@ These two approaches will likely yield different tokens, but both should work.
 
 - Enter the url for your Plex Server using your local IP address (ie, not the plex.tv cloud address)
 - Enter the Plex token you found as per above
-- Enter as a single string, the Library Mapping that you entered in your docker compose or on the docker run line for the library in which this plugin is installed,
-  e.g., /media/TVShows:/library
+- Enter as a single string, the a mapping that shows your host media path relative to your unmanic library media path.  The mapping should only go include where the paths are
+  different, e.g., /media:/library.  This means that Plex sees your media at the path /media and unmanic sees it at /library.  Below these paths the paths should be identical.
+  You should have a unique mapping for each library in which this plugin is deployed, e.g., TVShows, Movies, etc.
 - enter True or False for whether this plugin should run an update if the task for the file failed.
 
 :::note
