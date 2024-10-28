@@ -35,6 +35,7 @@ logger = logging.getLogger("Unmanic.Plugin.encoder_audio_aac")
 class Settings(PluginSettings):
     settings = {
         "advanced":              False,
+        "force_processing":      False,
         "max_muxing_queue_size": 2048,
         "main_options":          "",
         "advanced_options":      "",
@@ -46,6 +47,9 @@ class Settings(PluginSettings):
         self.form_settings = {
             "advanced":              {
                 "label": "Write your own FFmpeg params",
+            },
+            "force_processing":	{
+                "label": "process streams even if audio is already aac encoded",
             },
             "max_muxing_queue_size": self.__set_max_muxing_queue_size_form_settings(),
             "main_options":          self.__set_main_options_form_settings(),
@@ -137,12 +141,13 @@ class PluginStreamMapper(StreamMapper):
         return int(channels) * 64
 
     def test_stream_needs_processing(self, stream_info: dict):
+        force_processing = self.settings.get_setting('force_processing')
         # Ignore streams already of the required codec_name
         if ('tags' in stream_info and 'ENCODER' in stream_info.get('tags') and self.encoder in stream_info.get('tags')['ENCODER']):
             logger.debug("codec name: '{}', ENCODER: '{}'".format(stream_info.get('codec_name'), stream_info.get('tags')['ENCODER']))
         if stream_info.get('codec_name').lower() in [self.codec] and (
             'tags' in stream_info and 'ENCODER' in stream_info.get('tags') and
-             self.encoder in stream_info.get('tags')['ENCODER']):
+             self.encoder in stream_info.get('tags')['ENCODER'] and not force_processing):
             return False
         return True
 

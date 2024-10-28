@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.9</span>**
+- added force processing option
+
 **<span style="color:#56adda">0.0.8</span>**
 - set channels to 6 if channels > 6
 
