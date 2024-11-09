@@ -82,7 +82,12 @@ def on_postprocessor_task_results(data):
     if not data.get('task_processing_success') and not settings.get_setting('Notify on Task Failure?'):
         return data
 
-    media_dir = data.get('destination_files')[0]
+    try:
+       media_dir = data.get('destination_files')[0]
+    except IndexError:
+       logger.error("Non-existent destination file - plex cannot be notified.")
+       return data
+
     lib_map = settings.get_setting('Unmanic Library Mapping')
     unmanic_dir=re.search(r'.*:(.*$)', lib_map)
     if unmanic_dir:
