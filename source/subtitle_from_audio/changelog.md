@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.15</span>**
+- fix tmp directory
+
 **<span style="color:#56adda">0.0.14</span>**
 - explicitly find audio stream
 - write temp audio file to /tmp/unmanic

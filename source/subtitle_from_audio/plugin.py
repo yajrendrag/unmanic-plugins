@@ -280,7 +280,7 @@ def on_worker_process(data):
             output_dir = os.path.dirname(original_file_path)
             sfx = os.path.splitext(original_file_path)[1]
             ffin = ffmpeg.input(original_file_path)
-            tmp_audio = '/tmp/subtitler/'+os.path.basename(original_file_path).replace(sfx,'.wav')
+            tmp_audio = '/tmp/unmanic/'+os.path.basename(original_file_path).replace(sfx,'.wav')
             temp_audio_out = ffmpeg.output(ffin['a:'+str(astream)],tmp_audio,acodec="pcm_s16le",ar="44100",ac="2")
             temp_audio_out.run(overwrite_output=True, quiet=True)
 
