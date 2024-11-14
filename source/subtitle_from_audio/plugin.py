@@ -322,13 +322,15 @@ def on_postprocessor_task_results(data):
 
     abspath = data.get('source_data').get('abspath')
     try:
-        tmp_audio = '/tmp/unmanic' + os.path.splitext(os.path.basename(abspath))[0] + '.wav'
+        tmp_audio = '/tmp/unmanic/' + os.path.splitext(os.path.basename(abspath))[0] + '.wav'
     except:
-        logger.debug("temp audio file doesn't exist, so not removing...")
+        logger.debug("issue building temp audio file path: os.path.splitext(os.path.basename(abspath))[0]: '{}'".format(os.path.splitext(os.path.basename(abspath))))
 
     path = Path(tmp_audio)
     if path.is_file():
         os.remove(tmp_audio)
+    else:
+        logger.debug("temp audio file doesn't exist, so not removing...")
 
     if not data.get('task_processing_success'):
         return data

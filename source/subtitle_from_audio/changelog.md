@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.16</span>**
+- fix post processor cleanup of /tmp/unmanic
+
 **<span style="color:#56adda">0.0.15</span>**
 - fix tmp directory
 
