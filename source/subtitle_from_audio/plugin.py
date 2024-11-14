@@ -26,6 +26,7 @@ from pathlib import Path
 import whisper
 import iso639
 import shutil
+import ffmpeg
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -268,13 +269,25 @@ def on_worker_process(data):
             except KeyError:
                 duration = 0.0
 
+            astream = 0
+            astreams = [i for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio']
+            for stream,abs_stream in enumerate(astreams):
+                if 'tags' in probe_streams[abs_stream] and 'language' in probe_streams[abs_stream]['tags'] and probe_streams[abs_stream]['tags']['language'] == audio_language_to_convert:
+                    astream = stream
+                    logger.debug("astream: '{}'".format(astream))
+                    break
+
             output_dir = os.path.dirname(original_file_path)
-            split_original_file_path = os.path.splitext(original_file_path)
+            sfx = os.path.splitext(original_file_path)[1]
+            ffin = ffmpeg.input(original_file_path)
+            tmp_audio = '/tmp/subtitler/'+os.path.basename(original_file_path).replace(sfx,'.wav')
+            temp_audio_out = ffmpeg.output(ffin['a:'+str(astream)],tmp_audio,acodec="pcm_s16le",ar="44100",ac="2")
+            temp_audio_out.run(overwrite_output=True, quiet=True)
 
             if audio_language_to_convert != '0':
-                whisper_args = ['--model', 'small', '--device', 'cuda', '--output_dir', output_dir, '--language', lang_in_model, '--output_format', 'srt', original_file_path]
+                whisper_args = ['--model', 'turbo', '--device', 'cuda', '--output_dir', output_dir, '--language', lang_in_model, '--output_format', 'srt', tmp_audio]
             else:
-                whisper_args = ['--model', 'small', '--device', 'cuda', '--output_dir', output_dir, '--output_format', 'srt', original_file_path]
+                whisper_args = ['--model', 'turbo', '--device', 'cuda', '--output_dir', output_dir, '--output_format', 'srt', tmp_audio]
 
             # Apply ffmpeg args to command
             data['exec_command'] = ['whisper']
@@ -285,7 +298,7 @@ def on_worker_process(data):
             # Set the parser
             data['command_progress_parser'] = parse_progress
 
-            data['file_out'] = None
+            #data['file_out'] = None
 
         else:
             logger.info("Aborting - language code '{}' in '{}' is not supported by whisper model".format(audio_language_to_convert, original_file_path))
@@ -306,10 +319,17 @@ def on_postprocessor_task_results(data):
     :return:
 
     """
-    # We only care that the task completed successfully.
-    # If a worker processing task was unsuccessful, dont mark the file streams as kept
-    # TODO: Figure out a way to know if a file's streams were kept but another plugin was the
-    #   cause of the task processing failure flag
+
+    abspath = data.get('source_data').get('abspath')
+    try:
+        tmp_audio = '/tmp/unmanic' + os.path.splitext(os.path.basename(abspath))[0] + '.wav'
+    except:
+        logger.debug("temp audio file doesn't exist, so not removing...")
+
+    path = Path(tmp_audio)
+    if path.is_file():
+        os.remove(tmp_audio)
+
     if not data.get('task_processing_success'):
         return data
 
@@ -320,7 +340,6 @@ def on_postprocessor_task_results(data):
         settings = Settings()
 
     audio_language_to_convert = settings.get_setting('audio_stream_lang_to_text')
-    abspath = data.get('source_data').get('abspath')
     destfile = data.get('destination_files')[0]
     probe_data=Probe(logger, allowed_mimetypes=['video'])
     if probe_data.file(destfile):

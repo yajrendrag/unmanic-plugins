@@ -1,4 +1,10 @@
 
+**<span style="color:#56adda">0.0.14</span>**
+- explicitly find audio stream
+- write temp audio file to /tmp/unmanic
+- run whisper on temp audio file
+- delete temp audio files when done
+
 **<span style="color:#56adda">0.0.13</span>**
 - add shutil.copy2 instead of os.rename to avoid invalid cross-device link error
 
