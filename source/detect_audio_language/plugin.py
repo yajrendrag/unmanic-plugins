@@ -35,6 +35,8 @@ import subprocess
 import random
 import moviepy.editor as mp
 import shutil
+import os
+import glob
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -142,7 +144,10 @@ def tag_streams(astreams, vid_file):
         else:
             logger.error("Language not successfully identified for audio stream '{}' of file '{}', so skipping stream".format(astream, vid_file))
 
-    shutil.rmtree(dir)
+    for f in glob.glob(dir + "/*.wav"):
+        os.remove(f)
+
+    shutil.rmtree(dir, ignore_errors=True)
     return tag_args
 
 def detect_language(video_file, tmp_dir):
