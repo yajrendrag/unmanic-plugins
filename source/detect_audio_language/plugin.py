@@ -128,7 +128,8 @@ def tag_streams(astreams, vid_file):
 
     # for each audio stream needing a tag, create video file with that single audio stream
     for astream, _ in enumerate(astreams):
-        output_file = tmp_dir + '/' + os.path.splitext(os.path.basename(vid_file))[0] + '.' + str(astream) + os.path.splitext(os.path.basename(vid_file))[1]
+        sfx = os.path.splitext(os.path.basename(vid_file))[1]
+        output_file = tmp_dir + '/' + os.path.splitext(os.path.basename(vid_file))[0] + '.' + str(astream) + sfx
         command = ['ffmpeg', '-hide_banner', '-loglevel', 'info', '-i', str(vid_file), '-strict', '-2', '-max_muxing_queue_size', '9999', '-map', '0:v:0', '-map', '0:a:'+str(astream), '-c', 'copy', '-y', output_file]
 
         try:
@@ -144,8 +145,9 @@ def tag_streams(astreams, vid_file):
         else:
             logger.error("Language not successfully identified for audio stream '{}' of file '{}', so skipping stream".format(astream, vid_file))
 
-    for f in glob.glob(dir + "/*.wav"):
+    for f in glob.glob(tmp_dir + "/*.wav"):
         os.remove(f)
+    os.remove(tmp_dir + "/*" + sfx)
 
     shutil.rmtree(dir, ignore_errors=True)
     return tag_args

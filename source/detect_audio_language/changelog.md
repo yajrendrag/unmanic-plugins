@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.8</span>**
+- fix dir variable in os.remove
+- also delete the temp video files created
+
 **<span style="color:#56adda">0.0.7</span>**
 - add code to explicitly remove temp wav files as on some systems shutil.rmtree throws an exception if non-empty directory 
 
