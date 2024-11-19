@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.9</span>**
+- fix construction of temp video files to use glob
+
 **<span style="color:#56adda">0.0.8</span>**
 - fix dir variable in os.remove
 - also delete the temp video files created

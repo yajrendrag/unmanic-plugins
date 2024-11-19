@@ -147,7 +147,8 @@ def tag_streams(astreams, vid_file):
 
     for f in glob.glob(tmp_dir + "/*.wav"):
         os.remove(f)
-    os.remove(tmp_dir + "/*" + sfx)
+    for f in glob.glob(tmp_dir + '/*' + sfx):
+        os.remove(f)
 
     shutil.rmtree(dir, ignore_errors=True)
     return tag_args
