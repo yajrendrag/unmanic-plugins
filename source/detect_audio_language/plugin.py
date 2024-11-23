@@ -33,7 +33,7 @@ import iso639
 from pathlib import Path
 import subprocess
 import random
-import moviepy.editor as mp
+from moviepy import *
 import shutil
 import os
 import glob
@@ -159,11 +159,11 @@ def detect_language(video_file, tmp_dir):
     logger.debug("video_file: '{}'; tmp_dir: '{}'".format(video_file, tmp_dir))
 
     # Load video and get duration
-    video = mp.VideoFileClip(video_file)
+    video = VideoFileClip(video_file)
     duration = video.duration
 
     # Define subclip to start 10 minutes into video and end 7 minutes before end
-    video = video.subclip(600, duration-430)
+    video = video.with_subclip(600, duration-430)
     duration = video.duration - 30
 
     if duration < 600:
@@ -180,7 +180,7 @@ def detect_language(video_file, tmp_dir):
     for sample_time in sample_times:
 
         # Extract 30 seconds of audio clip from the video
-        audio_clip = video.subclip(sample_time, sample_time + 30)
+        audio_clip = video.with_subclip(sample_time, sample_time + 30)
         audio_file = f"{tmp_dir}/sample_{str(sample_time)}.wav"
         audio_clip.audio.write_audiofile(audio_file, codec='pcm_s16le')
         logger.debug("audio_file: '{}'".format(audio_file))

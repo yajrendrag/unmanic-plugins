@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.10</span>**
+- update moviepy to 2.0 api
+
 **<span style="color:#56adda">0.0.9</span>**
 - fix construction of temp video files to use glob
 
