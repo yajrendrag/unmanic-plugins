@@ -172,7 +172,7 @@ def on_worker_process(data):
                         rate = str(int(int(probe_streams[abs_stream]['bit_rate'])/(1000 * probe_streams[abs_stream]['channels']))*2) + 'k'
                     except KeyError:
                         rate = '128k'
-                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title="AAC Stereo"']
+                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
         else:
             stream_map = {}
             for stream,abs_stream in enumerate(all_astreams):
