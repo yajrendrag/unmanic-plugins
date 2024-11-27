@@ -1,0 +1,2 @@
+pyarr==5.2.0
+pycountry==24.6.1
