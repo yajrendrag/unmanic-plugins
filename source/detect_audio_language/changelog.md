@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.12</span>**
+- fixed moviepy install version to 2.0.0 to alleviate api changes
+
 **<span style="color:#56adda">0.0.11</span>**
 - added more debug output
 
