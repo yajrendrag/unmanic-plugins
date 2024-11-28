@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.11</span>**
+- added more debug output
+
 **<span style="color:#56adda">0.0.10</span>**
 - update moviepy to 2.0 api
 

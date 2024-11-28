@@ -138,6 +138,8 @@ def tag_streams(astreams, vid_file):
             reason = e.stderr.decode()
             logger.error("Can not create output for audio stream '{}' of file '{}', so skipping stream".format(astream, vid_file))
 
+        logger.debug("temp video file to detect language in: '{}".format(output_file))
+
         lang_tag = detect_language(output_file, tmp_dir)
         if lang_tag:
             lang_tag = iso639.Language.from_part1(lang_tag).part2b
