@@ -45,6 +45,9 @@ from detect_audio_language.lib.ffmpeg import Probe, Parser
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.detect_audio_language")
 
+# use unmanic container's ffmpeg instead of moviepy's ffmpeg library
+os.environ["FFMPEG_BINARY"] = "/usr/local/bin/ffmpeg"
+
 class Settings(PluginSettings):
     settings = {
     }
@@ -129,8 +132,9 @@ def tag_streams(astreams, vid_file):
     # for each audio stream needing a tag, create video file with that single audio stream
     for astream, _ in enumerate(astreams):
         sfx = os.path.splitext(os.path.basename(vid_file))[1]
-        output_file = tmp_dir + '/' + os.path.splitext(os.path.basename(vid_file))[0] + '.' + str(astream) + sfx
-        command = ['ffmpeg', '-hide_banner', '-loglevel', 'info', '-i', str(vid_file), '-strict', '-2', '-max_muxing_queue_size', '9999', '-map', '0:v:0', '-map', '0:a:'+str(astream), '-c', 'copy', '-y', output_file]
+        temp_sfx = '.mkv'
+        output_file = tmp_dir + '/' + os.path.splitext(os.path.basename(vid_file))[0] + '.' + str(astream) + temp_sfx
+        command = ['ffmpeg', '-hide_banner', '-loglevel', 'info', '-i', str(vid_file), '-strict', '-2', '-max_muxing_queue_size', '9999', '-map', '0:v:0', '-map', '0:a:'+str(astream), '-map_metadata', '-1', '-c', 'copy', '-y', output_file]
 
         try:
             result = subprocess.run(command, shell=False, check=True, capture_output=True)
@@ -149,7 +153,7 @@ def tag_streams(astreams, vid_file):
 
     for f in glob.glob(tmp_dir + "/*.wav"):
         os.remove(f)
-    for f in glob.glob(tmp_dir + '/*' + sfx):
+    for f in glob.glob(tmp_dir + '/*' + temp_sfx):
         os.remove(f)
 
     shutil.rmtree(dir, ignore_errors=True)

@@ -1,3 +1,8 @@
+'
+**<span style="color:#56adda">0.0.13</span>**
+- use mkv extension for temp files
+- remote all metadata from temp files
+- use unmanic container's ffmpeg binary instead of moviepy's ffmpeg library
 
 **<span style="color:#56adda">0.0.12</span>**
 - fixed moviepy install version to 2.0.0 to alleviate api changes
