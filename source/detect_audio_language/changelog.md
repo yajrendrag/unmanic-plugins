@@ -1,4 +1,7 @@
-'
+
+**<span style="color:#56adda">0.0.14</span>**
+- revert to moviepy 1.0.3
+
 **<span style="color:#56adda">0.0.13</span>**
 - use mkv extension for temp files
 - remote all metadata from temp files

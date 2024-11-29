@@ -33,7 +33,7 @@ import iso639
 from pathlib import Path
 import subprocess
 import random
-from moviepy import *
+import moviepy.editor as mp
 import shutil
 import os
 import glob
@@ -44,9 +44,6 @@ from detect_audio_language.lib.ffmpeg import Probe, Parser
 
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.detect_audio_language")
-
-# use unmanic container's ffmpeg instead of moviepy's ffmpeg library
-os.environ["FFMPEG_BINARY"] = "/usr/local/bin/ffmpeg"
 
 class Settings(PluginSettings):
     settings = {
@@ -165,11 +162,11 @@ def detect_language(video_file, tmp_dir):
     logger.debug("video_file: '{}'; tmp_dir: '{}'".format(video_file, tmp_dir))
 
     # Load video and get duration
-    video = VideoFileClip(video_file)
+    video = mp.VideoFileClip(video_file)
     duration = video.duration
 
     # Define subclip to start 10 minutes into video and end 7 minutes before end
-    video = video.with_subclip(600, duration-430)
+    video = video.subclip(600, duration-430)
     duration = video.duration - 30
 
     if duration < 600:
@@ -186,7 +183,7 @@ def detect_language(video_file, tmp_dir):
     for sample_time in sample_times:
 
         # Extract 30 seconds of audio clip from the video
-        audio_clip = video.with_subclip(sample_time, sample_time + 30)
+        audio_clip = video.subclip(sample_time, sample_time + 30)
         audio_file = f"{tmp_dir}/sample_{str(sample_time)}.wav"
         audio_clip.audio.write_audiofile(audio_file, codec='pcm_s16le')
         logger.debug("audio_file: '{}'".format(audio_file))
