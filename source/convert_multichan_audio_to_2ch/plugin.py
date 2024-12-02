@@ -69,7 +69,7 @@ def streams_to_stereo_encode(probe_streams):
     streams = []
     stereo_streams = [probe_streams[i]['tags']['language'] for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and
                       'tags' in probe_streams[i] and 'language' in probe_streams[i]['tags'] and probe_streams[i]['channels'] == 2 and
-                      "commentary" not in streams[i]["tags"]["title"].lower()]
+                      "commentary" not in probe_streams[i]["tags"]["title"].lower()]
     for i in range(0, len(probe_streams)):
         if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == "audio":
             audio_stream += 1
