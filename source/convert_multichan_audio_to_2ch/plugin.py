@@ -33,9 +33,10 @@ logger = logging.getLogger("Unmanic.Plugin.convert_multichan_audio_to_2ch")
 
 class Settings(PluginSettings):
     settings = {
-        "use_libfdk_aac":         True,
-        "keep_mc":                False,
-
+        "use_libfdk_aac":            True,
+        "keep_mc":                   False,
+        "set_2ch_stream_as_default": False,
+        "default_lang":              "",
     }
 
     def __init__(self, *args, **kwargs):
@@ -46,13 +47,29 @@ class Settings(PluginSettings):
             },
             "keep_mc":      {
                 "label": "check to keep the multichannel streams, otherwise, they are removed",
-            }
+            },
+            "set_2ch_stream_as_default": {
+                "label": "check to use the new 2 channel stream as the default audio stream",
+            },
+            "default_lang":        self.__set_default_lang_form_settings(),
         }
+
+    def __set_default_lang_form_settings(self):
+        values = {
+            "label":          "A single language of existing stream to use as 2 channel default audio stream - it's probably 3 letters",
+            "input_type":     "textarea",
+        }
+        if not self.get_setting('set_2ch_stream_as_default'):
+            values["display"] = 'hidden'
+        return values
+
 
 def streams_to_stereo_encode(probe_streams):
     audio_stream = -1
     streams = []
-    stereo_streams = [probe_streams[i]['tags']['language'] for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and 'tags' in probe_streams[i] and 'language' in probe_streams[i]['tags'] and probe_streams[i]['channels'] == 2]
+    stereo_streams = [probe_streams[i]['tags']['language'] for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and
+                      'tags' in probe_streams[i] and 'language' in probe_streams[i]['tags'] and probe_streams[i]['channels'] == 2 and
+                      "commentary" not in streams[i]["tags"]["title"].lower()]
     for i in range(0, len(probe_streams)):
         if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == "audio":
             audio_stream += 1
@@ -159,10 +176,16 @@ def on_worker_process(data):
     if settings.get_setting('use_libfdk_aac'): encoder = 'libfdk_aac'
 
     keep_mc = settings.get_setting('keep_mc')
+    defaudio2ch = settings.get_setting('set_2ch_stream_as_default')
+    def2chlang = settings.get_setting('default_lang')
 
     if streams != []:
         # Get generated ffmpeg args
-        ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy']
+        if defaudio2ch:
+            ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy', '-disposition:a', '-default']
+        else:
+            ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy']
+
         if not keep_mc:
             for stream,abs_stream in enumerate(all_astreams):
                 if abs_stream not in mc_streams:
@@ -172,7 +195,14 @@ def on_worker_process(data):
                         rate = str(int(int(probe_streams[abs_stream]['bit_rate'])/(1000 * probe_streams[abs_stream]['channels']))*2) + 'k'
                     except KeyError:
                         rate = '128k'
-                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
+                    if not defaudio2ch:
+                        ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
+                    else:
+                        if "tags" in prob_streams[abs_stream] and "language" in prob_streams[abs_stream]["tags"] and prob_streams[abs_stream]["tags"] == def2chlang:
+                            ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo", '-disposition:a:'+str(stream), 'default']
+                        else:
+                            logger.info("cant set default audio stream to new 2 channel stream - language didn't match or stream not tagged")
+                            ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
         else:
             stream_map = {}
             for stream,abs_stream in enumerate(all_astreams):
@@ -185,7 +215,7 @@ def on_worker_process(data):
                     rate = str(int(int(probe_streams[stream_map[stream]]['bit_rate'])/(1000 * probe_streams[stream_map[stream]]['channels']))*2) + 'k'
                 except KeyError:
                     rate = '128k'
-                ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(next_audio_stream_index), encoder, '-ac', '2', '-b:a:'+str(next_audio_stream_index), rate, '-metadata:s:a:'+str(next_audio_stream_index), 'title="AAC Stereo"']
+                ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(next_audio_stream_index), encoder, '-ac', '2', '-b:a:'+str(next_audio_stream_index), rate, '-metadata:s:a:'+str(next_audio_stream_index), 'title='+"AAC Stereo", '-disposition:a:'+str(next_audio_stream_index), 'default']
         ffmpeg_args += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy', '-y', str(outpath)]
 
         logger.debug("ffmpeg args: '{}'".format(ffmpeg_args))

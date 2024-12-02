@@ -1,4 +1,9 @@
 
+**<span style="color:#56adda">0.0.11</span>**
+- add option to set 2 channel stereo stream as default stream
+- along with above specify an option for stream language to use as default in case of multiple 2 channel streams
+- ensure commentary streams are not counted as existing stereo streams
+
 **<span style="color:#56adda">0.0.9</span>**
 - fix title metadata
 
