@@ -86,7 +86,7 @@ def on_worker_process(data):
     else:
         settings = Settings()
 
-    ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath)]
+    ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-map', '0']
     custom_metadata = settings.get_setting('custom_metadata').replace(" ","")
     if file_type[1] == '.mkv':
         cm_list = list(custom_metadata.split(","))
