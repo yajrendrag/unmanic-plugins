@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.14</span>**
+- add option to encode all non-aac encoded streams to aac with selected encoder
+- this allows this plugin to act as single plugin for aac encoding as well as creating 2 channel aac streams from multichannel audio streams
+
 **<span style="color:#56adda">0.0.13</span>**
 - add option to reorder stereo stream(s) to first audio stream(s)
 - removed original disposition from other audio streams if setting stereo as default stream

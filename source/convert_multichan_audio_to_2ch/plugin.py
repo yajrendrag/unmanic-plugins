@@ -34,6 +34,7 @@ logger = logging.getLogger("Unmanic.Plugin.convert_multichan_audio_to_2ch")
 class Settings(PluginSettings):
     settings = {
         "use_libfdk_aac":            True,
+        "encode_all_2_aac":          True,
         "keep_mc":                   False,
         "set_2ch_stream_as_default": False,
         "default_lang":              "",
@@ -44,6 +45,9 @@ class Settings(PluginSettings):
         self.form_settings = {
             "use_libfdk_aac":               {
                 "label": "check if you want to use libfdk_aac (requires ffmpeg >= 5), otherwise native aac is used",
+            },
+            "encode_all_2_aac":               {
+                "label": "check this if you also want to encode all non-aac streams to aac using selected encoder - otherwise all other streams left as is",
             },
             "keep_mc":      {
                 "label": "check to keep the multichannel streams, otherwise, they are removed",
@@ -178,6 +182,13 @@ def on_worker_process(data):
     keep_mc = settings.get_setting('keep_mc')
     defaudio2ch = settings.get_setting('set_2ch_stream_as_default')
     def2chlang = settings.get_setting('default_lang')
+    encode_all_2_aac = settings.get_setting('encode_all_2_aac')
+
+    # set 'copy encoder' to either selected encoder or 'copy' depending on encode_all_2_aac setting
+    if encode_all_2_aac:
+        copy_enc = encoder
+    else:
+        copy_enc = 'copy'
 
     if streams != []:
         # Get generated ffmpeg args
@@ -188,21 +199,32 @@ def on_worker_process(data):
 
         if not keep_mc:
             for stream,abs_stream in enumerate(all_astreams):
+                try:
+                    rate = str(int(int(probe_streams[abs_stream]['bit_rate'])/(1000 * probe_streams[abs_stream]['channels']))*2) + 'k'
+                except KeyError:
+                    rate = '128k'
+                try:
+                    chnls = probe_streams[abs_stream]['channels']
+                except KeyError:
+                    chnls = 0
+                else:
+                    if chnls > 6: chnls = 6
+
                 if abs_stream in mc_streams:
-                    try:
-                        rate = str(int(int(probe_streams[abs_stream]['bit_rate'])/(1000 * probe_streams[abs_stream]['channels']))*2) + 'k'
-                    except KeyError:
-                        rate = '128k'
                     if not defaudio2ch:
-                        ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
+                        ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
                     else:
                         if "tags" in probe_streams[abs_stream] and "language" in probe_streams[abs_stream]["tags"] and probe_streams[abs_stream]["tags"] == def2chlang:
-                            ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo", '-disposition:a:'+str(stream), 'default']
+                            ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo", '-disposition:a:'+str(stream), 'default']
                         else:
                             logger.info("cant set default audio stream to new 2 channel stream - language didn't match or stream not tagged")
-                            ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
+                            ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
                 else:
-                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), 'copy']
+                    if chnls:
+                        r = str(int(int(rate[:-1])/2) * int(chnls)) +'k'
+                        ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), copy_enc, '-ac:a:'+str(stream), str(chnls), '-b:a:'+str(stream), r]
+                    else:
+                        ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), 'copy']
         else:
             stream_map = {}
             for stream,abs_stream in enumerate(all_astreams):
@@ -217,12 +239,27 @@ def on_worker_process(data):
                 except KeyError:
                     rate = '128k'
                 if defaudio2ch:
-                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo", '-disposition:a:'+str(stream), 'default']
+                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo", '-disposition:a:'+str(stream), 'default']
                 else:
-                     ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
+                     ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
 
             for stream,abs_stream in enumerate(all_astreams):
-                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream + next_audio_stream_index), 'copy']
+                try:
+                    chnls = probe_streams[abs_stream]['channels']
+                except KeyError:
+                    chnls = 0
+                else:
+                    if chnls > 6: chnls = 6
+
+                try:
+                    rate = str(int(int(probe_streams[stream_map[stream]]['bit_rate'])/(1000 * probe_streams[stream_map[stream]]['channels']))*int(chnls)) + 'k'
+                except KeyError:
+                    rate = '256k'
+
+                if chnls and copy_enc != 'copy':
+                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream + next_audio_stream_index), copy_enc, '-ac:a:'+str(stream + next_audio_stream_index), str(chnls), '-b:a:'+str(stream + next_audio_stream_index), rate]
+                else:
+                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream + next_audio_stream_index),  'copy']
 
         ffmpeg_args += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy', '-y', str(outpath)]
 
