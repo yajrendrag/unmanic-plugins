@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.12</span>**
+- test for presence of title field for commentary
+
 **<span style="color:#56adda">0.0.11</span>**
 - fix streams list variable in commentary check
 
