@@ -182,15 +182,13 @@ def on_worker_process(data):
     if streams != []:
         # Get generated ffmpeg args
         if defaudio2ch:
-            ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy', '-disposition:a', '-default']
+            ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy', '-disposition:a', '-default-original']
         else:
             ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy']
 
         if not keep_mc:
             for stream,abs_stream in enumerate(all_astreams):
-                if abs_stream not in mc_streams:
-                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), 'copy']
-                else:
+                if abs_stream in mc_streams:
                     try:
                         rate = str(int(int(probe_streams[abs_stream]['bit_rate'])/(1000 * probe_streams[abs_stream]['channels']))*2) + 'k'
                     except KeyError:
@@ -198,24 +196,34 @@ def on_worker_process(data):
                     if not defaudio2ch:
                         ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
                     else:
-                        if "tags" in prob_streams[abs_stream] and "language" in prob_streams[abs_stream]["tags"] and prob_streams[abs_stream]["tags"] == def2chlang:
+                        if "tags" in probe_streams[abs_stream] and "language" in probe_streams[abs_stream]["tags"] and probe_streams[abs_stream]["tags"] == def2chlang:
                             ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo", '-disposition:a:'+str(stream), 'default']
                         else:
                             logger.info("cant set default audio stream to new 2 channel stream - language didn't match or stream not tagged")
                             ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
+                else:
+                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), 'copy']
         else:
             stream_map = {}
             for stream,abs_stream in enumerate(all_astreams):
-                ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), 'copy']
                 stream_map[stream] = abs_stream
-            next_audio_stream_index = len(all_astreams) - 1
+
+            next_audio_stream_index = 0
+
             for stream in range(0, len(streams)):
                 next_audio_stream_index += 1
                 try:
                     rate = str(int(int(probe_streams[stream_map[stream]]['bit_rate'])/(1000 * probe_streams[stream_map[stream]]['channels']))*2) + 'k'
                 except KeyError:
                     rate = '128k'
-                ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(next_audio_stream_index), encoder, '-ac', '2', '-b:a:'+str(next_audio_stream_index), rate, '-metadata:s:a:'+str(next_audio_stream_index), 'title='+"AAC Stereo", '-disposition:a:'+str(next_audio_stream_index), 'default']
+                if defaudio2ch:
+                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo", '-disposition:a:'+str(stream), 'default']
+                else:
+                     ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac', '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
+
+            for stream,abs_stream in enumerate(all_astreams):
+                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream + next_audio_stream_index), 'copy']
+
         ffmpeg_args += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy', '-y', str(outpath)]
 
         logger.debug("ffmpeg args: '{}'".format(ffmpeg_args))

@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.13</span>**
+- add option to reorder stereo stream(s) to first audio stream(s)
+- removed original disposition from other audio streams if setting stereo as default stream
+
 **<span style="color:#56adda">0.0.12</span>**
 - test for presence of title field for commentary
 
