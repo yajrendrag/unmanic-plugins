@@ -1,3 +1,5 @@
+**<span style="color:#56adda">1.2.0</span>**
+- Add support for grabbing original language from Radarr or Sonarr
 
 **<span style="color:#56adda">1.1.10</span>**
 - 2nd fix stream order test comparing new order with original order
