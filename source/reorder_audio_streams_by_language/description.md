@@ -1,4 +1,15 @@
 
+---
+
+##### Links:
+
+- [Support](https://unmanic.app/discord)
+- [Issues/Feature Requests](https://github.com/Unmanic/plugin.reorder_audio_streams_by_language/issues)
+- [Pull Requests](https://github.com/Unmanic/plugin.reorder_audio_streams_by_language/pulls)
+
+---
+
+##### Documentation:
 
 In the plugin settings, specify a 'Search String'.
 
