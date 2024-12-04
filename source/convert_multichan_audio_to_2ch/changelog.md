@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.15</span>**
+- change streams += to streams.append - with integers += breaks string into string of each digit once over 2 characters
+
 **<span style="color:#56adda">0.0.14</span>**
 - add option to encode all non-aac encoded streams to aac with selected encoder
 - this allows this plugin to act as single plugin for aac encoding as well as creating 2 channel aac streams from multichannel audio streams
