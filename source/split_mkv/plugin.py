@@ -105,7 +105,7 @@ def on_library_management_file_test(data):
         chapter_time = settings.get_setting('chapter_time')
 
     if split_method == 'chapters' or split_method == 'combo':
-        chapters = ffmpeg.probe(f, show_chapters=None)['chapters']
+        chapters = ffmpeg.probe(abspath, show_chapters=None)['chapters']
         if chapters:
             logger.info("Splitting file '{}' based on presence of '{}' chapters".format(abspath, len(chapters)))
             data['add_file_to_pending_tasks'] = True
