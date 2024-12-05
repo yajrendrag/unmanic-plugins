@@ -27,6 +27,7 @@ import ffmpeg
 import hashlib
 import shutil
 import glob
+import re
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -100,6 +101,13 @@ def on_library_management_file_test(data):
     else:
         settings = Settings()
 
+    basename = os.path.split(abspath)[1]
+    base_noext = os.path.splitext(basename)[0]
+    match = re.search(r'.*(S\d+[ -]*E\d+ *- *E*\d+).*$', base_noext)
+    if not match:
+        logger.info("File name does not indicate presence of multiple episodes. Aborting")
+        return data
+
     split_method = settings.get_setting('split_method')
     if split_method != 'chapters':
         chapter_time = settings.get_setting('chapter_time')
@@ -150,6 +158,13 @@ def on_worker_process(data):
     outpath = data.get('file_out')
     srcpath = data.get('original_file_path')
 
+    basename = os.path.split(srcpath)[1]
+    base_noext = os.path.splitext(basename)[0]
+    match = re.search(r'.*(S\d+[ -]*E\d+ *- *E*\d+).*$', base_noext)
+    if not match:
+        logger.info("File name does not indicate presence of multiple episodes. Aborting")
+        return data
+
     split_method = settings.get_setting('split_method')
     if split_method != 'chapters':
         chapter_time = settings.get_setting('chapter_time')
@@ -169,16 +184,25 @@ def on_worker_process(data):
     split_hash = hashlib.md5(os.path.basename(srcpath).encode('utf8')).hexdigest()
     tmp_dir = os.path.join('/tmp/unmanic/', '{}'.format(split_hash)) + '/'
     split_base = os.path.split(srcpath)[1]
-    split_base_noext = os.path.splitext(split_base)[0] + '.split'
+    split_base_noext = os.path.splitext(split_base)[0]
     sfx = os.path.splitext(split_base)[1]
+
+    logger.debug("basename for split - no ext: '{}'".format(split_base_noext))
+    match = re.search(r'(.*)(S\d+[ -]*E)\d+-\d+(.*$)', split_base_noext)
+
+    if not match:
+        raise Exception("Unable to find Season Episode string in source file name - unable to split file")
+        return
+
+    split_file = match.group(1) + match.group(2) + '%1d' + match.group(3) + sfx
 
     data['exec_command'] = ['mkvmerge']
     if split_method == 'chapters' or (split_method == 'combo' and chapters):
-        data['exec_command'] += ['-o', tmp_dir + split_base_noext + sfx, '--split', 'chapters:all', abspath]
+        data['exec_command'] += ['-o', tmp_dir + split_file, '--split', 'chapters:all', abspath]
         return data
     if split_method == 'combo' or split_method == 'time':
         split_time = str(60 * int(chapter_time)) + 's'
-        data['exec_command'] += ['-o', tmp_dir + split_base_noext + sfx, '--split', split_time, abspath]
+        data['exec_command'] += ['-o', tmp_dir + split_file, '--split', split_time, abspath]
         return data
 
 def on_postprocessor_task_results(data):
@@ -197,19 +221,43 @@ def on_postprocessor_task_results(data):
     :return:
     """
 
-    # move files from temp dir in cache to destination dir
-    logger.info("dest files: '{}'".format(data.get('destination_files')))
-    srcpathbase = data.get('source_data')['basename']
-    split_hash = hashlib.md5(srcpathbase.encode('utf8')).hexdigest()
-    tmp_dir = os.path.join('/tmp/unmanic/', '{}'.format(split_hash)) + '/'
-    dest_file = data.get('destination_files')[0]
-    dest_dir = os.path.split(dest_file)[0] + '/'
-    for f in glob.glob(tmp_dir + "/*.mkv"):
-        shutil.copy2(f, dest_dir)
+    if data.get('task_processing_success'):
+        # move files from temp dir in cache to destination dir
+        logger.info("dest files: '{}'".format(data.get('destination_files')))
+        srcpathbase = data.get('source_data')['basename']
+        match = re.search(r'.*S\d+[ -]*E(\d+).*$', srcpathbase)
+        if match:
+            try:
+                first_episode = int(match.group(1))
+            except ValueError:
+                raise ValueError('match didnt produce a valid starting episode number')
+                return
+        ep_offset = 0
+        if first_episode > 1:
+            ep_offset = first_episode - 1
+        split_hash = hashlib.md5(srcpathbase.encode('utf8')).hexdigest()
+        tmp_dir = os.path.join('/tmp/unmanic/', '{}'.format(split_hash)) + '/'
+        dest_file = data.get('destination_files')[0]
+        dest_dir = os.path.split(dest_file)[0] + '/'
 
-    # remove temp files and directory
-    for f in glob.glob(tmp_dir + "/*.mkv"):
-        os.remove(f)
-    shutil.rmtree(tmp_dir)
+        logger.debug("dest_file: '{}', dest_dir: '{}'".format(dest_file, dest_dir))
+        for f in glob.glob(tmp_dir + "/*.mkv"):
+            match = re.search(r'.*S\d+[ -]*E(\d+).*$', f)
+            if match:
+                try:
+                    episode = int(match.group(1))
+                except ValueError:
+                    raise ValueError('match didnt produce a valid episode number')
+                    return
+            correct_episode = episode + ep_offset
+            fdest = f.replace("E" + str(episode),"E" + str(correct_episode)) 
+            fdest_base=os.path.split(fdest)[1]
+            logger.debug("f: '{}', fdest: '{}'".format(f, fdest_base))
+            shutil.copy2(f, dest_dir + fdest_base)
+
+        # remove temp files and directory
+        for f in glob.glob(tmp_dir + "/*.mkv"):
+            os.remove(f)
+        shutil.rmtree(tmp_dir)
 
     return

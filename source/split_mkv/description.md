@@ -11,7 +11,14 @@
 
 This plugin operates only on MKV (Mastroska) files and splits the file into multiple constituent MKV files based 
 on chapter markings or based on a configured time period.  The motivation for doing this is when a single MKV file
-holdes multiple episodes of a show.  The file name is expected to indicate the presence of multiple episodes
+holdes multiple episodes of a show.  The file name is expected to indicate the presence of multiple episodes - if the
+file name doesn't contain a string of Sxx[<sp><->]*Eyy[<sp>]*-[<sp>]*E*zz then the plugin will conclude the file does
+not container multiple episodes to split.
+
+In above string, Sxx and Eyy can be contiguous or can be separated by a space &/or a dash or a dash surrounded by spaces.
+Eyy and Ezz can be separated by a dash, or a dash surrounded by spaces.  Moreover the final E in front of zz is optional.
+
+That pattern needs to be somewhere in the basename of the video file for the plugin to conclude it has multiple episodes.
 
 ---
 
