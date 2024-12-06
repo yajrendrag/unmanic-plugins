@@ -188,7 +188,7 @@ def on_worker_process(data):
     sfx = os.path.splitext(split_base)[1]
 
     logger.debug("basename for split - no ext: '{}'".format(split_base_noext))
-    match = re.search(r'(.*)(S\d+[ -]*E)\d+-\d+(.*$)', split_base_noext)
+    match = re.search(r'(.*)(S\d+[ -]*E)\d+-E*\d+(.*$)', split_base_noext)
 
     if not match:
         raise Exception("Unable to find Season Episode string in source file name - unable to split file")
