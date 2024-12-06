@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- add missing LICENSE file
+
 **<span style="color:#56adda">0.0.4</span>**
 - fixed regex to allow for optional E in front of trailing episode number
 
