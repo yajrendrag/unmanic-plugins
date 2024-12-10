@@ -38,6 +38,7 @@ class Settings(PluginSettings):
     settings = {
         "split_method":          "",
         "chapter_time":          "",
+        "season_dir":            True,
     }
 
     def __init__(self, *args, **kwargs):
@@ -45,12 +46,15 @@ class Settings(PluginSettings):
         self.form_settings = {
             "split_method":        self.__set_split_method_form_settings(),
             "chapter_time":        self.__set_chapter_time_form_settings(),
+            "season_dir":    {
+                 "label":    "check this to create a new Season subdirectory in the folder containing the multi episode file is",
+            },
         }
 
     def __set_split_method_form_settings(self):
         values = {
-            "label":          "Select method of splitting file - chapter marks or time value",
-            "label":      "Enter Choice",
+            "label":        "Enter Choice",
+            "description":  "Select method of splitting file - chapter marks or time value",
             "input_type": "select",
             "select_options": [
                 {
@@ -225,6 +229,15 @@ def on_postprocessor_task_results(data):
         # move files from temp dir in cache to destination dir
         logger.info("dest files: '{}'".format(data.get('destination_files')))
         srcpathbase = data.get('source_data')['basename']
+
+        if data.get('library_id'):
+            settings = Settings(library_id=data.get('library_id'))
+        else:
+            settings = Settings()
+
+        season_dir= settings.get_setting('season_dir')
+
+        # get starting episode number from multiepisode source
         match = re.search(r'.*S\d+[ -]*E(\d+).*$', srcpathbase)
         if match:
             try:
@@ -232,6 +245,8 @@ def on_postprocessor_task_results(data):
             except ValueError:
                 raise ValueError('match didnt produce a valid starting episode number')
                 return
+
+        # calculate offset - mkvmerge only numbers splits starting from 1
         ep_offset = 0
         if first_episode > 1:
             ep_offset = first_episode - 1
@@ -240,7 +255,21 @@ def on_postprocessor_task_results(data):
         dest_file = data.get('destination_files')[0]
         dest_dir = os.path.split(dest_file)[0] + '/'
 
+        # get season number for new directory if plugin configured for  that option
+        if season_dir:
+            match = re.search(r'.*S(\d+)[ -]*E\d+.*$', srcpathbase)
+            if match:
+                season = match.group(1)
+                dest_dir += 'Season ' + season + '/'
+                try:
+                    os.makedirs(dest_dir, mode=0o777)
+                except FileExistsError:
+                    logger.info("Directory '{}' already exists - placing split files there".format(dest_dir))
+            else:
+                logger.info("could not identify season number - leaving split files in same directory as multiepisode file")
+
         logger.debug("dest_file: '{}', dest_dir: '{}'".format(dest_file, dest_dir))
+
         for f in glob.glob(tmp_dir + "/*.mkv"):
             match = re.search(r'.*S\d+[ -]*E(\d+).*$', f)
             if match:
@@ -249,6 +278,8 @@ def on_postprocessor_task_results(data):
                 except ValueError:
                     raise ValueError('match didnt produce a valid episode number')
                     return
+
+            # adjust episode numbers based on offset - offset is 0 if first episode is 1
             correct_episode = episode + ep_offset
             fdest = f.replace("E" + str(episode),"E" + str(correct_episode)) 
             fdest_base=os.path.split(fdest)[1]

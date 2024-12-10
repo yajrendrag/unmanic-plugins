@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.6</span>**
+- create season subdirectory
+
 **<span style="color:#56adda">0.0.5</span>**
 - add missing LICENSE file
 
