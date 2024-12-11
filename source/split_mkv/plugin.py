@@ -229,6 +229,7 @@ def on_postprocessor_task_results(data):
         # move files from temp dir in cache to destination dir
         logger.info("dest files: '{}'".format(data.get('destination_files')))
         srcpathbase = data.get('source_data')['basename']
+        srcpathbase_no_ext = os.path.splitext(srcpathbase)[0]
 
         if data.get('library_id'):
             settings = Settings(library_id=data.get('library_id'))
@@ -258,15 +259,27 @@ def on_postprocessor_task_results(data):
         # get season number for new directory if plugin configured for  that option
         if season_dir:
             match = re.search(r'.*S(\d+)[ -]*E\d+.*$', srcpathbase)
-            if match:
+            match2 = re.search(r'(^.*)S\d+[ -]*E\d+-E*\d+(.*$)', srcpathbase_no_ext)
+
+            if match and match2:
                 season = match.group(1)
-                dest_dir += 'Season ' + season + '/'
-                try:
-                    os.makedirs(dest_dir, mode=0o777)
-                except FileExistsError:
-                    logger.info("Directory '{}' already exists - placing split files there".format(dest_dir))
+                st=match2.group(1) + match2.group(2)
+                st=re.search(r'^\s*(.*$)\s*$', st)
+                logger.debug("Season: '{}', Series Title: '{}'".format(season, st))
+                if st:
+                    st = st.group(1)
+                else:
+                    st = "title doesn't match pattern"
+                if st != "title doesn't match pattern":
+                    dest_dir += st + ' - ' + 'Season ' + season + '/'
+                    try:
+                        os.makedirs(dest_dir, mode=0o777)
+                    except FileExistsError:
+                        logger.info("Directory '{}' already exists - placing split files there".format(dest_dir))
+                else:
+                    logger.info("Sseries title doesn't match pattern - leaving split files in same directory as multiepisode file")
             else:
-                logger.info("could not identify season number - leaving split files in same directory as multiepisode file")
+                logger.info("could not identify season number & / or series title - leaving split files in same directory as multiepisode file")
 
         logger.debug("dest_file: '{}', dest_dir: '{}'".format(dest_file, dest_dir))
 

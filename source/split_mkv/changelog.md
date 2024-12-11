@@ -1,4 +1,6 @@
 
+**<span style="color:#56adda">0.0.7</span>**
+- add seriest title to season subdirectory
 **<span style="color:#56adda">0.0.6</span>**
 - create season subdirectory
 
