@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.16</span>**
+- fix typo in variable name
+
 **<span style="color:#56adda">0.0.15</span>**
 - change init.d script to install correct version of moviepy
 

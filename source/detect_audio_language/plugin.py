@@ -170,7 +170,7 @@ def detect_language(video_file, tmp_dir):
     duration = video.duration - 30
 
     if duration < 600:
-        logger.info("File '{}' too short to process (<10 minutes), skipping".format(viddeo_file))
+        logger.info("File '{}' too short to process (<10 minutes), skipping".format(video_file))
         return None
 
     # Sample 3 random spots from the trimmed video
