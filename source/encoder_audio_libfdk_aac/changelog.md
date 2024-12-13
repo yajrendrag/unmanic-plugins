@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.10</span>**
+- changed to use .unmanic file for tracking since mp4 containers don't write the ENCODER tag
+
 **<span style="color:#56adda">0.0.9</span>**
 - added force processing option
 

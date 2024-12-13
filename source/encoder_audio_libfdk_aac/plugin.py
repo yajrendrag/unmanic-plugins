@@ -26,6 +26,8 @@ import os
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
+from unmanic.libs.directoryinfo import UnmanicDirectoryInfo
+
 from encoder_audio_libfdk_aac.lib.ffmpeg import StreamMapper, Probe, Parser
 
 # Configure plugin logger
@@ -143,11 +145,7 @@ class PluginStreamMapper(StreamMapper):
     def test_stream_needs_processing(self, stream_info: dict):
         force_processing = self.settings.get_setting('force_processing')
         # Ignore streams already of the required codec_name
-        if ('tags' in stream_info and 'ENCODER' in stream_info.get('tags') and self.encoder in stream_info.get('tags')['ENCODER']):
-            logger.debug("codec name: '{}', ENCODER: '{}'".format(stream_info.get('codec_name'), stream_info.get('tags')['ENCODER']))
-        if stream_info.get('codec_name').lower() in [self.codec] and (
-            'tags' in stream_info and 'ENCODER' in stream_info.get('tags') and
-             self.encoder in stream_info.get('tags')['ENCODER'] and not force_processing):
+        if stream_info.get('codec_name').lower() in [self.codec] and not force_processing:
             return False
         return True
 
@@ -171,6 +169,29 @@ class PluginStreamMapper(StreamMapper):
             'stream_encoding': stream_encoding,
         }
 
+def encoded_audio(settings):
+    encoder = 'libfdk_aac'
+    return 'encoded_audio=encoder={}'.format(encoder)
+
+def file_streams_already_encoded(settings, path):
+    directory_info = UnmanicDirectoryInfo(os.path.dirname(path))
+
+    try:
+        streams_already_encoded = directory_info.get('encoder_audio_libfdk_aac', os.path.basename(path))
+    except NoSectionError as e:
+        streams_already_encoded = ''
+    except NoOptionError as e:
+        streams_already_encoded = ''
+    except Exception as e:
+        logger.debug("Unknown exception {}.".format(e))
+        streams_already_encoded = ''
+
+    if streams_already_encoded:
+        logger.debug("File's streams were previously encoded with {}.".format(streams_already_encoded))
+        return True
+
+    # Default to...
+    return False
 
 def on_library_management_file_test(data):
     """
@@ -204,7 +225,7 @@ def on_library_management_file_test(data):
     mapper = PluginStreamMapper()
     mapper.set_default_values(settings, abspath, probe)
 
-    if mapper.streams_need_processing():
+    if mapper.streams_need_processing() and not file_streams_already_encoded(settings, abspath):
         # Mark this file to be added to the pending tasks
         data['add_file_to_pending_tasks'] = True
         logger.debug("File '{}' should be added to task list. Probe found streams require processing.".format(abspath))
@@ -268,3 +289,39 @@ def on_worker_process(data):
         parser = Parser(logger)
         parser.set_probe(probe)
         data['command_progress_parser'] = parser.parse_progress
+
+def on_postprocessor_task_results(data):
+    """
+    Runner function - provides a means for additional postprocessor functions based on the task success.
+
+    The 'data' object argument includes:
+        task_processing_success         - Boolean, did all task processes complete successfully.
+        file_move_processes_success     - Boolean, did all postprocessor movement tasks complete successfully.
+        destination_files               - List containing all file paths created by postprocessor file movements.
+        source_data                     - Dictionary containing data pertaining to the original source file.
+
+    :param data:
+    :return:
+
+    """
+    # We only care that the task completed successfully.
+    # If a worker processing task was unsuccessful, dont mark the file streams as kept
+    # TODO: Figure out a way to know if a file's streams were kept but another plugin was the
+    #   cause of the task processing failure flag
+    if not data.get('task_processing_success'):
+        return data
+
+    # Configure settings object (maintain compatibility with v1 plugins)
+    if data.get('library_id'):
+        settings = Settings(library_id=data.get('library_id'))
+    else:
+        settings = Settings()
+
+    # Loop over the destination_files list and update the directory info file for each one
+    for destination_file in data.get('destination_files'):
+        directory_info = UnmanicDirectoryInfo(os.path.dirname(destination_file))
+        directory_info.set('encoder_audio_libfdk_aac', os.path.basename(destination_file), encoded_audio(settings))
+        directory_info.save()
+        logger.debug("Audio encoder of libfdk_aac being written for '{}'.".format(destination_file))
+
+    return data
