@@ -255,14 +255,15 @@ class PluginStreamMapper(StreamMapper):
         if self.settings.get_setting('apply_smart_filters'):
             # Video filters
             if codec_type in ['video']:
-                # Check if autocrop filter needs to be applied
-                if self.settings.get_setting('autocrop_black_bars') and self.crop_value:
-                    return True
-                # Check if scale filter needs to be applied
-                if self.settings.get_setting('target_resolution') not in ['source']:
-                    vid_width, vid_height = self.scale_resolution(stream_info)
-                    if vid_width:
+                if self.settings.get_setting('mode') == 'standard':
+                    # Check if autocrop filter needs to be applied (standard mode only)
+                    if self.settings.get_setting('autocrop_black_bars') and self.crop_value:
                         return True
+                    # Check if scale filter needs to be applied (standard mode only)
+                    if self.settings.get_setting('target_resolution') not in ['source']:
+                        vid_width, vid_height = self.scale_resolution(stream_info)
+                        if vid_width:
+                            return True
             # Data/Attachment filters
             if codec_type in ['data', 'attachment']:
                 # Enable removal of data and attachment streams
