@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.14</span>**
+- add option to add codec name in replace mode even when source file has no codec name in the file name
+
 **<span style="color:#56adda">0.0.13</span>**
 - add check for audio metadata presence in ffprobe data
 

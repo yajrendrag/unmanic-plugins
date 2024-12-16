@@ -46,6 +46,7 @@ class Settings(PluginSettings):
     settings = {
         "modify_name_fields":           True,
         "get_rez_from_height":          False,
+        "repl_no_codec":                "",
         "append_video_resolution":      "",
         "append_audio_codec":           "",
         "append_audio_channel_layout":  "",
@@ -61,11 +62,21 @@ class Settings(PluginSettings):
             "get_rez_from_height": {
                  "label": "check this if you want the resolution named only from the height dimension, e.g., 854x480 (a non standard) would be named 480i or 480p depending on field_order param",
             },
+            "repl_no_codec":                 self.__set_repl_no_codec_form_settings(),
             "append_video_resolution":       self.__set_append_video_resolution_form_settings(),
             "append_audio_codec":            self.__set_append_audio_codec_form_settings(),
             "append_audio_channel_layout":   self.__set_append_audio_channel_layout_form_settings(),
             "append_audio_language":         self.__set_append_audio_language_form_settings(),
         }
+
+    def __set_repl_no_codec_form_settings(self):
+        values = {
+            "label":      "Check this option if you checked to replace existing fields but your source file has no codec name field, and you wish to add codec name to the new file",
+            "input_type": "checkbox",
+        }
+        if not self.get_setting('modify_name_fields'):
+            values["display"] = 'hidden'
+        return values
 
     def __set_append_video_resolution_form_settings(self):
         values = {
@@ -306,6 +317,10 @@ def replace(data, settings, abspath, streams):
 
     if basename.find(codec) > 0:
         basename = basename.replace(codec, video_codec)
+    elif basename.find(codec) < 0 and settings.get_setting('repl_no_codec') and vcodec != "":
+        basename_no_sfx = os.path.splitext(basename)[0]
+        sfx = os.path.splitext(basename)[1]
+        basename = basename_no_sfx + '.' + vcodec + sfx
 
     logger.debug("rez: '{}', vrez: '{}'".format(rez, vrez))
     if basename.find(rez) > 0:
