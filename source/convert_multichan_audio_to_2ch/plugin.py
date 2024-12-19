@@ -53,14 +53,14 @@ class Settings(PluginSettings):
                 "label": "check to keep the multichannel streams, otherwise, they are removed",
             },
             "set_2ch_stream_as_default": {
-                "label": "check to use the new 2 channel stream as the default audio stream",
+                "label": "check to set the default audio stream as a new 2 channel stream OR an existing audio stream if file contains no multichannel streams and you wish to designate a specific language stream as the default audio stream",
             },
             "default_lang":        self.__set_default_lang_form_settings(),
         }
 
     def __set_default_lang_form_settings(self):
         values = {
-            "label":          "A single language of existing stream to use as 2 channel default audio stream - it's probably 3 letters",
+            "label":          "A single language of an existing stream to use as default audio stream per above - it's probably 3 letters",
             "input_type":     "textarea",
         }
         if not self.get_setting('set_2ch_stream_as_default'):
@@ -81,6 +81,9 @@ def streams_to_stereo_encode(probe_streams):
                 streams.append(str(audio_stream))
     return streams
 
+def streams_to_aac_encode(probe_streams):
+    non_aac_streams = [i for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and probe_streams[i]['channels'] == 2 and probe_streams[i]['codec_name'] != 'aac']
+    return stereo_non_aac_streams
 
 def on_library_management_file_test(data):
     """
@@ -117,7 +120,11 @@ def on_library_management_file_test(data):
         settings = Settings()
 
     streams = streams_to_stereo_encode(probe_streams)
-    if streams != []:
+    encode_all_2_aac = settings.get_setting('encode_all_2_aac')
+    streams_to_aac_encode = []
+    if encode_all_2_aac: streams_to_aac_encode = streams_to_aac_encode(probe_streams)
+
+    if streams != [] or streams_to_aac_encode != []:
         data['add_file_to_pending_tasks'] = True
         for stream in range(0, len(streams)):
             logger.debug("Audio stream '{}' is multichannel audio - convert stream".format(streams[stream]))
@@ -168,7 +175,15 @@ def on_worker_process(data):
     else:
         settings = Settings()
 
+    keep_mc = settings.get_setting('keep_mc')
+    defaudio2ch = settings.get_setting('set_2ch_stream_as_default')
+    def2chlang = settings.get_setting('default_lang')
+    encode_all_2_aac = settings.get_setting('encode_all_2_aac')
+
     streams = streams_to_stereo_encode(probe_streams)
+    encode_all_2_aac = settings.get_setting('encode_all_2_aac')
+    streams_to_aac_encode = []
+    if encode_all_2_aac: streams_to_aac_encode = streams_to_aac_encode(probe_streams)
     all_astreams=[probe_streams[i]['index'] for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio']
     mc_streams= [probe_streams[i]['index'] for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and probe_streams[i]['channels'] > 2]
 
@@ -178,11 +193,6 @@ def on_worker_process(data):
 
     encoder = 'aac'
     if settings.get_setting('use_libfdk_aac'): encoder = 'libfdk_aac'
-
-    keep_mc = settings.get_setting('keep_mc')
-    defaudio2ch = settings.get_setting('set_2ch_stream_as_default')
-    def2chlang = settings.get_setting('default_lang')
-    encode_all_2_aac = settings.get_setting('encode_all_2_aac')
 
     # set 'copy encoder' to either selected encoder or 'copy' depending on encode_all_2_aac setting
     if encode_all_2_aac:
@@ -262,6 +272,24 @@ def on_worker_process(data):
                     ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream + next_audio_stream_index),  'copy']
 
         ffmpeg_args += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy', '-y', str(outpath)]
+
+    if streams == [] and streams_to_aac_encode != []:
+        if defaudio2ch:
+            ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy', '-disposition:a', '-default-original']
+        else:
+            ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy']
+
+        for stream in streams_to_aac_encode:
+            if not defaudio2ch:
+                ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), copy_enc]
+            else:
+                if "tags" in probe_streams[stream] and "language" in probe_streams[stream]["tags"] and probe_streams[stream]["tags"] == def2chlang:
+                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), copy_enc, '-disposition:a:'+str(stream), 'default']
+                else:
+                    logger.info("cant set default audio stream to designated stream - language didn't match or stream not tagged")
+                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), copy_enc]
+
+    if streams != [] or streams_to_aac_encode != []:
 
         logger.debug("ffmpeg args: '{}'".format(ffmpeg_args))
 

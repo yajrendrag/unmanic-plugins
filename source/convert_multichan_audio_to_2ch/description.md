@@ -23,6 +23,11 @@ Over time this plugin has added more features.  It now also:
 In above, stream is written optionally as stream(s) in the event there are multiple stereo audio streams
 of the same language.  In this case, multiple streams could be marked as default in which case, which stream
 a particular media player selects as default may vary.
+
+If there are no multichannel streams in the file or none identified, the plugin will convert all audio streams to aac if the
+option encode_all_2_aac is selected. In this case, if the option set_2ch_stream_as_default is also selected, the plugin will
+look for an existing stream (of any number of channels) with a langauge matching the supplied language and set it's default
+disposition to true. 
 ---
 
 ##### Documentation:

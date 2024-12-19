@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.16</span>**
+- add file test to allow plugin to convert all streams to aac even if there are no matching multichannel streams
+ 
 **<span style="color:#56adda">0.0.15</span>**
 - change streams += to streams.append - with integers += breaks string into string of each digit once over 2 characters
 
