@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.19</span>**
+- fix stream index in new code to use audio index and not absolute stream number
+
 **<span style="color:#56adda">0.0.18</span>**
 - add missing finish to build of ffmpeg_args in new code to handle when no mc streams exist/selected
 

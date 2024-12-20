@@ -279,15 +279,15 @@ def on_worker_process(data):
         else:
             ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy']
 
-        for stream in streams_2_aac_encode:
+        for i,stream in enumerate(streams_2_aac_encode):
             if not defaudio2ch:
-                ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), copy_enc]
+                ffmpeg_args += ['-map', '0:a:'+str(i), '-c:a:'+str(i), copy_enc]
             else:
                 if "tags" in probe_streams[stream] and "language" in probe_streams[stream]["tags"] and probe_streams[stream]["tags"] == def2chlang:
-                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), copy_enc, '-disposition:a:'+str(stream), 'default']
+                    ffmpeg_args += ['-map', '0:a:'+str(i), '-c:a:'+str(i), copy_enc, '-disposition:a:'+str(i), 'default']
                 else:
                     logger.info("cant set default audio stream to designated stream - language didn't match or stream not tagged")
-                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), copy_enc]
+                    ffmpeg_args += ['-map', '0:a:'+str(i), '-c:a:'+str(i), copy_enc]
 
         ffmpeg_args += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy', '-y', str(outpath)]
 
