@@ -83,7 +83,7 @@ def streams_to_stereo_encode(probe_streams):
 
 def streams_to_aac_encode(probe_streams):
     non_aac_streams = [i for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and probe_streams[i]['channels'] == 2 and probe_streams[i]['codec_name'] != 'aac']
-    return stereo_non_aac_streams
+    return non_aac_streams
 
 def on_library_management_file_test(data):
     """
@@ -121,10 +121,10 @@ def on_library_management_file_test(data):
 
     streams = streams_to_stereo_encode(probe_streams)
     encode_all_2_aac = settings.get_setting('encode_all_2_aac')
-    streams_to_aac_encode = []
-    if encode_all_2_aac: streams_to_aac_encode = streams_to_aac_encode(probe_streams)
+    streams_2_aac_encode = []
+    if encode_all_2_aac: streams_2_aac_encode = streams_to_aac_encode(probe_streams)
 
-    if streams != [] or streams_to_aac_encode != []:
+    if streams != [] or streams_2_aac_encode != []:
         data['add_file_to_pending_tasks'] = True
         for stream in range(0, len(streams)):
             logger.debug("Audio stream '{}' is multichannel audio - convert stream".format(streams[stream]))
@@ -182,8 +182,8 @@ def on_worker_process(data):
 
     streams = streams_to_stereo_encode(probe_streams)
     encode_all_2_aac = settings.get_setting('encode_all_2_aac')
-    streams_to_aac_encode = []
-    if encode_all_2_aac: streams_to_aac_encode = streams_to_aac_encode(probe_streams)
+    streams_2_aac_encode = []
+    if encode_all_2_aac: streams_2_aac_encode = streams_to_aac_encode(probe_streams)
     all_astreams=[probe_streams[i]['index'] for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio']
     mc_streams= [probe_streams[i]['index'] for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and probe_streams[i]['channels'] > 2]
 
@@ -273,13 +273,13 @@ def on_worker_process(data):
 
         ffmpeg_args += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy', '-y', str(outpath)]
 
-    if streams == [] and streams_to_aac_encode != []:
+    if streams == [] and streams_2_aac_encode != []:
         if defaudio2ch:
             ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy', '-disposition:a', '-default-original']
         else:
             ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy']
 
-        for stream in streams_to_aac_encode:
+        for stream in streams_2_aac_encode:
             if not defaudio2ch:
                 ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), copy_enc]
             else:
@@ -289,7 +289,7 @@ def on_worker_process(data):
                     logger.info("cant set default audio stream to designated stream - language didn't match or stream not tagged")
                     ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), copy_enc]
 
-    if streams != [] or streams_to_aac_encode != []:
+    if streams != [] or streams_2_aac_encode != []:
 
         logger.debug("ffmpeg args: '{}'".format(ffmpeg_args))
 

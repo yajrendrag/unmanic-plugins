@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.17</span>**
+- fix dumb mistake on function name
+
 **<span style="color:#56adda">0.0.16</span>**
 - add file test to allow plugin to convert all streams to aac even if there are no matching multichannel streams
  
