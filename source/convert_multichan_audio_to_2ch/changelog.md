@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.18</span>**
+- add missing finish to build of ffmpeg_args in new code to handle when no mc streams exist/selected
+
 **<span style="color:#56adda">0.0.17</span>**
 - fix dumb mistake on function name
 

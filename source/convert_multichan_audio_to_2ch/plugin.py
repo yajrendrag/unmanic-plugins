@@ -289,6 +289,8 @@ def on_worker_process(data):
                     logger.info("cant set default audio stream to designated stream - language didn't match or stream not tagged")
                     ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), copy_enc]
 
+        ffmpeg_args += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy', '-y', str(outpath)]
+
     if streams != [] or streams_2_aac_encode != []:
 
         logger.debug("ffmpeg args: '{}'".format(ffmpeg_args))
