@@ -1,0 +1,19 @@
+{
+    "author": "yajrendrag",
+    "compatibility": [
+        2
+    ],
+    "description": "Converts truehd, dts, or eac3 multichannel audio to aac or ac3",
+    "icon": "https://raw.githubusercontent.com/Unmanic/plugin.encoder_audio_aac/master/icon.png",
+    "id": "convert_multichannel_audio_keep_one_codec",
+    "name": "Convert multichannel audio and keep one codec",
+    "platform": [
+        "all"
+    ],
+    "priorities": {
+        "on_library_management_file_test": 99,
+        "on_worker_process": 0
+    },
+    "tags": "audio,encoder,ffmpeg,library file test",
+    "version": "0.0.1"
+}
