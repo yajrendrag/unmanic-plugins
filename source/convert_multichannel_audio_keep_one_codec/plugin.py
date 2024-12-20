@@ -5,7 +5,7 @@
     plugins.__init__.py
 
     Written by:               yajrendrag <yajdude@gmail.com>
-    Date:                     29 Feb 2024, (2:41 PM)
+    Date:                     20 Dec 2024, (9:55 AM)
 
     Copyright:
         Copyright (C) 2024 Jay Gardner
@@ -116,7 +116,7 @@ class Settings(PluginSettings):
 def s2_encode(probe_streams, abspath):
     keep_codec = settings.get_setting('keep_codec')
     try:
-        if keep_codec = "none"
+        if keep_codec == "none"
             mc_streams_list = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and int(probe_streams[i]["channels"]) >= 6]
         else:
             mc_streams_list = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and int(probe_streams[i]["channels"]) >= 6 and probe_streams[i]["codec_name"] not in [keep_codec]]
