@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.4</span>**
+- fix GUI config format => form
+
 **<span style="color:#56adda">0.0.3</span>**
 - fix if statement
 

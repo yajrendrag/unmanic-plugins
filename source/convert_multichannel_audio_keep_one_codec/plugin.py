@@ -50,7 +50,7 @@ class Settings(PluginSettings):
                 "label": "Enter a custom stream title for audio language.  Default is a string equal to the encoder used + '5.1 Surround'",
             },
             "encoder": self.__set_encoder_form_settings(),
-            "keep_codec": self.__set_keep_codec_format_settings(),
+            "keep_codec": self.__set_keep_codec_form_settings(),
         }
 
     def __set_encoder_form_settings(self):
