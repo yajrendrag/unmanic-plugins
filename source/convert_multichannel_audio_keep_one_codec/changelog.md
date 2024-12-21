@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.3</span>**
+- fix if statement
+
 **<span style="color:#56adda">0.0.2</span>**
 - fix if statement
 
