@@ -36,6 +36,7 @@ class Settings(PluginSettings):
     settings = {
         "bit_rate": "640k",
         "stream_title":  "",
+        "keep_commentary": "False",
         "encoder":  "",
         "keep_codec": "",
     }
@@ -48,6 +49,9 @@ class Settings(PluginSettings):
             },
             "stream_title": {
                 "label": "Enter a custom stream title for audio language.  Default is a string equal to the encoder used + '5.1 Surround'",
+            },
+            "keep_commentary":        {
+                "label": "Check this to keep commentary streams"
             },
             "encoder": self.__set_encoder_form_settings(),
             "keep_codec": self.__set_keep_codec_form_settings(),
@@ -221,6 +225,7 @@ def on_worker_process(data):
     stream_to_encode, all_astreams = s2_encode(probe_streams, abspath)
     bit_rate = settings.get_setting('bit_rate')
     encoder = settings.get_setting('encoder')
+    keep_commentary = settings.get_settings('keep_commentary')
     stream_title = settings.get_setting('stream_title')
     logger.debug("stream_title: '{}'".format(stream_title))
     if stream_title == "":
@@ -234,6 +239,8 @@ def on_worker_process(data):
         # set stream maps
         stream_map = ['-map', '0:v', '-c:v', 'copy']
         for i in range(len(all_astreams)):
+            if not keep_commentary and "tags" in probe_streams[all_astreams[i]] and "title" in probe_streams[all_astreams[i]]["tags"] and "commentary" in probe_streams[all_astreams[i]]["tags"]["title"].lower():
+                continue
             if all_astreams[i] in stream_to_encode:
                 stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac', '6', '-b:a:'+str(i), bit_rate, '-metadata:s:a:'+str(i), 'title="'+stream_title+'"']
             else:

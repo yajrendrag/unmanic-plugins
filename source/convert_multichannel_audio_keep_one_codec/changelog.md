@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- added option to keep or discard commentary streams
+
 **<span style="color:#56adda">0.0.4</span>**
 - fix GUI config format => form
 
