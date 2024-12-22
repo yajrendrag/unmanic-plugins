@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.8</span>**
+- added logger output in s2_encode
+
 **<span style="color:#56adda">0.0.7</span>**
 - typo in settings.get_settings -> settings.get_setting
 

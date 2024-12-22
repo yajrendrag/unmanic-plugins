@@ -126,6 +126,8 @@ def s2_encode(probe_streams, abspath, settings):
             mc_streams_list = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and int(probe_streams[i]["channels"]) >= 6 and probe_streams[i]["codec_name"] not in [keep_codec]]
         # below returns the audio stream with the maximum number of audio channels > 5, it's audio stream #, and absolute stream # as a tuple, and final index selects key number 1 from the tuple (audio stream #)
         all_astreams = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio']
+        logger.info("mc_stream_list: '{}'".format(mc_stream_list))
+        logger.info("all_astreams: '{}'".format(all_astreams))
         return mc_streams_list, all_astreams
     except:
         logger.info("No multichannel audio streams found to encode")
