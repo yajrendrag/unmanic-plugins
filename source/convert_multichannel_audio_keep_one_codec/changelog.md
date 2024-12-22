@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.9</span>**
+- prevent file being unnecessarily reencoded if a stream's encoder is already the designated encoder
+
 **<span style="color:#56adda">0.0.8</span>**
 - added logger output in s2_encode
 

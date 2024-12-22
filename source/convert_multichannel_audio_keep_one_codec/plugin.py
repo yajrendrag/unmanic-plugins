@@ -119,11 +119,19 @@ class Settings(PluginSettings):
 
 def s2_encode(probe_streams, abspath, settings):
     keep_codec = settings.get_setting('keep_codec')
+    encoder = settings.get_setting('encoder')
+    if encoder == 'libfdk_aac':
+        try:
+            libfdk_aac = probe_streams[i]['tags']['ENCODER']
+            if 'libfdk_aac' in libfdk_aac:
+                encoder = 'aac'
+        except KeyError:
+            pass
     try:
         if keep_codec == "none":
-            mc_streams_list = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and int(probe_streams[i]["channels"]) >= 6]
+            mc_streams_list = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and int(probe_streams[i]["channels"]) >= 6 and probe_streams[i]["codec_name"] not in [encoder]]
         else:
-            mc_streams_list = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and int(probe_streams[i]["channels"]) >= 6 and probe_streams[i]["codec_name"] not in [keep_codec]]
+            mc_streams_list = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and int(probe_streams[i]["channels"]) >= 6 and (probe_streams[i]["codec_name"] not in [keep_codec] and probe_streams[i]["codec_name"] not in [encoder])]
         # below returns the audio stream with the maximum number of audio channels > 5, it's audio stream #, and absolute stream # as a tuple, and final index selects key number 1 from the tuple (audio stream #)
         all_astreams = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio']
         logger.info("mc_stream_list: '{}'".format(mc_stream_list))
