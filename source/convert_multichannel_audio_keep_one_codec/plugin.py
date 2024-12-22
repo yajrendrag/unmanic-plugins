@@ -117,7 +117,7 @@ class Settings(PluginSettings):
         }
         return values
 
-def s2_encode(probe_streams, abspath):
+def s2_encode(probe_streams, abspath, settings):
     keep_codec = settings.get_setting('keep_codec')
     try:
         if keep_codec == "none":
@@ -165,7 +165,7 @@ def on_library_management_file_test(data):
     else:
         settings = Settings()
 
-    stream_to_encode, all_astreams = s2_encode(probe_streams, abspath)
+    stream_to_encode, all_astreams = s2_encode(probe_streams, abspath, settings)
     logger.debug("stream_to_encode: '{}'".format(stream_to_encode))
     logger.debug("all_astreams: '{}'".format(all_astreams))
 
@@ -222,7 +222,7 @@ def on_worker_process(data):
     else:
         settings = Settings()
 
-    stream_to_encode, all_astreams = s2_encode(probe_streams, abspath)
+    stream_to_encode, all_astreams = s2_encode(probe_streams, abspath, settings)
     bit_rate = settings.get_setting('bit_rate')
     encoder = settings.get_setting('encoder')
     keep_commentary = settings.get_settings('keep_commentary')

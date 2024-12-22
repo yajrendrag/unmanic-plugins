@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.6</span>**
+- add settings to s2_encode function
+
 **<span style="color:#56adda">0.0.5</span>**
 - added option to keep or discard commentary streams
 
