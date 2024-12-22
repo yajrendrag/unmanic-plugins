@@ -225,7 +225,7 @@ def on_worker_process(data):
     stream_to_encode, all_astreams = s2_encode(probe_streams, abspath, settings)
     bit_rate = settings.get_setting('bit_rate')
     encoder = settings.get_setting('encoder')
-    keep_commentary = settings.get_settings('keep_commentary')
+    keep_commentary = settings.get_setting('keep_commentary')
     stream_title = settings.get_setting('stream_title')
     logger.debug("stream_title: '{}'".format(stream_title))
     if stream_title == "":

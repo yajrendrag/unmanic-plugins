@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.7</span>**
+- typo in settings.get_settings -> settings.get_setting
+
 **<span style="color:#56adda">0.0.6</span>**
 - add settings to s2_encode function
 
