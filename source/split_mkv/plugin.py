@@ -458,7 +458,7 @@ def get_chapters_based_on_tmdb(srcpath, tmp_dir, settings):
             if "black" in lines[i]:
                 bs=re.search(r'black_start: *(\d+\.\d+).*$', lines[i])
                 be=re.search(r'.*black_end: *(\d+\.\d+).*$', lines[i])
-                    if bs and be and cumulative_runtime -180 <= float(bs.group(1)) <= 180 + cumulative_runtime:
+                if bs and be and cumulative_runtime -180 <= float(bs.group(1)) <= 180 + cumulative_runtime:
                     ep_end_offset = float(bs.group(1)) - cumulative_runtime
                     chapters[chap_ep-1]['end'] += ep_end_offset
                     episode_runtimes[chap_ep-1] += ep_end_offset
