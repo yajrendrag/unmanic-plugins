@@ -1,6 +1,13 @@
 
+**<span style="color:#56adda">0.0.8</span>**
+- add option to keep or delete original, multiepisode file
+- add split method of using silence and black scene detection - uses overlap of the 2 to identify episode change
+- add split method of using tmdb episode runtime lookup
+- change time split method to just use an average based on multiepisode file duration and number of episodes detected in file name
+
 **<span style="color:#56adda">0.0.7</span>**
-- add seriest title to season subdirectory
+- add series title to season subdirectory
+
 **<span style="color:#56adda">0.0.6</span>**
 - create season subdirectory
 
