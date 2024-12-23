@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -43,7 +42,7 @@ class Settings(PluginSettings):
     settings = {
         "split_method":          "",
         "season_dir":            True,
-        "keep_original":         "False",
+        "keep_original":         False,
         "min_silence":           "",
         "min_black":             "",
         "tmdb_api_key":              "",
@@ -140,7 +139,7 @@ class Settings(PluginSettings):
             "label":      "enter your tmdb (the movie database) api api read access token",
             "input_type": "textarea",
         }
-        if self.get_setting('reorder_original_language') != 'tmdb':
+        if self.get_setting('split_method') != 'tmdb':
             values["display"] = 'hidden'
         return values
 
