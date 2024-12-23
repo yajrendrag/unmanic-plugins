@@ -361,10 +361,11 @@ def get_chapters_from_sb_intervals(srcpath, duration, tmp_dir, settings):
         logger.debug("chapters: '{}'".format(chapters))
     if "end" not in chapters[chap_ep-1]:
         chapters[chap_ep-1].update({"end": duration})
+    logger.debug("chapters: '{}'".format(chapters))
     if chap_ep == 1:
         logger.info("no chapters found based on silence/black scene detection mode, '{}'".format(srcpath))
     else:
-        logger.info("Chapters derived from silence/black scene changes, '{}' chapters, '{}' episodes in file '{}'".format(chap_ep, last_episode - first_episode + 1))
+        logger.info("Chapters derived from silence/black scene changes, '{}' chapters, '{}' episodes in file '{}'".format(chap_ep, last_episode - first_episode + 1, srcpath))
 
     if chap_ep > 1:
         print_chap_file(tmp_dir, chapters, first_episode, chap_ep)
@@ -472,7 +473,7 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
     if chap_ep == 1:
         logger.info("no chapters found based on tmdb lookup, '{}'".format(srcpath))
     else:
-        logger.info("Chapters derived from tmdb lookup, '{}' chapters, '{}' episodes in file '{}'".format(chap_ep, last_episode - first_episode + 1))
+        logger.info("Chapters derived from tmdb lookup, '{}' chapters, '{}' episodes in file '{}'".format(chap_ep, last_episode - first_episode + 1, srcpath))
 
     if chap_ep > 1:
         print_chap_file(tmp_dir, chapters, first_episode, chap_ep)
