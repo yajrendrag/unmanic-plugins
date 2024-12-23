@@ -607,7 +607,7 @@ def on_postprocessor_task_results(data):
         keep_original = settings.get_setting('keep_original')
 
         # get starting episode number from multiepisode source
-        first_episode = get_starting_episode(srcpathbase)
+        first_episode = get_first_episode(srcpathbase)
         if first_episode == -1:
             return
 
