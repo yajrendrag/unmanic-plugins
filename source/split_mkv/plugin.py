@@ -297,7 +297,7 @@ def print_chap_file(tmp_dir, chapters, first_episode, chap_ep):
         print('</Chapters>', file=chap_file)
     return
 
-def get_chapters_from_sb_intervals(srcpath, tmp_dir, settings):
+def get_chapters_from_sb_intervals(srcpath, duration, tmp_dir, settings):
     """
     Use ffmpeg silencedetect / blackdetect filters to identify the end of prior and start of next episode
     """
@@ -371,7 +371,7 @@ def get_chapters_from_sb_intervals(srcpath, tmp_dir, settings):
         r = subprocess.run(['mkvpropedit', cache_file, '--chapters', tmp_dir + 'chapters.xml'], capture_output=True)
         return [True]
 
-def get_chapters_based_on_tmdb(srcpath, tmp_dir, settings):
+def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
     """
     lookup episode duration on tmdb.  couple this with black scene detection to identify chapter end.
     """
@@ -539,15 +539,15 @@ def on_worker_process(data):
         logger.info("Splitting file '{}' based on chapter times of '{}' minutes".format(abspath, chapter_time))
 
     if split_method == 'sbi':
-        chapters = get_chapters_from_sb_intervals(srcpath, tmp_dir, settings)
-        if not chapters:
+        chapters = get_chapters_from_sb_intervals(srcpath, duration, tmp_dir, settings)
+        if not chapdters:
             logger.info("Chapters could not be identified from silence / black intervals '{}' - Aborting".format(abspath))
             return data
         else:
             logger.info("Splitting file '{}' based on identification of '{}' chapters using silence / black intervals".format(abspath, chapters))
 
     if split_method == 'tmdb':
-        chapters = get_chapters_based_on_tmdb(srcpath, tmp_dir, settings)
+        chapters = get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings)
         if not chapters:
             logger.info("Chapters could not be identified from tmdb lookup '{}' - Aborting".format(abspath))
             return data
