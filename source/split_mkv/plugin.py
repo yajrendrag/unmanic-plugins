@@ -469,7 +469,7 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
         chapters.append({"start": chap_start})
 
     if "end" not in chapters[chap_ep-1]:
-        chapters[chap_ep].update({"end": duration})
+        chapters[chap_ep-1].update({"end": duration})
     if chap_ep == 1:
         logger.info("no chapters found based on tmdb lookup, '{}'".format(srcpath))
     else:
