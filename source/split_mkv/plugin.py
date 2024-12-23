@@ -242,7 +242,7 @@ def dur2hms(dur):
      s = rdurm - m*60
      return f"{h:02d}:{m:02d}:{s:06.3f}"
 
-def prep_sb_file(srcpath, split_base, split_base_noext, cache_file, settings):
+def prep_sb_file(srcpath, tmp_dir, split_base, split_base_noext, cache_file, settings):
     # analyze file and find silence and black screen intervals
     b_detect_int = settings.get_setting('min_black')
     s_detect_int = settings.get_setting('min_silence')
@@ -315,7 +315,7 @@ def get_chapters_from_sb_intervals(srcpath, tmp_dir, settings):
         logger.error("Unable to remove existing chapter marks - '{}' - aborting".format(srcpath))
         raise Exception("Chapter marks removal issue")
         return
-    prep_sb_file(srcpath, split_base, split_base_noext, cache_file, settings)
+    prep_sb_file(srcpath, tmp_dir, split_base, split_base_noext, cache_file, settings)
 
     # analyze parsed detection log into chapter start/end times on which chapters will be formed
     intervals=open(tmp_dir + 'det.log', 'rt', encoding='utf-8')
@@ -389,7 +389,7 @@ def get_chapters_based_on_tmdb(srcpath, tmp_dir, settings):
         raise Exception("Chapter marks removal issue")
         return
 
-    prep_sb_file(srcpath, split_base, split_base_noext, cache_file, settings)
+    prep_sb_file(srcpath, tmp_dir, split_base, split_base_noext, cache_file, settings)
 
     tmdb_api_key = settings.get_setting("tmdb_api_key")
     tmdb_api_read_access_token = settings.get_setting("tmdb_api_read_access_token")
