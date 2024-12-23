@@ -547,7 +547,7 @@ def on_worker_process(data):
         else:
             logger.info("Splitting file '{}' based on identification of '{}' chapters using silence / black intervals".format(abspath, chapters))
 
-    if split_method == 'tmdb":
+    if split_method == 'tmdb':
         chapters = get_chapters_based_on_tmdb(srcpath, tmp_dir, settings)
         if not chapters:
             logger.info("Chapters could not be identified from tmdb lookup '{}' - Aborting".format(abspath))
