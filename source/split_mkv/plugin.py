@@ -541,7 +541,7 @@ def on_worker_process(data):
 
     if split_method == 'sbi':
         chapters = get_chapters_from_sb_intervals(srcpath, duration, tmp_dir, settings)
-        if not chapdters:
+        if not chapters:
             logger.info("Chapters could not be identified from silence / black intervals '{}' - Aborting".format(abspath))
             return data
         else:
