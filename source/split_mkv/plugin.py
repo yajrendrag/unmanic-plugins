@@ -249,7 +249,7 @@ def prep_sb_file(srcpath, split_base, split_base_noext, cache_file):
     s_detect_int = settings.get_settings('min_silence')
     dlog=open(tmp_dir + 'detection.log', 'w', encoding='utf-8')
     r=subprocess.run(['ffmpeg', '-progress', 'pipe:1', '-v', 'quiet', '-loglevel', 'info', '-i', srcpath, '-vf', 'blackdetect=d=' + b_detect_int + ':pix_th=0.1', '-af', 'silencedetect=n=-50dB:d=' + s_detect_int, '-f', 'null', '-'], stderr=dlog, stdout=dlog)
-    if r.returncode > 0
+    if r.returncode > 0:
         logger.error("Unable to capture silence or black scenes in '{}' - aborting".format(srcpath))
         raise Exception("Scene detection Error")
         return
