@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.9</span>**
+- add output directory name pattern options
+- use PTN for parsing filename instead of regex
+
 **<span style="color:#56adda">0.0.8</span>**
 - add option to keep or delete original, multiepisode file
 - add split method of using silence and black scene detection - uses overlap of the 2 to identify episode change

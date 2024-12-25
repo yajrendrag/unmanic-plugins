@@ -42,11 +42,12 @@ class Settings(PluginSettings):
     settings = {
         "split_method":          "",
         "season_dir":            True,
+        "season_dir_format":     "choose format for Seaon directory name",
         "keep_original":         False,
-        "min_silence":           "",
-        "min_black":             "",
-        "tmdb_api_key":              "",
-        "tmdb_api_read_access_token":    "",
+        "min_silence":           "2",
+        "min_black":             "3",
+        "tmdb_api_key":              "enter your tmdb apikey",
+        "tmdb_api_read_access_token":    "enter your tmdb api read access token",
     }
 
     def __init__(self, *args, **kwargs):
@@ -56,6 +57,7 @@ class Settings(PluginSettings):
             "season_dir":    {
                  "label":    "check this to create a new Season subdirectory in the folder containing the multi episode file is",
             },
+            "season_dir_format":   self.__set_season_dir_format_form_settings(),
             "keep_original": {
                  "label":    "check this to keep the original multiepisode file, otherwise it is deleted",
             },
@@ -93,6 +95,35 @@ class Settings(PluginSettings):
                 },
             ],
         }
+        return values
+
+    def __set_season_dir_format_form_settings(self):
+        values = {
+            "label":          "Enter Choice",
+            "description":    "Format for Season directory name",
+            "input_type":     "select",
+            "select_options": [
+                {
+                    "value": "source_name",
+                    "label": "a folder name equating to the source file name without file extension",
+                },
+                {
+                    "value": "season_n",
+                    "label": "a folder named 'Season N', where N is the season number extracted from the source file name",
+                },
+                {
+                    "value": "series_title_dash_season_n",
+                    "label": "a folder named 'Series Title - Season N'",
+                },
+                {
+                    "value": "season_n_dash_series_title",
+                    "label": "a folder named 'Season N - Series Title'",
+                },
+            ],
+
+        }
+        if not self.get_setting('season_dir'):
+            values["display"] = 'hidden'
         return values
 
     def __set_min_silence_form_settings(self):
@@ -168,12 +199,19 @@ def on_library_management_file_test(data):
     basename = os.path.split(abspath)[1]
     base_noext = os.path.splitext(basename)[0]
     duration = float(ffmpeg.probe(abspath)["format"]["duration"])
-    n_episodes = get_last_episode(base_noext) - get_first_episode(base_no_ext) + 1
 
-    match = re.search(r'.*(S\d+[ -]*E\d+ *- *E*\d+).*$', base_noext)
-    if not match:
-        logger.info("File name does not indicate presence of multiple episodes. Aborting")
+    parsed_info = PTN.parse(basename, standardise=False)
+
+    try:
+        episodes = parsed_info['episode']
+    except KeyError:
+        episodes = ""
+        logger.error("Error parsing episode list from file: '{}'".format(srcpath))
+        raise Exception("Unaable to parse episode range from multiepisode file name")
         return data
+
+    first_episode, last_episode = get_first_and_last_episodes(episodes)
+    n_episodes = last_episode - first_episode + 1
 
     split_method = settings.get_setting('split_method')
     if split_method != 'chapters':
@@ -189,6 +227,7 @@ def on_library_management_file_test(data):
             if split_method != 'combo':
                 logger.info("No chapters found and split_method = chapters. Aborting")
                 return data
+
     if split_method == 'combo' or split_method == 'time':
         logger.info("Splitting file '{}' based on chapter times of '{}' minutes".format(abspath, chapter_time))
         data['add_file_to_pending_tasks'] = True
@@ -215,25 +254,18 @@ def get_overlap(interval1, interval2):
      overlap = max(0, (end - start))
      return overlap
 
-def get_first_episode(f):
-    match = re.search(r'.*S\d+[ -]*E(\d+).*$', f)
-    if match:
-        try:
-            first_episode = int(match.group(1))
-        except ValueError:
-            raise ValueError('match didnt produce a valid starting episode number')
-            return -1
-    return first_episode
-
-def get_last_episode(f):
-    match = re.search(r'.*S\d+[ -]*E\d+[ -]+E*(\d+).*$', f)
-    if match:
-        try:
-            last_episode = int(match.group(1))
-        except ValueError:
-            raise ValueError('match didnt produce a valid ending episode number')
-            return -1
-    return last_episode
+def get_first_and_last_episodes(episodes):
+    if type(episodes) == list:
+        first_episode = episodes[0]
+        last_episode = episodes[len(episodes) -1]
+    elif type(episodes) == int:
+        first_episode = episodes
+        last_episode = episodes
+    else:
+        logger.error("Episodes not successfully parsed from video file: '{}'".format(srcpath))
+        raise Exception("Episodes not successfully parsed")
+        return
+    return first_episode, last_episode
 
 def dur2hms(dur):
      h = int(dur/3600)
@@ -323,8 +355,18 @@ def get_chapters_from_sb_intervals(srcpath, duration, tmp_dir, settings):
     intervals.close()
 
     # get starting episode number
-    first_episode = get_first_episode(split_base_noext)
-    last_episode = get_last_episode(split_base_noext)
+    parsed_info = PTN.parse(split_base, standardise=False)
+
+    try:
+        episodes = parsed_info['episode']
+    except KeyError:
+        episodes = ""
+        logger.error("Error parsing episode list from file: '{}'".format(srcpath))
+        raise Exception("Unaable to parse episode range from multiepisode file name")
+        return data
+
+    first_episode, last_episode = get_first_and_last_episodes(episodes)
+
     chapters = []
     chap_ep = 1
     chapters.append({"start": 0.0})
@@ -405,18 +447,26 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
     except KeyError:
         title = ""
         logger.error("Error Parsing title from file: '{}'".format(srcpath))
+        raise Exception("Unable to parse Series Title from multiepisode file name")
+        return False
 
     try:
         episodes = parsed_info['episode']
     except KeyError:
-        episode = ""
+        episodes = ""
         logger.error("Error parsing episode list from file: '{}'".format(srcpath))
+        raise Exception("Unable to parse episode range from multiepisode file name")
+        return False
+
+    first_episode, last_episode = get_first_and_last_episodes(episodes)
 
     try:
         season = parsed_info["season"]
     except KeyError:
         title = ""
         logger.error("Error Parsing title from file: '{}'".format(srcpath))
+        raise Exception("Unable to parse Season from multiepisode file name")
+        return False
 
     vurl = tmdburl + title + '&api_key=' + tmdb_api_key
     try:
@@ -424,17 +474,7 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
         id = video.json()["results"][0]['id']
     except:
         logger.error("Error requesting video info from tmdb. Aborting")
-        return False
-
-    if type(episodes) == list:
-        first_episode = episodes[0]
-        last_episode = episodes[len(episodes) -1]
-    elif type(episodes) == int:
-        first_episode = episodes
-        last_episode = episodes
-    else:
-        logger.error("Episodes not successfully parsed from video file: '{}'".format(srcpath))
-        raise Exception("Episodes not successfully parsed")
+        raise Exception(f"Unable to find video {srcpath} in tmdb")
         return False
 
     # use black scene detection near tmdb episode duration to corroborate episode end & mark episode +1 start
@@ -519,10 +559,21 @@ def on_worker_process(data):
         os.makedirs(tmp_dir)
 
     split_base, split_base_noext, sfx = get_split_details(srcpath)
-    match = re.search(r'.*(S\d+[ -]*E\d+ *- *E*\d+).*$', split_base_noext)
-    if not match:
+    parsed_info = PTN.parse(split_base, standardise=False)
+
+    try:
+        episodes = parsed_info['episode']
+    except KeyError:
+        episodes = ""
+        logger.error("Error parsing episode list from file: '{}'".format(srcpath))
+        raise Exception("Unaable to parse episode range from multiepisode file name")
+        return data
+
+    if type(episodes) != list:
         logger.info("File name does not indicate presence of multiple episodes. Aborting")
         return data
+
+    first_episode, last_episode = get_first_and_last_episodes(episodes)
 
     split_method = settings.get_setting('split_method')
 
@@ -535,7 +586,7 @@ def on_worker_process(data):
                 logger.info("No chapters found and split_method = chapters. Aborting")
                 return data
     if split_method == 'combo' or split_method == 'time':
-        n_episodes = get_last_episode(base_noext) - get_first_episode(base_noext) + 1
+        n_episodes = last_episode - first_episode + 1
         chapter_time = duration / n_episodes
         logger.info("Splitting file '{}' based on chapter times of '{}' minutes".format(abspath, chapter_time))
 
@@ -576,6 +627,33 @@ def on_worker_process(data):
         data['exec_command'] += ['-o', tmp_dir + split_file, '--split', split_time, abspath]
         return data
 
+def on_postprocessor_file_movement(data):
+    """
+    Runner function - configures additional postprocessor file movements during the postprocessor stage of a task.
+
+    The 'data' object argument includes:
+        source_data             - Dictionary containing data pertaining to the original source file ('abspath' and 'basename').
+        remove_source_file      - Boolean, should Unmanic remove the original source file after all copy operations are complete.
+        copy_file               - Boolean, should Unmanic run a copy operation with the returned data variables.
+        file_in                 - The converted cache file to be copied by the postprocessor.
+        file_out                - The destination file that the file will be copied to.
+        run_default_file_copy   - Whether Unmanic should perform the default file copy.
+
+    :param data:
+    :return:
+    """
+
+    if data.get('library_id'):
+        settings = Settings(library_id=data.get('library_id'))
+    else:
+        settings = Settings()
+
+    keep_original = settings.get_setting('keep_original')
+    if not keep_original:
+        with open(data.get('file_in'), 'w') as f:
+            f.write("put something minimal in this file so it gets transferred back fast after which it will be deleted since keep_original = False")
+    return
+
 def on_postprocessor_task_results(data):
     """
     Runner function - provides a means for additional postprocessor functions based on the task success.
@@ -598,18 +676,39 @@ def on_postprocessor_task_results(data):
         srcpathbase = data.get('source_data')['basename']
         srcpathbase_no_ext = os.path.splitext(srcpathbase)[0]
 
+        parsed_info = PTN.parse(srcpathbase, standardise=False)
+
+        try:
+            episodes = parsed_info["episode"]
+        except KeyError:
+            episode = ""
+            logger.error("Error parsing title from file: '{}'".format(srcpathbase))
+
+        try:
+            season = parsed_info["season"]
+        except KeyError:
+            season = ""
+            logger.error("Error parsing season from file: '{}'".format(srcpathbase))
+
+        try:
+            title = parsed_info["title"]
+        except KeyError:
+            title = ""
+            logger.error("Error parsing title from file: '{}'".format(srcpathbase))
+
+
         if data.get('library_id'):
             settings = Settings(library_id=data.get('library_id'))
         else:
             settings = Settings()
 
         season_dir= settings.get_setting('season_dir')
+        if season_dir:
+            season_dir_format = settings.get_setting('season_dir_format')
         keep_original = settings.get_setting('keep_original')
 
         # get starting episode number from multiepisode source
-        first_episode = get_first_episode(srcpathbase)
-        if first_episode == -1:
-            return
+        first_episode, last_episode = get_first_and_last_episodes(episodes)
 
         # calculate offset - mkvmerge only numbers splits starting from 1
         ep_offset = 0
@@ -622,27 +721,22 @@ def on_postprocessor_task_results(data):
 
         # get season number for new directory if plugin configured for  that option
         if season_dir:
-            match = re.search(r'.*S(\d+)[ -]*E\d+.*$', srcpathbase)
-            match2 = re.search(r'(^.*)S\d+[ -]*E\d+-E*\d+(.*$)', srcpathbase_no_ext)
+            if season_dir_format == 'season_n_dash_series_title':
+                dest_dir += 'Season '+str(season) + ' - ' + title + '/'
+            elif season_dir_format == 'series_title_dash_season_n':
+                dest_dir += title + ' - ' + 'Season '+str(season) + '/'
+            elif season_dir_format == 'season_n':
+                dest_dir += 'Season '+str(season) + '/'
+            elif season_dir_format == 'source_name':
+                dest_dir +=  srcpathbase_no_ext + '/'
 
-            if match and match2:
-                season = match.group(1)
-                st=match2.group(1) + match2.group(2)
-                st=re.search(r'^\s*(.*$)\s*$', st)
-                logger.debug("Season: '{}', Series Title: '{}'".format(season, st))
-                if st:
-                    st = st.group(1)
-                else:
-                    st = "title doesn't match pattern"
-                if st != "title doesn't match pattern":
-                    dest_dir += st + ' - ' + 'Season ' + season + '/'
-                    try:
-                        os.makedirs(dest_dir, mode=0o777)
-                    except FileExistsError:
-                        logger.info("Directory '{}' already exists - placing split files there".format(dest_dir))
-                else:
-                    logger.info("Sseries title doesn't match pattern - leaving split files in same directory as multiepisode file")
-            else:
+            try:
+                os.makedirs(dest_dir, mode=0o777)
+            except FileExistsError:
+                logger.info("Directory '{}' already exists - placing split files there".format(dest_dir))
+        if not title:
+            logger.info("Series title doesn't match pattern - leaving split files in same directory as multiepisode file")
+        if not first_episode or not last_episode:
                 logger.info("could not identify season number & / or series title - leaving split files in same directory as multiepisode file")
 
         logger.debug("dest_file: '{}', dest_dir: '{}'".format(dest_file, dest_dir))
