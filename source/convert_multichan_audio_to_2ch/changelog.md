@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.20</span>**
+- add normalization option
+- add in multichannel streams when converting non-aac streams
+
 **<span style="color:#56adda">0.0.19</span>**
 - fix stream index in new code to use audio index and not absolute stream number
 

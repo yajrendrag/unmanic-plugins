@@ -35,6 +35,8 @@ disposition to true.
 For information on the available encoder settings:
 - [FFmpeg - AAC Encoder](https://trac.ffmpeg.org/wiki/Encode/AAC)
 
+Loudness information:
+- [FFmpeg - Loudness Normalization](https://trac.ffmpeg.org/wiki/AudioVolume#LoudnessNormalization)
 --- 
 
 ### Config description:
@@ -54,6 +56,20 @@ Sets the 2 channel stream to be the default stream
 #### <span style="color:blue">default_lang</span>
 if the preceeding option is selected, this option becomes visible and you must indicate a language of an existing multichannel stream which, when converted to
 2channel, will marked as a default audio stream
+
+#### <span style="color:blue">normalize_2_channel_stream</span>
+selecting this option will apply a normalization filter to the 2 channel aac streams.  This is useful when converting multichannel to 2 channel as what is
+typical voice range in the center channel seems to sound muddled and low volume after conversion.  The default settings are should be a very good starting
+point and most people will not need to modify the settings.  Otherwise, you can modify the settings that will appear below this when this option is enabled.
+
+#### <span style="color:blue">I</span>
+Integrated Loudness Target
+
+#### <span style="color:blue">LRA</span>
+Loudness Range
+
+#### <span style="color:blue">TP</span>
+Maximum True Peak
 
 :::note
 This plugin will create a stereo aac or libfdk_aac stereo stream from each multichannel

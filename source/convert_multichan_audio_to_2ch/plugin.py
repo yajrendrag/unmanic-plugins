@@ -38,6 +38,11 @@ class Settings(PluginSettings):
         "keep_mc":                   False,
         "set_2ch_stream_as_default": False,
         "default_lang":              "",
+        "normalize_2_channel_stream": True,
+        'I':                           '-16.0',
+        'LRA':                         '11.0',
+        'TP':                          '-1.5',
+
     }
 
     def __init__(self, *args, **kwargs):
@@ -47,7 +52,7 @@ class Settings(PluginSettings):
                 "label": "check if you want to use libfdk_aac (requires ffmpeg >= 5), otherwise native aac is used",
             },
             "encode_all_2_aac":               {
-                "label": "check this if you also want to encode all non-aac streams to aac using selected encoder - otherwise all other streams left as is",
+                "label": "check this if you also want to encode all existing, non-aac, streams to aac using selected encoder - otherwise all other streams left as is",
             },
             "keep_mc":      {
                 "label": "check to keep the multichannel streams, otherwise, they are removed",
@@ -56,6 +61,12 @@ class Settings(PluginSettings):
                 "label": "check to set the default audio stream as a new 2 channel stream OR an existing audio stream if file contains no multichannel streams and you wish to designate a specific language stream as the default audio stream",
             },
             "default_lang":        self.__set_default_lang_form_settings(),
+            "normalize_2_channel_stream": {
+                "label": "check this to normalize the resulting 2 channel audio stream - customizeable settings will appear below when checked",
+            },
+            "I":        self.__set_I_form_settings(),
+            "LRA":        self.__set_LRA_form_settings(),
+            "TP":        self.__set_TP_form_settings(),
         }
 
     def __set_default_lang_form_settings(self):
@@ -67,6 +78,47 @@ class Settings(PluginSettings):
             values["display"] = 'hidden'
         return values
 
+    def __set_I_form_settings(self):
+        values = {
+            "label":          "Integrated loudness target",
+            "input_type":     "slider",
+            "slider_options": {
+                "min":  -70.0,
+                "max":  -5.0,
+                "step": 0.1,
+            },
+        }
+        if not self.get_setting('normalize_2_channel_stream'):
+            values["display"] = 'hidden'
+        return values
+
+    def __set_LRA_form_settings(self):
+        values = {
+            "label":          "Loudness range",
+            "input_type":     "slider",
+            "slider_options": {
+                "min":  1.0,
+                "max":  20.0,
+                "step": 0.1,
+            },
+        }
+        if not self.get_setting('normalize_2_channel_stream'):
+            values["display"] = 'hidden'
+        return values
+
+    def __set_TP_form_settings(self):
+        values = {
+            "label":          "The maximum true peak",
+            "input_type":     "slider",
+            "slider_options": {
+                "min":  -9.0,
+                "max":  0,
+                "step": 0.1,
+            },
+        }
+        if not self.get_setting('normalize_2_channel_stream'):
+            values["display"] = 'hidden'
+        return values
 
 def streams_to_stereo_encode(probe_streams):
     audio_stream = -1
@@ -81,9 +133,13 @@ def streams_to_stereo_encode(probe_streams):
                 streams.append(str(audio_stream))
     return streams
 
-def streams_to_aac_encode(probe_streams):
-    non_aac_streams = [i for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and probe_streams[i]['channels'] == 2 and probe_streams[i]['codec_name'] != 'aac']
-    return non_aac_streams
+def streams_to_aac_encode(probe_streams, streams, keep_mc):
+
+    non_aac_streams = [i for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and probe_streams[i]['codec_name'] != 'aac' and
+                       ((keep_mc and probe_streams[i]['channels'] > 2 and i in streams) or
+                        (probe_streams[i]['channels'] == 2))]
+
+    return non_aac_stream
 
 def on_library_management_file_test(data):
     """
@@ -121,8 +177,9 @@ def on_library_management_file_test(data):
 
     streams = streams_to_stereo_encode(probe_streams)
     encode_all_2_aac = settings.get_setting('encode_all_2_aac')
+    keep_mc = settings.get_setting('keep_mc')
     streams_2_aac_encode = []
-    if encode_all_2_aac: streams_2_aac_encode = streams_to_aac_encode(probe_streams)
+    if encode_all_2_aac: streams_2_aac_encode = streams_to_aac_encode(probe_streams, streams, keep_mc)
 
     if streams != [] or streams_2_aac_encode != []:
         data['add_file_to_pending_tasks'] = True
@@ -134,6 +191,12 @@ def on_library_management_file_test(data):
 
     return data
 
+def audio_filtergraph(settings):
+    i = settings.get_setting('I')
+    lra = settings.get_setting('LRA')
+    tp = settings.get_setting('TP')
+
+    return 'loudnorm=I={}:LRA={}:TP={}'.format(i, lra, tp)
 
 def on_worker_process(data):
     """
@@ -179,11 +242,12 @@ def on_worker_process(data):
     defaudio2ch = settings.get_setting('set_2ch_stream_as_default')
     def2chlang = settings.get_setting('default_lang')
     encode_all_2_aac = settings.get_setting('encode_all_2_aac')
+    normalize_2_channel_stream = settings.get_setting('normalize_2_channel_stream')
 
     streams = streams_to_stereo_encode(probe_streams)
     encode_all_2_aac = settings.get_setting('encode_all_2_aac')
     streams_2_aac_encode = []
-    if encode_all_2_aac: streams_2_aac_encode = streams_to_aac_encode(probe_streams)
+    if encode_all_2_aac: streams_2_aac_encode = streams_to_aac_encode(probe_streams, streams, keep_mc)
     all_astreams=[probe_streams[i]['index'] for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio']
     mc_streams= [probe_streams[i]['index'] for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and probe_streams[i]['channels'] > 2]
 
@@ -220,15 +284,18 @@ def on_worker_process(data):
                 else:
                     if chnls > 6: chnls = 6
 
+                filter = [f"-filter:a:{stream}", audio_filtergraph(settings)]
+                if not normalize_2_channel_stream: filter = []
+
                 if abs_stream in mc_streams:
                     if not defaudio2ch:
-                        ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
+                        ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate] + filter + ['-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
                     else:
                         if "tags" in probe_streams[abs_stream] and "language" in probe_streams[abs_stream]["tags"] and probe_streams[abs_stream]["tags"] == def2chlang:
-                            ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo", '-disposition:a:'+str(stream), 'default']
+                            ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate] + filter + ['-metadata:s:a:'+str(stream), 'title='+"AAC Stereo", '-disposition:a:'+str(stream), 'default']
                         else:
                             logger.info("cant set default audio stream to new 2 channel stream - language didn't match or stream not tagged")
-                            ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
+                            ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate] + filter + ['-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
                 else:
                     if chnls:
                         r = str(int(int(rate[:-1])/2) * int(chnls)) +'k'
@@ -248,10 +315,14 @@ def on_worker_process(data):
                     rate = str(int(int(probe_streams[stream_map[stream]]['bit_rate'])/(1000 * probe_streams[stream_map[stream]]['channels']))*2) + 'k'
                 except KeyError:
                     rate = '128k'
+
+                filter = [f"-filter:a:{stream}", audio_filtergraph(settings)]
+                if not normalize_2_channel_stream: filter = []
+
                 if defaudio2ch:
-                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo", '-disposition:a:'+str(stream), 'default']
+                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate] + filter + ['-metadata:s:a:'+str(stream), 'title='+"AAC Stereo", '-disposition:a:'+str(stream), 'default']
                 else:
-                     ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate, '-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
+                     ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate] + filter + ['-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
 
             for stream,abs_stream in enumerate(all_astreams):
                 try:
@@ -261,13 +332,16 @@ def on_worker_process(data):
                 else:
                     if chnls > 6: chnls = 6
 
+                filter = [f"-filter:a:{stream + next_audio_stream_index}", audio_filtergraph(settings)]
+                if not normalize_2_channel_stream or chnls > 2: filter = []
+
                 try:
                     rate = str(int(int(probe_streams[stream_map[stream]]['bit_rate'])/(1000 * probe_streams[stream_map[stream]]['channels']))*int(chnls)) + 'k'
                 except KeyError:
                     rate = '256k'
 
                 if chnls and copy_enc != 'copy':
-                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream + next_audio_stream_index), copy_enc, '-ac:a:'+str(stream + next_audio_stream_index), str(chnls), '-b:a:'+str(stream + next_audio_stream_index), rate]
+                    ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream + next_audio_stream_index), copy_enc, '-ac:a:'+str(stream + next_audio_stream_index), str(chnls), '-b:a:'+str(stream + next_audio_stream_index), rate] + filter
                 else:
                     ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream + next_audio_stream_index),  'copy']
 
@@ -280,14 +354,24 @@ def on_worker_process(data):
             ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0:v', '-c:v', 'copy']
 
         for i,stream in enumerate(streams_2_aac_encode):
+            try:
+                chnls = probe_streams[abs_stream]['channels']
+            except KeyError:
+                chnls = 0
+            else:
+                if chnls > 6: chnls = 6
+
+            filter = [f"-filter:a:{i}", audio_filtergraph(settings)]
+            if not normalize_2_channel_stream or copy_enc == 'copy' or chnls > 2: filter = []
+
             if not defaudio2ch:
-                ffmpeg_args += ['-map', '0:a:'+str(i), '-c:a:'+str(i), copy_enc]
+                ffmpeg_args += ['-map', '0:a:'+str(i), '-c:a:'+str(i), copy_enc] + filter
             else:
                 if "tags" in probe_streams[stream] and "language" in probe_streams[stream]["tags"] and probe_streams[stream]["tags"] == def2chlang:
-                    ffmpeg_args += ['-map', '0:a:'+str(i), '-c:a:'+str(i), copy_enc, '-disposition:a:'+str(i), 'default']
+                    ffmpeg_args += ['-map', '0:a:'+str(i), '-c:a:'+str(i), copy_enc] + filter + ['-disposition:a:'+str(i), 'default']
                 else:
                     logger.info("cant set default audio stream to designated stream - language didn't match or stream not tagged")
-                    ffmpeg_args += ['-map', '0:a:'+str(i), '-c:a:'+str(i), copy_enc]
+                    ffmpeg_args += ['-map', '0:a:'+str(i), '-c:a:'+str(i), copy_enc] + filter
 
         ffmpeg_args += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy', '-y', str(outpath)]
 
