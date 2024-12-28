@@ -104,8 +104,8 @@ class Settings(PluginSettings):
             "input_type":     "select",
             "select_options": [
                 {
-                    "value": "source_name",
-                    "label": "a folder name equating to the source file name without file extension",
+                    "value": "series_title_SxxEyy_dash_rez_dash_qual",
+                    "label": "a folder named 'Series Title SxxEyy - resolution - quality': resolution and quality will only be included if they are in the multiepisode filename",
                 },
                 {
                     "value": "season_n",
@@ -309,6 +309,17 @@ def prep_sb_file(srcpath, tmp_dir, split_base, split_base_noext, cache_file, set
     fout.close()
     return
 
+def get_parsed_info(split_base):
+    split_base_proxy = ""
+    m=re.search(r'^.*(\[)E\d+ *-E*\d+(\]).*$', split_base)
+    if m:
+        split_base_proxy = re.sub(r'(^.*)\[(E\d+ *-E*\d+)\](.*$)', r'\1\2\3',split_base)
+    if split_base_proxy:
+        parsed_info = PTN.parse(split_base_proxy, standardise=False)
+    else:
+        parsed_info = PTN.parse(split_base, standardise=False)
+    return parsed_info
+
 def print_chap_file(tmp_dir, chapters, first_episode, chap_ep):
     with open(tmp_dir + 'chapters.xml', 'a') as chap_file:
         print('<?xml version="1.0" encoding="ISO-8859-1"?>', file=chap_file)
@@ -355,7 +366,7 @@ def get_chapters_from_sb_intervals(srcpath, duration, tmp_dir, settings):
     intervals.close()
 
     # get starting episode number
-    parsed_info = PTN.parse(split_base, standardise=False)
+    parsed_info = get_parsed_info(split_base)
 
     try:
         episodes = parsed_info['episode']
@@ -440,7 +451,7 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
     tmdb_season_url = 'https://api.themoviedb.org/3/tv/'
     headers = {'accept': 'application/json', 'Authorization': 'Bearer ' + tmdb_api_read_access_token}
 
-    parsed_info = PTN.parse(split_base, standardise=False)
+    parsed_info = get_parsed_info(split_base)
 
     try:
         title = parsed_info["title"]
@@ -559,14 +570,14 @@ def on_worker_process(data):
         os.makedirs(tmp_dir)
 
     split_base, split_base_noext, sfx = get_split_details(srcpath)
-    parsed_info = PTN.parse(split_base, standardise=False)
+    parsed_info = get_parsed_info(split_base)
 
     try:
         episodes = parsed_info['episode']
     except KeyError:
         episodes = ""
         logger.error("Error parsing episode list from file: '{}'".format(srcpath))
-        raise Exception("Unaable to parse episode range from multiepisode file name")
+        raise Exception("Unable to parse episode range from multiepisode file name")
         return data
 
     if type(episodes) != list:
@@ -608,13 +619,32 @@ def on_worker_process(data):
 
     # Construct command
     logger.debug("basename for split - no ext: '{}'".format(split_base_noext))
-    match = re.search(r'(.*)(S\d+[ -]*E)\d+-E*\d+(.*$)', split_base_noext)
-
-    if not match:
-        raise Exception("Unable to find Season Episode string in source file name - unable to split file")
+    # match = re.search(r'(.*)(S\d+[ -]*E)\d+-E*\d+(.*$)', split_base_noext)
+    try:
+        title = parsed_info['title']
+    except KeyError:
+        title = ""
+        logger.error("Error parsing episode list from file: '{}'".format(srcpath))
+        raise Exception("Unable to parse title from multiepisode file name")
         return
 
-    split_file = match.group(1) + match.group(2) + '%1d' + match.group(3) + sfx
+    try:
+        resolution = parsed_info['resolution']
+    except KeyError:
+        resolution = ""
+        logger.info("Error parsing resolution from from file: '{}' - split files will not container resolution in filename".format(srcpath))
+
+    try:
+        quality = parsed_info['quality']
+    except KeyError:
+        quality = ""
+        logger.info("Error parsing qaulity from from file: '{}'; split files will not container quality in filename".format(srcpath))
+
+    # split_file = match.group(1) + match.group(2) + '%1d' + match.group(3) + sfx
+    split_file = parsed_info["title"] + ' S' + str(parsed_info["season"]) +'E' + '%d'
+    if resolution: split_file += ' - ' + resolution
+    if quality: split_file += ' - ' + quality
+    split_file += sfx
 
     data['exec_command'] = ['mkvmerge']
     if split_method == 'chapters' or (split_method == 'combo' and chapters) or (split_method == 'sbi' and chapters) or (split_method == 'tmdb' and chapters):
@@ -676,7 +706,7 @@ def on_postprocessor_task_results(data):
         srcpathbase = data.get('source_data')['basename']
         srcpathbase_no_ext = os.path.splitext(srcpathbase)[0]
 
-        parsed_info = PTN.parse(srcpathbase, standardise=False)
+        parsed_info = get_parsed_info(srcpathbase)
 
         try:
             episodes = parsed_info["episode"]
@@ -695,6 +725,18 @@ def on_postprocessor_task_results(data):
         except KeyError:
             title = ""
             logger.error("Error parsing title from file: '{}'".format(srcpathbase))
+
+        try:
+            resolution = parsed_info['resolution']
+        except KeyError:
+            resolution = ""
+            logger.info("Error parsing resolution from from file: '{}' - season folder will not contain resolution in name".format(srcpathbase))
+
+        try:
+            quality = parsed_info['quality']
+        except KeyError:
+            quality = ""
+            logger.info("Error parsing qaulity from from file: '{}'; season folder will not contain quality in name".format(srcpathbase))
 
 
         if data.get('library_id'):
@@ -727,8 +769,11 @@ def on_postprocessor_task_results(data):
                 dest_dir += title + ' - ' + 'Season '+str(season) + '/'
             elif season_dir_format == 'season_n':
                 dest_dir += 'Season '+str(season) + '/'
-            elif season_dir_format == 'source_name':
-                dest_dir +=  srcpathbase_no_ext + '/'
+            elif season_dir_format == 'series_title_SxxEyy_dash_rez_dash_qual':
+                dest_dir +=  title + ' S' + str(season) + 'E' + str(first_episode) + '-' + 'E' + str(last_episode)
+                if resolution: dest_dir += ' - ' + resolution
+                if quality: dest_dir += ' - ' + quality
+                dest_dir += '/'
 
             try:
                 os.makedirs(dest_dir, mode=0o777)

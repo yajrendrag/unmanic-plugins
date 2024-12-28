@@ -1,4 +1,9 @@
 
+**<span style="color:#56adda">0.0.10</span>**
+- redefine split_file to use PTN instead of regex
+- filter out [] in the name of the season directory
+- change first season directory pattern option to title SxxEyy-Ezz - resolution - quality
+
 **<span style="color:#56adda">0.0.9</span>**
 - add output directory name pattern options
 - use PTN for parsing filename instead of regex

@@ -32,8 +32,35 @@ mkvtoolnix is used to do file splitting.  To learn more about this tool see:
 ### Config description:
 
 #### <span style="color:blue">Split Method</span>
-Select Chapters or Time or Combo - Combo tries to use chapter marks but if they are missing it will fall back to a time interval.
+Select Chapters, time, combo(chapters with time fallback; time is derived from duration divided by number of episodes), silence / black scene detection, tmdb lookup.
+A tmdb API is required to use tmdb lookup - this is a free account currently.  Episode duration lookup is done and fine tuned with black scened detection.
 
-#### <span style="color:blue">Time Period</span>
-If Time or Combo is specified as the split method, configure an amount of time per split (episode).  Whole minutes only
+#### <span style="color:blue">Season Dir</span>
+The split files are put into the same folder as the multiepisode source unless Season Dir is checked.  if this option is selected a new folder for the split episodes
+is put into the same directory as the multiepisode source.  you can choose from 4 patterns for the season folder:
+- a folder named 'Series Title SxxEyy - resolution - quality'
+- a folder named 'Season N'
+- a folder named 'Series Title - Season N'
+- a folder named 'Season N - Series Title'
 
+#### <span style="color:blue">Keep Original</span>
+Keep the original multiepisode source or not
+
+#### <span style="color:blue">min_silence</span>
+Used together with min_black to help mark chapters it is the minimum amount of silence required to discern a new chapter
+
+#### <span style="color:blue">min_black</span>
+Used together with min_silece to help mark chapters it is the minimum amount of time for a black screen required to discern a new chapter
+
+For the split method of silence/black scene detection an overlapping scene of silence and black screen each configured with their minimum times is required to 
+declare a new chapter (episode) has ocurrred.
+
+These options are only visible if the silence / black scene detection split method is selected.
+
+#### <span style="color:blue">tmdb_api_key</span>
+your tmdb api key
+
+#### <span style="color:blue">tmdb_api_read_access_token</span>
+your tmdb api read access token
+
+these options are only visible if the tmdb lookup split method is selected.
