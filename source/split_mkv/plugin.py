@@ -40,7 +40,7 @@ logger = logging.getLogger("Unmanic.Plugin.split_mkv")
 
 class Settings(PluginSettings):
     settings = {
-        "split_method":          "",
+        "split_method":          "tmdb",
         "season_dir":            True,
         "season_dir_format":     "choose format for Seaon directory name",
         "keep_original":         False,
@@ -144,7 +144,7 @@ class Settings(PluginSettings):
     def __set_min_black_form_settings(self):
         values = {
             "label":          "Time",
-            "description":    "Minimum time for a black interval to identify an episode change",
+            "description":    "Minimum time for a black screen scene detection interval to identify an episode change",
             "input_type":     "slider",
             "slider_options": {
                 "min": 1,
@@ -632,18 +632,25 @@ def on_worker_process(data):
         resolution = parsed_info['resolution']
     except KeyError:
         resolution = ""
-        logger.info("Error parsing resolution from from file: '{}' - split files will not container resolution in filename".format(srcpath))
+        logger.info("Error parsing resolution from from file: '{}' - split files will not containe resolution in filename".format(srcpath))
 
     try:
         quality = parsed_info['quality']
     except KeyError:
         quality = ""
-        logger.info("Error parsing qaulity from from file: '{}'; split files will not container quality in filename".format(srcpath))
+        logger.info("Error parsing quality from from file: '{}'; split files will not containe quality in filename".format(srcpath))
+
+    try:
+        codec = parsed_info['codec']
+    except KeyError:
+        codec = ""
+        logger.info("Error parsing codec name from from file: '{}'; split files will not containe codec name in filename".format(srcpath))
 
     # split_file = match.group(1) + match.group(2) + '%1d' + match.group(3) + sfx
     split_file = parsed_info["title"] + ' S' + str(parsed_info["season"]) +'E' + '%d'
     if resolution: split_file += ' - ' + resolution
     if quality: split_file += ' - ' + quality
+    if codec: split_file += ' - ' + codec
     split_file += sfx
 
     data['exec_command'] = ['mkvmerge']
@@ -779,6 +786,7 @@ def on_postprocessor_task_results(data):
                 os.makedirs(dest_dir, mode=0o777)
             except FileExistsError:
                 logger.info("Directory '{}' already exists - placing split files there".format(dest_dir))
+
         if not title:
             logger.info("Series title doesn't match pattern - leaving split files in same directory as multiepisode file")
         if not first_episode or not last_episode:

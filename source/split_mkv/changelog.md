@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.11</span>**
+- add codec name as option for split files
+
 **<span style="color:#56adda">0.0.10</span>**
 - redefine split_file to use PTN instead of regex
 - filter out [] in the name of the season directory
