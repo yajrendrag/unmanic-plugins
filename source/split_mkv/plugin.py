@@ -311,9 +311,11 @@ def prep_sb_file(srcpath, tmp_dir, split_base, split_base_noext, cache_file, set
 
 def get_parsed_info(split_base):
     split_base_proxy = ""
-    m=re.search(r'^.*(\[)E\d+ *-E*\d+(\]).*$', split_base)
+    m=re.search(r'^.*(\[*)E\d+ *[-_]E*\d+(\]*).*$', split_base)
+    #m=re.search(r'^.*(\[)E\d+ *-E*\d+(\]).*$', split_base)
     if m:
-        split_base_proxy = re.sub(r'(^.*)\[(E\d+ *-E*\d+)\](.*$)', r'\1\2\3',split_base)
+        #split_base_proxy = re.sub(r'(^.*)\[(E\d+ *-E*\d+)\](.*$)', r'\1\2\3',split_base)
+        split_base_proxy = re.sub(r'(^.*)\[(E\d+ *)[-_](E*\d+)\](.*$)', r'\1\2-\3\4',split_base)
     if split_base_proxy:
         parsed_info = PTN.parse(split_base_proxy, standardise=False)
     else:

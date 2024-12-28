@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.12</span>**
+- modify get_parsed_info to detect '_' as episode separator
+
 **<span style="color:#56adda">0.0.11</span>**
 - add codec name as option for split files
 
