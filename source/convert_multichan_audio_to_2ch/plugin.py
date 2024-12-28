@@ -139,7 +139,7 @@ def streams_to_aac_encode(probe_streams, streams, keep_mc):
                        ((keep_mc and probe_streams[i]['channels'] > 2 and i in streams) or
                         (probe_streams[i]['channels'] == 2))]
 
-    return non_aac_stream
+    return non_aac_streams
 
 def on_library_management_file_test(data):
     """

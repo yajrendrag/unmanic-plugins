@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.21</span>**
+- fix typo in non_aac_streams - missing 's'
+
 **<span style="color:#56adda">0.0.20</span>**
 - add normalization option
 - add in multichannel streams when converting non-aac streams
