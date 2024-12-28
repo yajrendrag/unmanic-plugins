@@ -355,7 +355,7 @@ def on_worker_process(data):
 
         for i,stream in enumerate(streams_2_aac_encode):
             try:
-                chnls = probe_streams[abs_stream]['channels']
+                chnls = probe_streams[stream]['channels']
             except KeyError:
                 chnls = 0
             else:

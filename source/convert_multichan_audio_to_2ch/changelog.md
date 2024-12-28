@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.22</span>**
+- copy paste error in probe_streams index variable
+
 **<span style="color:#56adda">0.0.21</span>**
 - fix typo in non_aac_streams - missing 's'
 
