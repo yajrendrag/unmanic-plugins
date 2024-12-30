@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- add '.lower()' to end of 'probe_streams[i]["tags"][probe_field[j].lower()]' in order to get the result be all lower case for test
+
 **<span style="color:#56adda">0.0.4</span>**
 - add -strict -2 to ffmpeg command to accommodate what may be experimental features for some containers
 
