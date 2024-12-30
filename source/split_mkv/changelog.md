@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.13</span>**
+- fix PTN accompanying regex related to detecting '_' as episode seperator
+
 **<span style="color:#56adda">0.0.12</span>**
 - modify get_parsed_info to detect '_' as episode separator
 
