@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.4</span>**
+- version number change
+
 **<span style="color:#56adda">0.0.3</span>**
 - remove default audio disposition settings and make new 1st audio stream the default
 - fix astream_ordering logic
