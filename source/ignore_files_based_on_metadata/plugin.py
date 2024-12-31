@@ -64,7 +64,7 @@ def file_has_disallowed_metadata(path, disallowed_metadata, metadata_value):
     """
 
     # initialize Probe
-    probe_data=Probe(logger, allowed_mimetypes=['video'])
+    probe_data=Probe(logger, allowed_mimetypes=['video', 'audio'])
 
     # Get stream data from probe
     if probe_data.file(path):
@@ -80,7 +80,7 @@ def file_has_disallowed_metadata(path, disallowed_metadata, metadata_value):
         return True
 
     # Check if stream or format components contain disallowed metadata
-    streams = [probe_streams[i] for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == "video"]
+    streams = [probe_streams[i] for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] in ["video", 'audio', 'attachment', 'subtitle']]
     file_has_disallowed_metadata = [streams[i] for i in range(0, len(streams)) if disallowed_metadata in streams[i] and metadata_value in streams[i][disallowed_metadata]]
     probe_format_d = {k:v for  (k, v) in probe_format.items() if type(v) is dict}
     probe_format_kv = {k:v for  (k, v) in probe_format.items() if type(v) is not dict}
@@ -96,6 +96,13 @@ def file_has_disallowed_metadata(path, disallowed_metadata, metadata_value):
     except KeyError:
         file_has_disallowed_metadata_ast = ""
 
+    subtitle_streams = [probe_streams[i] for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == "subtitle"]
+    try:
+        probe_ss_tags_kv = {k:v for i in range(0, len(attachment_streams)) for (k, v) in attachment_streams[i]["tags"].items() if type(v) is not dict}
+        file_has_disallowed_metadata_sst = [(k, v) for (k, v) in probe_ss_tags_kv.items() if (disallowed_metadata in k.lower() and metadata_value in v)]
+    except KeyError:
+        file_has_disallowed_metadata_sst = ""
+
     video_streams = [probe_streams[i] for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == "video"]
     try:
         probe_vs_tags_kv = {k:v for i in range(0, len(video_streams)) for (k, v) in video_streams[i]["tags"].items() if type(v) is not dict}
@@ -110,7 +117,7 @@ def file_has_disallowed_metadata(path, disallowed_metadata, metadata_value):
     except KeyError:
         file_has_disallowed_metadata_aust = ""
 
-    if file_has_disallowed_metadata or file_has_disallowed_metadata_fmt or file_has_disallowed_metadata_ast or file_has_disallowed_metadata_vst or file_has_disallowed_metadata_aust:
+    if file_has_disallowed_metadata or file_has_disallowed_metadata_fmt or file_has_disallowed_metadata_ast or file_has_disallowed_metadata_sst or file_has_disallowed_metadata_vst or file_has_disallowed_metadata_aust:
         logger.debug("File '{}' contains disallowed metadata '{}': '{}'.".format(path, disallowed_metadata, metadata_value))
         return True
 
