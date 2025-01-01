@@ -3,9 +3,9 @@ name: Unmanic Plugin Test and Generate Repo
 on:
   push:
     branches:
-      - "**"
-      - "pr-**"
-      - "!template"
+      - 'official'
+      - 'master'
+      - 'main'
   pull_request:
     branches:
       - "official"
