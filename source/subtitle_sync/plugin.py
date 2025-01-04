@@ -21,11 +21,12 @@
 """
 import logging
 import os
-import hashlib
 import iso639
-import shutil
 import ffmpeg
 import mimetypes
+import re
+import difflib
+import glob
 
 from unmanic.libs.unplugins.settings import PluginSettings
 from unmanic.libs.directoryinfo import UnmanicDirectoryInfo
@@ -33,23 +34,19 @@ from unmanic.libs.directoryinfo import UnmanicDirectoryInfo
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.subtitle_sync")
 
+duration = 3600.00
+
 class Settings(PluginSettings):
     settings = {
-        "sub_languages_to_sync":       '',
-        "prefer_mc_or_st":             'stereo',
+        "sub_languages_to_sync":       'eng',
+        "prefer_mc_or_st":             'Stereo',
     }
 
-    def __init__(self, *args, **kwargs):
-        super(Settings, self).__init__(*args, **kwargs)
-        self.form_settings = {
-        "prefer_mc_or_st":        self.__set_prefer_mc_or_st_form_settings(),
-        "sub_languages_to_sync":        self.__set_sub_languages_to_sync_form_settings(),
-    }
-
-    def __set_prefer_mc_or_st_form_settings(self):
-        values = {
-            "label":      "Select Stereo or Multichannel for preferred audio stream to use for syncing",
-            "description":    "Set preference for type of stream on which to sync subtitles to be used when file has stereo and multichannel streams in the same language matching subtitle languages to sync",
+    form_settings = {
+        "sub_languages_to_sync": {
+            "label": "Enter comma delimited list of subtitle languages to sync - use 2 or 3 letter codes as you like - the plugin will find the corresponding language",
+        },
+        "prefer_mc_or_st": {
             "input_type": "select",
             "select_options": [
                 {
@@ -61,15 +58,8 @@ class Settings(PluginSettings):
                     "label": "Multichannel",
                 },
             ],
-        }
-        return values
-
-    def __sub_languages_to_sync_form_settings(self):
-        values = {
-            "label":      "Enter comma delimited list of subtitle languages to sync with matching audio streams in file",
-            "input_type": "textarea",
         },
-        return values
+    }
 
 def synced_subtitles(abspath):
     return f"synced_subtitles={abspath}"
@@ -124,12 +114,16 @@ def file_is_subtitle(probe):
         return False
 
 def matching_astream_in_video_file(lang, sub_languages_to_sync_iso639, abspath, basefile):
+    global duration
+
+    mimetypes.add_type('video/mastroska', 'mkv')
     astream = []
     video_file = ""
     video_suffix_list = [k for k in mimetypes.types_map if 'video/' in mimetypes.types_map[k]]
     if lang and iso639.Language.match(lang) in sub_languages_to_sync_iso639:
         logger.info (f"Language code {lang} subtitle stream found in file {abspath}")
         sfx=[s for s in video_suffix_list if os.path.exists(basefile + s)]
+        logger.debug(f"sfx: {sfx}, basefile: {basefile}")
         if sfx:
             video_file = basefile + sfx[0]
             probe = get_probe(video_file)
@@ -138,6 +132,12 @@ def matching_astream_in_video_file(lang, sub_languages_to_sync_iso639, abspath, 
                 astreams = [i for i in range(len(streams)) if 'codec_type' in streams[i] and streams[i]['codec_type'] == 'audio']
                 astream = [s for s in range(len(streams)) if 'codec_type' in streams[s] and streams[s]['codec_type'] == 'audio' and 'tags' in streams[s] and
                            'language' in streams[s]['tags'] and streams[s]['tags']['language'] == lang]
+                try:
+                    duration = float(ffmpeg.probe(video_file)['format']['duration'])
+                except KeyError:
+                    logger.error(f"duration not available - ETA counter will not function")
+                    duration = 0.0
+
     return astream, astreams, video_file
 
 def on_library_management_file_test(data):
@@ -197,16 +197,9 @@ def on_library_management_file_test(data):
 def parse_progress(line_text):
     global duration
 
-    match = re.search(r'(\[.*\s+-->\s+)(\d*:*\d+:\d+.\d+)].*$', line_text)
+    match = re.search(r'^.*(\d*).*%.*$', line_text)
     if match and (duration > 0.0):
-        time_str=match.group(2)
-        if time_str.count(':') == 1:
-            tc_m, tc_s = time_str.split(':')
-            secs = int(tc_m)*60.0 + float(tc_s)
-        elif time_str.count(':') == 2:
-            tc_h, tc_m, tc_s = time_str.split(':')
-            secs = int(tc_h)*3600.0 + int(tc_m)*60.0 + float(tc_s)
-        progress = int(round((secs / duration) * 100.0,0))
+        percent=match.group(1)
     else:
         progress = ''
 
@@ -265,37 +258,29 @@ def on_worker_process(data):
         return data
 
     # Extract subtitle language from file of the form: "/path/to/video/file.lang.srt" and find corresponding video files of form "/path/to/video/file.video_suffix"
-    lang, sub_languagas_to_sync_iso639, sub_languages_to_sync, basefile = get_sub_language(settings, abspath)
+    lang, sub_languages_to_sync_iso639, sub_languages_to_sync, basefile = get_sub_language(settings, abspath)
 
     astream, astreams, video_file = matching_astream_in_video_file(lang, sub_languages_to_sync_iso639, abspath, basefile)
     if astream and video_file:
-        logger.info(f"Video file {video_file} exists with audio stream matching language of subtitle file - sync the subtitle stream to the audio")
+        logger.info(f"Video file {video_file} exists with audio stream (astream: {astream}) matching language of subtitle file - sync the subtitle stream to the audio")
     else:
         logger.error(f"no matching stream identified for {lang} audio in {abspath}")
         return
 
     mc_st = settings.get_setting('prefer_mc_or_st')
 
-    # Set up cache working directory
-    f = hashlib.md5(basefile.encode('utf8')).hexdigest()
-    tmp_dir = os.path.join('/tmp/unmanic/', '{}'.format(f)) + '/'
-    if not os.path.exists(tmp_dir):
-        os.makedirs(tmp_dir)
-
     # select preferred audio stream in corresponding video file 
-    preferred_stream = astream[0]
+    preferred_audio_stream = astream[0]
     if len(astream) > 1:
         streams = ffmpeg.probe(video_file)['streams']
-        stream_channels = [streams[astream[i]] for i in range(len(astream))]
-        for i in range(stream_channels):
-            if stream_channels[i] == 2 and mc_or_st == 'stereo':
-                preferred_stream = astream[i]
+        stream_channels = [streams[astream[i]]['channels'] for i in range(len(astream))]
+        for i in range(len(stream_channels)):
+            if stream_channels[i] == 2 and mc_st == 'stereo':
+                preferred_audio_stream = astream[i]
                 break
-            elif mc_or_st != 'stereo' and stream_channels[i] != 2:
-                preferred_stream = astream[i]
+            elif mc_st != 'stereo' and stream_channels[i] != 2:
+                preferred_audioa_stream = astream[i]
                 break
-
-    preferred_audio_stream = [i for i in range(len(astreams)) if astreams[i] == preferred_stream]
 
     ffs_args = [video_file, '-i', abspath, '--refstream', f"a:{preferred_audio_stream}", '--no-fix-framerate', '-o', file_out]
 
