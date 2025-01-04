@@ -1,0 +1,19 @@
+{
+    "author": "yajrendrag",
+    "compatibility": [
+        1,
+        2
+    ],
+    "description": "Sync subtitle file to designated audio stream.",
+    "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.extract_srt_subtitles_to_files/master/icon.png",
+    "id": "subtitle_sync",
+    "name": "Sync subtitle file to audio",
+    "platform": [
+        "all"
+    ],
+    "priorities": {
+        "on_worker_process": 2
+    },
+    "tags": "subtitle",
+    "version": "0.0.1"
+}

@@ -1,0 +1,2 @@
+ffsubsync
+ffmpeg-python
