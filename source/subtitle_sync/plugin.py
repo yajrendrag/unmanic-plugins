@@ -106,7 +106,12 @@ def get_sub_language(settings, abspath):
     return lang, sub_languages_to_sync_iso639, sub_languages_to_sync, basefile
 
 def file_is_subtitle(probe):
-    streams = probe['streams']
+    logger.debug(f"probe: {probe}")
+    try:
+        streams = probe['streams']
+    except TypeError:
+        logger.debug(f"malformed probe - setting streams to []")
+        streams = []
     ctype = [streams[i]['codec_type'] for i in range(len(streams)) if 'codec_type' in streams[i] and streams[i]['codec_type'] == 'subtitle']
     if streams and type and 'subtitle' in ctype:
         return True
@@ -197,7 +202,7 @@ def on_library_management_file_test(data):
 def parse_progress(line_text):
     global duration
 
-    match = re.search(r'^.*(\d*).*%.*$', line_text)
+    match = re.search(r'^.*(\d+)%.*$', line_text)
     if match and (duration > 0.0):
         progress = match.group(1)
     else:
@@ -288,7 +293,7 @@ def on_worker_process(data):
     data['exec_command'] = ['ffs']
     data['exec_command'] += ffs_args
 
-    logger.debug("command: '{}'".format(data['exec_command']))
+    logger.debug(f"command: {data['exec_command']}")
 
     # Set the parser
     data['command_progress_parser'] = parse_progress

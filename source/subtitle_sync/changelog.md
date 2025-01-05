@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- add error checking of probe in file_is_subtitle function
+
 **<span style="color:#56adda">0.0.4</span>**
 - install ffs with init.d script instead of requirements.txt file
 - fix language comparator to use iso639 match to handle cases where configured
