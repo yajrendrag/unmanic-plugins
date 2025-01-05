@@ -98,12 +98,12 @@ def get_sub_language(settings, abspath):
     sub_languages_to_sync = settings.get_setting("sub_languages_to_sync")
     sub_languages_to_sync = list(sub_languages_to_sync.split(','))
     sub_languages_to_sync = [sub_languages_to_sync[i].strip() for i in range(len(sub_languages_to_sync))]
-    sub_languagas_to_sync_iso639 = [iso639.Language.match(j) for j in sub_languages_to_sync]
+    sub_languages_to_sync_iso639 = [iso639.Language.match(j) for j in sub_languages_to_sync]
     logger.debug(f"Subtitle languages to sync: {sub_languages_to_sync}")
 
     lang_srt = [li for li in difflib.ndiff(basefile, glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[0]) if li[0] != ' ']
     lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
-    return lang, sub_languagas_to_sync_iso639, sub_languages_to_sync, basefile
+    return lang, sub_languages_to_sync_iso639, sub_languages_to_sync, basefile
 
 def file_is_subtitle(probe):
     streams = probe['streams']
@@ -183,7 +183,7 @@ def on_library_management_file_test(data):
         return data
 
     # Extract subtitle language from file of the form: "/path/to/video/file.lang.srt" and find corresponding video files of form "/path/to/video/file.video_suffix"
-    lang, sub_languagas_to_sync_iso639, sub_languages_to_sync, basefile = get_sub_language(settings, abspath)
+    lang, sub_languages_to_sync_iso639, sub_languages_to_sync, basefile = get_sub_language(settings, abspath)
 
     astream, astreams, video_file = matching_astream_in_video_file(lang, sub_languages_to_sync_iso639, abspath, basefile)
     if astream and video_file:
