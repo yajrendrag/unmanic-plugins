@@ -93,7 +93,7 @@ def get_probe(f):
 
 def get_sub_language(settings, abspath):
     basefile = os.path.splitext(os.path.splitext(abspath)[0])[0]
-    logger.debug("basefile: {basefile}")
+    logger.debug(f"basefile: {basefile}")
 
     sub_languages_to_sync = settings.get_setting("sub_languages_to_sync")
     sub_languages_to_sync = list(sub_languages_to_sync.split(','))
