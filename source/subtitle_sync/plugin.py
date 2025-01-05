@@ -203,7 +203,7 @@ def on_library_management_file_test(data):
 def parse_progress(line_text):
     global duration
 
-    match = re.search(r'^.*(\d+)%.*$', line_text)
+    match = re.search(r'^[^0-9]*(\d+)%.*$', line_text)
     if match and (duration > 0.0):
         progress = match.group(1)
     else:
