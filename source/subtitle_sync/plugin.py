@@ -123,6 +123,7 @@ def matching_astream_in_video_file(lang, sub_languages_to_sync_iso639, abspath, 
 
     mimetypes.add_type('video/mastroska', 'mkv')
     astream = []
+    astreams = []
     video_file = ""
     video_suffix_list = [k for k in mimetypes.types_map if 'video/' in mimetypes.types_map[k]]
     if lang and iso639.Language.match(lang) in sub_languages_to_sync_iso639:
