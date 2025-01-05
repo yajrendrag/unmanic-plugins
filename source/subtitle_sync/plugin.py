@@ -89,7 +89,7 @@ def get_probe(f):
         p = ffmpeg.probe(f)
     except ffmpeg.Error as e:
         p = e.stdout.decode('utf8').replace('\n','')
-    return(p)
+    return p
 
 def get_sub_language(settings, abspath):
     basefile = os.path.splitext(os.path.splitext(abspath)[0])[0]
@@ -131,7 +131,7 @@ def matching_astream_in_video_file(lang, sub_languages_to_sync_iso639, abspath, 
                 streams = ffmpeg.probe(video_file)['streams']
                 astreams = [i for i in range(len(streams)) if 'codec_type' in streams[i] and streams[i]['codec_type'] == 'audio']
                 astream = [s for s in range(len(streams)) if 'codec_type' in streams[s] and streams[s]['codec_type'] == 'audio' and 'tags' in streams[s] and
-                           'language' in streams[s]['tags'] and streams[s]['tags']['language'] == lang]
+                           'language' in streams[s]['tags'] and iso639.Language.match(streams[s]['tags']['language']) == iso639.Language.match(lang)]
                 try:
                     duration = float(ffmpeg.probe(video_file)['format']['duration'])
                 except KeyError:
