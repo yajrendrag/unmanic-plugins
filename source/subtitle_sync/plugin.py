@@ -107,8 +107,8 @@ def get_sub_language(settings, abspath):
 
 def file_is_subtitle(probe):
     streams = probe['streams']
-    type = [streams[i]['codec_type'] for i in range(len(streams)) if 'codec_type' in streams[i] and streams[i]['codec_type'] == 'subtitle']
-    if streams and type and 'subtitle' in type:
+    ctype = [streams[i]['codec_type'] for i in range(len(streams)) if 'codec_type' in streams[i] and streams[i]['codec_type'] == 'subtitle']
+    if streams and type and 'subtitle' in ctype:
         return True
     else:
         return False
@@ -199,7 +199,7 @@ def parse_progress(line_text):
 
     match = re.search(r'^.*(\d*).*%.*$', line_text)
     if match and (duration > 0.0):
-        percent=match.group(1)
+        progress = match.group(1)
     else:
         progress = ''
 
@@ -279,7 +279,7 @@ def on_worker_process(data):
                 preferred_audio_stream = astream[i]
                 break
             elif mc_st != 'stereo' and stream_channels[i] != 2:
-                preferred_audioa_stream = astream[i]
+                preferred_audio_stream = astream[i]
                 break
 
     ffs_args = [video_file, '-i', abspath, '--refstream', f"a:{preferred_audio_stream}", '--no-fix-framerate', '-o', file_out]
