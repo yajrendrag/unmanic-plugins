@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.7</span>**
+- remove globbing in get_sub_lang function - just do difflib on basefile & abspath difference
+
 **<span style="color:#56adda">0.0.6</span>**
 - accommodate sdh tag between lang tag and srt suffix in get_sub_lang function
 

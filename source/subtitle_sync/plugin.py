@@ -26,7 +26,6 @@ import ffmpeg
 import mimetypes
 import re
 import difflib
-import glob
 
 from unmanic.libs.unplugins.settings import PluginSettings
 from unmanic.libs.directoryinfo import UnmanicDirectoryInfo
@@ -104,7 +103,7 @@ def get_sub_language(settings, abspath):
     sub_languages_to_sync_iso639 = [iso639.Language.match(j) for j in sub_languages_to_sync]
     logger.debug(f"Subtitle languages to sync: {sub_languages_to_sync}")
 
-    lang_srt = [li for li in difflib.ndiff(basefile, glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[0]) if li[0] != ' ']
+    lang_srt = [li for li in difflib.ndiff(basefile, abspath) if li[0] != ' ']
     if not os.path.splitext(os.path.splitext(os.path.splitext(abspath)[0])[0])[1]:
         lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
     else:
