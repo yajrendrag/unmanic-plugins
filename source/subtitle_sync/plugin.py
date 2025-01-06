@@ -92,7 +92,10 @@ def get_probe(f):
     return p
 
 def get_sub_language(settings, abspath):
-    basefile = os.path.splitext(os.path.splitext(abspath)[0])[0]
+    if not os.path.splitext(os.path.splitext(os.path.splitext(abspath)[0])[0])[1]:
+        basefile = os.path.splitext(os.path.splitext(abspath)[0])[0]
+    else:
+        basefile = os.path.splitext(os.path.splitext(os.path.splitext(abspath)[0])[0])[0]
     logger.debug(f"basefile: {basefile}")
 
     sub_languages_to_sync = settings.get_setting("sub_languages_to_sync")
@@ -102,7 +105,10 @@ def get_sub_language(settings, abspath):
     logger.debug(f"Subtitle languages to sync: {sub_languages_to_sync}")
 
     lang_srt = [li for li in difflib.ndiff(basefile, glob.glob(glob.escape(basefile) + '*.*[a-z].srt')[0]) if li[0] != ' ']
-    lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
+    if not os.path.splitext(os.path.splitext(os.path.splitext(abspath)[0])[0])[1]:
+        lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
+    else:
+        lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.sdh','').replace('.','')
     return lang, sub_languages_to_sync_iso639, sub_languages_to_sync, basefile
 
 def file_is_subtitle(probe):

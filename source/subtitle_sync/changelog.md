@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.6</span>**
+- accommodate sdh tag between lang tag and srt suffix in get_sub_lang function
+
 **<span style="color:#56adda">0.0.5</span>**
 - add error checking of probe in file_is_subtitle function
 
