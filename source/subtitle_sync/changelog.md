@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.8</span>**
+- modify basefile & lang parsing in get_sub_lang function to accommodate '.'s in other parts of pathname
+
 **<span style="color:#56adda">0.0.7</span>**
 - remove globbing in get_sub_lang function - just do difflib on basefile & abspath difference
 

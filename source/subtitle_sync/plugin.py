@@ -91,10 +91,15 @@ def get_probe(f):
     return p
 
 def get_sub_language(settings, abspath):
-    if not os.path.splitext(os.path.splitext(os.path.splitext(abspath)[0])[0])[1]:
-        basefile = os.path.splitext(os.path.splitext(abspath)[0])[0]
+    if os.path.splitext(os.path.splitext(abspath)[0])[1] == '.sdh':
+        try:
+            isolookup = iso639.Language.match(os.path.splitext(os.path.splitext(os.path.splitext(abspath)[0])[0])[1].strip('.'))
+        except iso639.language.LanguageNotFoundError:
+            basefile = os.path.splitext(os.path.splitext(abspath)[0])[0]
+        else:
+            basefile = os.path.splitext(os.path.splitext(os.path.splitext(abspath)[0])[0])[0]
     else:
-        basefile = os.path.splitext(os.path.splitext(os.path.splitext(abspath)[0])[0])[0]
+        basefile = os.path.splitext(os.path.splitext(abspath)[0])[0]
     logger.debug(f"basefile: {basefile}")
 
     sub_languages_to_sync = settings.get_setting("sub_languages_to_sync")
@@ -104,10 +109,16 @@ def get_sub_language(settings, abspath):
     logger.debug(f"Subtitle languages to sync: {sub_languages_to_sync}")
 
     lang_srt = [li for li in difflib.ndiff(basefile, abspath) if li[0] != ' ']
-    if not os.path.splitext(os.path.splitext(os.path.splitext(abspath)[0])[0])[1]:
-        lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
+    if os.path.splitext(os.path.splitext(abspath)[0])[1] == '.sdh':
+        try:
+            isolookup = iso639.Language.match(os.path.splitext(os.path.splitext(os.path.splitext(abspath)[0])[0])[1].strip('.'))
+        except iso639.language.LanguageNotFoundError:
+            lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
+        else:
+            lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.sdh','').replace('.','')
     else:
-        lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.sdh','').replace('.','')
+        lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
+
     return lang, sub_languages_to_sync_iso639, sub_languages_to_sync, basefile
 
 def file_is_subtitle(probe):
