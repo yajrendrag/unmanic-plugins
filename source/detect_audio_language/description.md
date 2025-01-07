@@ -14,5 +14,6 @@ No configuration is required - the plugin will operate on files that have audio 
 have no audio stream tag at all.
 
 :::important
-This plugin is installed using the init system and apprise is pip installed as part of the the plugin installation.  This means that at the time the plugin is installed, apprise is not necessarily >
+This plugin is installed using the init system and whisper is pip installed as part of the the plugin installation.  This means that at the time the plugin is installed, whisper is not necessarily
+operational, so unmanic should be restarted after this plugin is installed
 :::
