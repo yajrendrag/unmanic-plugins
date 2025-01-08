@@ -6,7 +6,8 @@
     Date:                     6 September 2024, (2:30 PM)
 
     Copyright:
-        Copyright (C) 2024 Jay Gardner
+        Unmanic plugin code Copyright (C) 2024 Jay Gardner
+        Portions of this module rely on OpenAI's Whisper Speech Recognition which are governed by their license.
 
         This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
         Public License as published by the Free Software Foundation, version 3.
@@ -18,6 +19,11 @@
         You should have received a copy of the GNU General Public License along with this program.
         If not, see <https://www.gnu.org/licenses/>.
 
+        Whisper Module:
+        This Unmanic plugin module uses Whisper by OpenAI (<https://github.com/openai/whisper/>) which is governed by it's own
+        license.  The text of this license has accompanied this program.  If for some reason you do not have it, please refer
+        to <https://github.com/openai/whisper/blob/main/LICENSE/>.
+
 """
 import logging
 import os
@@ -27,6 +33,7 @@ import whisper
 import iso639
 import shutil
 import ffmpeg
+import torch
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -53,7 +60,9 @@ duration = 3600.00
 class Settings(PluginSettings):
     settings = {
         "audio_stream_lang_to_text": "",
-        "audio_stream_to_convert_if_lang_not_present": ""
+        "audio_stream_to_convert_if_lang_not_present": "",
+        "whisper_model": "",
+        "whisper_device": ""
     }
 
     def __init__(self, *args, **kwargs):
@@ -64,6 +73,8 @@ class Settings(PluginSettings):
                 "label": "Enter language of audio stream to save as subtitle text",
             },
             "audio_stream_to_convert_if_lang_not_present": self.__set_handle_stream_not_found_form_settings(),
+            "whisper_model": self.__set_whisper_model_form_settings(),
+            "whisper_device": self.__set_whisper_device_form_settings(),
         }
 
     def __set_handle_stream_not_found_form_settings(self):
@@ -79,6 +90,54 @@ class Settings(PluginSettings):
                 {
                     "value": "pick_first_audio",
                     "label": "Select first audio stream",
+                },
+            ],
+        }
+        return values
+
+    def __set_whisper_model_form_settings(self):
+        values = {
+            "description": "Set the whisper model which dictates GPU memory, model performance, and accuracy",
+            "label":      "Enter Choice",
+            "input_type": "select",
+            "select_options": [
+                {
+                    "value": "base",
+                    "label": "base-1G-7x",
+                },
+                {
+                    "value": "small",
+                    "label": "small-2G-4x",
+                },
+                {
+                    "value": "medium",
+                    "label": "medium-5G-2x",
+                },
+                {
+                    "value": "large",
+                    "label": "large-10G-1x",
+                },
+                {
+                    "value": "turbo",
+                    "label": "turbo-6G-8x",
+                },
+            ],
+        }
+        return values
+
+    def __set_whisper_device_form_settings(self):
+        values = {
+            "description": "Set the whisper device",
+            "label":      "Enter Choice",
+            "input_type": "select",
+            "select_options": [
+                {
+                    "value": "cuda",
+                    "label": "CUDA",
+                },
+                {
+                    "value": "cpu",
+                    "label": "CPU",
                 },
             ],
         }
@@ -284,10 +343,34 @@ def on_worker_process(data):
             temp_audio_out = ffmpeg.output(ffin['a:'+str(astream)],tmp_audio,acodec="pcm_s16le",ar="44100",ac="2")
             temp_audio_out.run(overwrite_output=True, quiet=True)
 
+            model = settings.get_setting('whisper_model')
+            model_order = ['base', 'small', 'medium', 'turbo', 'large']
+            model_index=[i for i in range(len(model_order)) if model_order[i] == model][0]
+
+            device = settings.get_setting("whisper_device")
+            model_too_big = True
+            while model_too_big:
+                try:
+                    whisper.load_model(model, device='cuda')
+                except torch.OutOfMemoryError:
+                    model_index -= 1
+                    model = model_order[model_index]
+                    print(f"model {model_order[model_index + 1]} too big, trying model {model}")
+                    model_too_big = True
+                else:
+                    model_too_big = False
+                finally:
+                    if model_index == -1:
+                        logger.error(f"Insufficient GPU resources to run whisper, switching to CPU")
+                        device = 'cpu'
+                        model = 'medium'
+                        model_too_big = False
+                    torch.cuda.empty_cache()
+
             if audio_language_to_convert != '0':
-                whisper_args = ['--model', 'turbo', '--device', 'cuda', '--output_dir', output_dir, '--language', lang_in_model, '--output_format', 'srt', tmp_audio]
+                whisper_args = ['--model', model, '--device', device, '--output_dir', output_dir, '--language', lang_in_model, '--output_format', 'srt', tmp_audio]
             else:
-                whisper_args = ['--model', 'turbo', '--device', 'cuda', '--output_dir', output_dir, '--output_format', 'srt', tmp_audio]
+                whisper_args = ['--model', model, '--device', device, '--output_dir', output_dir, '--output_format', 'srt', tmp_audio]
 
             # Apply ffmpeg args to command
             data['exec_command'] = ['whisper']

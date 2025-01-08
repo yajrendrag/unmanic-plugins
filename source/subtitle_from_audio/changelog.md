@@ -1,4 +1,9 @@
 
+**<span style="color:#56adda">0.0.17</span>**
+- make whisper device configurable
+- make whisper model configurable
+- let plugin modify model and device if configured model is too large for available resources, including ability to downgrade to cpu device
+
 **<span style="color:#56adda">0.0.16</span>**
 - fix post processor cleanup of /tmp/unmanic
 
