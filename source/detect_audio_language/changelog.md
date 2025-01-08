@@ -1,6 +1,7 @@
 
 **<span style="color:#56adda">0.0.17</span>**
 - fixed description.md file
+- relax % of samples needed to match - but double number of samples
 
 **<span style="color:#56adda">0.0.16</span>**
 - fix typo in variable name

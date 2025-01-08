@@ -169,12 +169,12 @@ def detect_language(video_file, tmp_dir):
     video = video.subclip(600, duration-430)
     duration = video.duration - 30
 
-    if duration < 600:
-        logger.info("File '{}' too short to process (<10 minutes), skipping".format(video_file))
+    if duration < 690:
+        logger.info("File '{}' too short to process (<11.5 minutes), skipping".format(video_file))
         return None
 
     # Sample 3 random spots from the trimmed video
-    sample_times = sorted(random.sample(range(int(duration)), 3))
+    sample_times = sorted(random.sample(range(int(duration)), 6))
     logger.debug("sample_times: '{}'".format(sample_times))
 
     detected_languages = []
@@ -197,6 +197,10 @@ def detect_language(video_file, tmp_dir):
     # Check if all detected languages are the same
     if len(set(detected_languages)) == 1:
         return detected_languages[0]
+    elif len(set(detected_languages)) == 2:
+        for lang in set(detected_languages):
+          if detected_languages.count(lang) >= 5:
+            return lang
     else:
         return None
 
