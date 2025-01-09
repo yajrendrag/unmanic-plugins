@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.18</span>**
+- modified description.md
+
 **<span style="color:#56adda">0.0.17</span>**
 - make whisper device configurable
 - make whisper model configurable
