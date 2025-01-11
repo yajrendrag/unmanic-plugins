@@ -415,7 +415,7 @@ def get_chapters_from_sb_intervals(srcpath, duration, tmp_dir, settings):
         if ("silence" in lines[i] and "silence" in lines[i+1]) or ("black" in lines[i] and "black" in lines[i+1]):
             continue
         silence, black = sb_analyze(lines, i)
-        if silence = () or black = ():
+        if silence == () or black == ():
             continue
         logger.debug("chap_ep: '{}'".format(chap_ep))
         overlap = get_overlap(silence, black)

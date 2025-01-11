@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.17</span>**
+- typo in if statement checking internvals
+
 **<span style="color:#56adda">0.0.16</span>**
 - check for valid silence and black intervals; otherwise skip current line in sb detection file
 
