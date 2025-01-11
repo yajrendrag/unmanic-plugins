@@ -1,5 +1,8 @@
 
-**<span style="color:#56adda">0.0.145</span>**
+**<span style="color:#56adda">0.0.16</span>**
+- check for valid silence and black intervals; otherwise skip current line in sb detection file
+
+**<span style="color:#56adda">0.0.15</span>**
 - add silence slider to config for tmdb lookup option
 
 **<span style="color:#56adda">0.0.14</span>**

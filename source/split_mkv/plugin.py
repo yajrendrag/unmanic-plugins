@@ -351,14 +351,20 @@ def sb_analyze(lines, i):
             silence=(float(ss.group(1)), float(se.group(1)))
             bs=re.search(r'black_start: *(\d+\.\d+).*$', lines[i+1])
             be=re.search(r'.*black_end: *(\d+\.\d+).*$', lines[i+1])
-            black=(float(bs.group(1)), float(be.group(1)))
+            try:
+                black=(float(bs.group(1)), float(be.group(1)))
+            except NoneType:
+                black = ()
         elif "black" in lines[i] and "silence" in lines[i+1]:
             bs=re.search(r'black_start: *(\d+\.\d+).*$', lines[i])
             be=re.search(r'.*black_end: *(\d+\.\d+).*$', lines[i])
             black=(float(bs.group(1)), float(be.group(1)))
             ss=re.search(r'silence_start: (\d+\.\d+).*$', lines[i+1])
             se=re.search(r'.*silence_end: (\d+\.\d+).*$', lines[i+1])
-            silence=(float(ss.group(1)), float(se.group(1)))
+            try:
+                silence=(float(ss.group(1)), float(se.group(1)))
+            except NoneType:
+                silence = ()
         return silence, black
 
 def get_chapters_from_sb_intervals(srcpath, duration, tmp_dir, settings):
@@ -409,6 +415,8 @@ def get_chapters_from_sb_intervals(srcpath, duration, tmp_dir, settings):
         if ("silence" in lines[i] and "silence" in lines[i+1]) or ("black" in lines[i] and "black" in lines[i+1]):
             continue
         silence, black = sb_analyze(lines, i)
+        if silence = () or black = ():
+            continue
         logger.debug("chap_ep: '{}'".format(chap_ep))
         overlap = get_overlap(silence, black)
         logger.debug("overlap: '{}'".format(overlap))
@@ -517,6 +525,8 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
             if ("silence" in lines[i] and "silence" in lines[i+1]) or ("black" in lines[i] and "black" in lines[i+1]):
                 continue
             silence, black = sb_analyze(lines, i)
+            if silence == () or black == ():
+                continue
             overlap = get_overlap(silence, black)
             if overlap and i < len(lines) - 1:
                 logger.debug("Overlap of '{}' seconds on interval '{}' betweeen silence and black intervals - test if interval near episode from lookup.  Video: '{}'".format(overlap, i/2+1, split_base_noext))
