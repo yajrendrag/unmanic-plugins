@@ -137,7 +137,7 @@ class Settings(PluginSettings):
                 "step": 0.1
             }
         }
-        if self.get_setting('split_method') != 'sbi':
+        if self.get_setting('split_method') != 'sbi' and self.get_setting('split_method') != 'tmdb':
             values["display"] = 'hidden'
         return values
 
