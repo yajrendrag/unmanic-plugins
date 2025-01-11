@@ -41,8 +41,9 @@ logger = logging.getLogger("Unmanic.Plugin.split_mkv")
 class Settings(PluginSettings):
     settings = {
         "split_method":          "tmdb",
+        "tmdb_fine_tune":        "b",
         "season_dir":            True,
-        "season_dir_format":     "choose format for Seaon directory name",
+        "season_dir_format":     "choose format for Season directory name",
         "keep_original":         False,
         "min_silence":           "2",
         "min_black":             "3",
@@ -54,6 +55,7 @@ class Settings(PluginSettings):
         super(Settings, self).__init__(*args, **kwargs)
         self.form_settings = {
             "split_method":        self.__set_split_method_form_settings(),
+            "tmdb_fine_tune":      self.__set_tmdb_fine_tune_form_settings(),
             "season_dir":    {
                  "label":    "check this to create a new Season subdirectory in the folder containing the multi episode file is",
             },
@@ -97,6 +99,26 @@ class Settings(PluginSettings):
         }
         return values
 
+    def __set_tmdb_fine_tune_form_settings(self):
+        values = {
+            "label":        "Enter Choice",
+            "description":  "Choose black or silence/black overlap for the fine tuning used with tmdb episode duration lookup",
+            "input_type": "select",
+            "select_options": [
+                {
+                    "value": "b",
+                    "label": "black",
+                },
+                {
+                    "value": "sb",
+                    "label": "silence/black overlap",
+                },
+            ],
+        }
+        if self.get_setting('split_method') != 'tmdb':
+            values["display"] = 'hidden'
+        return values
+
     def __set_season_dir_format_form_settings(self):
         values = {
             "label":          "Enter Choice",
@@ -137,7 +159,11 @@ class Settings(PluginSettings):
                 "step": 0.1
             }
         }
-        if self.get_setting('split_method') != 'sbi' and self.get_setting('split_method') != 'tmdb':
+        if self.get_setting('split_method') == 'sbi' or self.get_setting('split_method') == 'sbi':
+            return values
+        if (self.get_setting('split_method') == 'tmdb' and self.get_setting('tmdb_fine_tune') != 'sb'):
+            values["display"] = 'hidden'
+        if self.get_setting('split_method') == 'chapters' or self.get_setting('split_method') == 'time' or self.get_setting('split_method') == 'combo':
             values["display"] = 'hidden'
         return values
 
@@ -278,13 +304,24 @@ def prep_sb_file(srcpath, tmp_dir, split_base, split_base_noext, cache_file, set
     # analyze file and find silence and black screen intervals
     b_detect_int = settings.get_setting('min_black')
     s_detect_int = settings.get_setting('min_silence')
+    split_method = settings.get_setting('split_method')
+    if split_method == 'tmdb':
+        tmdb_fine_tune = settings.get_setting('tmdb_fine_tune')
+    else:
+        tmdb_fine_tune = ''
     dlog=open(tmp_dir + 'detection.log', 'w', encoding='utf-8')
-    r=subprocess.run(['ffmpeg', '-progress', 'pipe:1', '-v', 'quiet', '-loglevel', 'info', '-i', srcpath, '-vf', 'blackdetect=d=' + str(b_detect_int) + ':pix_th=0.1', '-af', 'silencedetect=n=-50dB:d=' + str(s_detect_int), '-f', 'null', '-'], stderr=dlog, stdout=dlog)
+    if (split_method == 'tmdb' and tmdb_fine_tune == 'sb') or split_method == 'sbi':
+        logger.info(f"Capturing silence/black scene intervals from {srcpath}")
+        r=subprocess.run(['ffmpeg', '-progress', 'pipe:1', '-v', 'quiet', '-loglevel', 'info', '-i', srcpath, '-vf', 'blackdetect=d=' + str(b_detect_int) + ':pix_th=0.1', '-af', 'silencedetect=n=-50dB:d=' + str(s_detect_int), '-f', 'null', '-'], stderr=dlog, stdout=dlog)
+    else:
+        logger.info(f"Capturing black scene intervals from {srcpath}")
+        r=subprocess.run(['ffmpeg', '-progress', 'pipe:1', '-v', 'quiet', '-loglevel', 'info', '-i', srcpath, '-vf', 'blackdetect=d=' + str(b_detect_int) + ':pix_th=0.1', '-f', 'null', '-'], stderr=dlog, stdout=dlog)
     if r.returncode > 0:
-        logger.error("Unable to capture silence or black scenes in '{}' - aborting".format(srcpath))
+        logger.error("Unable to black scenes &/or silence/black overlap scenes in '{}' - aborting".format(srcpath))
         raise Exception("Scene detection Error")
         return
     dlog.close()
+    logger.info(f"Completed capture of silence/black scenes from {srcpath}")
     duration = float(ffmpeg.probe(srcpath)["format"]["duration"])
 
     # process resulting detection log and parse to relevant lines to form mkv chapters
@@ -353,7 +390,7 @@ def sb_analyze(lines, i):
             be=re.search(r'.*black_end: *(\d+\.\d+).*$', lines[i+1])
             try:
                 black=(float(bs.group(1)), float(be.group(1)))
-            except NoneType:
+            except AttributeError:
                 black = ()
         elif "black" in lines[i] and "silence" in lines[i+1]:
             bs=re.search(r'black_start: *(\d+\.\d+).*$', lines[i])
@@ -445,6 +482,7 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
     """
     lookup episode duration on tmdb.  couple this with black scene detection to identify chapter end.
     """
+
     # remove any existing chapter marks and write to cache
     split_base, split_base_noext, sfx = get_split_details(srcpath)
     cache_file = tmp_dir + split_base
@@ -459,6 +497,7 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
         raise Exception("Chapter marks removal issue")
         return
 
+    tmdb_fine_tune = settings.get_setting('tmdb_fine_tune')
     prep_sb_file(srcpath, tmp_dir, split_base, split_base_noext, cache_file, settings)
 
     tmdb_api_key = settings.get_setting("tmdb_api_key")
@@ -522,26 +561,42 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
         chapters[chap_ep-1].update({"end": cumulative_runtime})
         chap_start = cumulative_runtime + 2
         for i in range((len(lines) - 1)):
-            if ("silence" in lines[i] and "silence" in lines[i+1]) or ("black" in lines[i] and "black" in lines[i+1]):
-                continue
-            silence, black = sb_analyze(lines, i)
-            if silence == () or black == ():
-                continue
-            overlap = get_overlap(silence, black)
-            if overlap and i < len(lines) - 1:
-                logger.debug("Overlap of '{}' seconds on interval '{}' betweeen silence and black intervals - test if interval near episode from lookup.  Video: '{}'".format(overlap, i/2+1, split_base_noext))
-                interval_end = float(max(silence[1], black[1]))
-                interval_start = float(min(silence[0], black[0]))
-                logger.debug(f"cumulative runtime - 180: {cumulative_runtime -180}, interval start: {interval_start}, interval end: {interval_end}; cumulative runtime + 180: {cumulative_runtime + 180}; total cumulative runtime: {cumulative_runtime}")
-                if interval_start and interval_end and (cumulative_runtime - 180 <= interval_start <= interval_end <= 180 + cumulative_runtime) and (interval_end < cumulative_runtime):
+            if tmdb_fine_tune == 'sb':
+                if ("silence" in lines[i] and "silence" in lines[i+1]) or ("black" in lines[i] and "black" in lines[i+1]):
+                    continue
+                silence, black = sb_analyze(lines, i)
+                if silence == () or black == ():
+                    continue
+                overlap = get_overlap(silence, black)
+                if overlap and i < len(lines) - 1:
+                    logger.debug("Overlap of '{}' seconds on interval '{}' betweeen silence and black intervals - test if interval near episode from lookup.  Video: '{}'".format(overlap, i/2+1, split_base_noext))
+                    interval_end = float(max(silence[1], black[1]))
+                    interval_start = float(min(silence[0], black[0]))
                     logger.debug(f"cumulative runtime - 180: {cumulative_runtime -180}, interval start: {interval_start}, interval end: {interval_end}; cumulative runtime + 180: {cumulative_runtime + 180}; total cumulative runtime: {cumulative_runtime}")
-                    ep_end_offset = interval_end - cumulative_runtime
-                    chapters[chap_ep-1]['end'] += ep_end_offset
-                    episode_runtimes[chap_ep-1] += ep_end_offset
-                    chap_start=min(cumulative_runtime + ep_end_offset, interval_end)
-                    if interval_end - chap_start < 30: chap_start = interval_end
-                    logger.debug(f"chapters[chap_ep-1]['end']: {chapters[chap_ep-1]['end']}; chap_start: {chap_start}")
-                    break
+                    if interval_start and interval_end and (cumulative_runtime - 180 <= interval_start <= interval_end <= 180 + cumulative_runtime) and (interval_end < cumulative_runtime):
+                        logger.debug(f"cumulative runtime - 180: {cumulative_runtime -180}, interval start: {interval_start}, interval end: {interval_end}; cumulative runtime + 180: {cumulative_runtime + 180}; total cumulative runtime: {cumulative_runtime}")
+                        ep_end_offset = interval_end - cumulative_runtime
+                        chapters[chap_ep-1]['end'] += ep_end_offset
+                        episode_runtimes[chap_ep-1] += ep_end_offset
+                        chap_start=min(cumulative_runtime + ep_end_offset, interval_end)
+                        if interval_end - chap_start < 30: chap_start = interval_end
+                        logger.debug(f"chapters[chap_ep-1]['end']: {chapters[chap_ep-1]['end']}; chap_start: {chap_start}")
+                        break
+            else:
+                if "black" in lines[i]:
+                    i_s = re.search(r'black_start: *(\d+\.\d+).*$', lines[i])
+                    if i_s: interval_start = float(i_s.group(1))
+                    i_e = re.search(r'.*black_end: *(\d+\.\d+).*$', lines[i])
+                    if i_e: interval_end = float(i_e.group(1))
+                    if i_s and i_e and (cumulative_runtime - 180 <= interval_start <= interval_end <= 180 + cumulative_runtime) and (interval_end < cumulative_runtime):
+                        logger.debug(f"cumulative runtime - 180: {cumulative_runtime -180}, interval start: {interval_start}, interval end: {interval_end}; cumulative runtime + 180: {cumulative_runtime + 180}; total cumulative runtime: {cumulative_runtime}")
+                        ep_end_offset = interval_end - cumulative_runtime
+                        chapters[chap_ep-1]['end'] += ep_end_offset
+                        episode_runtimes[chap_ep-1] += ep_end_offset
+                        chap_start=min(cumulative_runtime + ep_end_offset, interval_end)
+                        if interval_end - chap_start < 30: chap_start = interval_end
+                        chap_start=min(cumulative_runtime + ep_end_offset, interval_end)
+                        break
         chap_ep += 1
         chapters.append({"start": chap_start})
 

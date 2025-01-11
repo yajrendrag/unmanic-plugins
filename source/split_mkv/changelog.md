@@ -1,6 +1,10 @@
 
+**<span style="color:#56adda">0.0.18</span>**
+- create black scene only fine tune option for tmdb
+- fix error in try block exception handling for valid silence/black detection intervals introduced in v0.0.16 
+
 **<span style="color:#56adda">0.0.17</span>**
-- typo in if statement checking internvals
+- typo in if statement checking intervals
 
 **<span style="color:#56adda">0.0.16</span>**
 - check for valid silence and black intervals; otherwise skip current line in sb detection file
