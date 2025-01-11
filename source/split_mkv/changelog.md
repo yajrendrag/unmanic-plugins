@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.14</span>**
+- modify tmdb fine tune to use black-silence overlap scene interval instead of black scene only
+
 **<span style="color:#56adda">0.0.13</span>**
 - fix PTN accompanying regex related to detecting '_' as episode seperator
 

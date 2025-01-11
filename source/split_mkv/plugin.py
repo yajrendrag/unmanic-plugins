@@ -344,6 +344,23 @@ def print_chap_file(tmp_dir, chapters, first_episode, chap_ep):
         print('</Chapters>', file=chap_file)
     return
 
+def sb_analyze(lines, i):
+        if "silence" in lines[i] and "black" in lines[i+1]:
+            ss=re.search(r'silence_start: (\d+\.\d+).*$', lines[i])
+            se=re.search(r'.*silence_end: (\d+\.\d+).*$', lines[i])
+            silence=(float(ss.group(1)), float(se.group(1)))
+            bs=re.search(r'black_start: *(\d+\.\d+).*$', lines[i+1])
+            be=re.search(r'.*black_end: *(\d+\.\d+).*$', lines[i+1])
+            black=(float(bs.group(1)), float(be.group(1)))
+        elif "black" in lines[i] and "silence" in lines[i+1]:
+            bs=re.search(r'black_start: *(\d+\.\d+).*$', lines[i])
+            be=re.search(r'.*black_end: *(\d+\.\d+).*$', lines[i])
+            black=(float(bs.group(1)), float(be.group(1)))
+            ss=re.search(r'silence_start: (\d+\.\d+).*$', lines[i+1])
+            se=re.search(r'.*silence_end: (\d+\.\d+).*$', lines[i+1])
+            silence=(float(ss.group(1)), float(se.group(1)))
+        return silence, black
+
 def get_chapters_from_sb_intervals(srcpath, duration, tmp_dir, settings):
     """
     Use ffmpeg silencedetect / blackdetect filters to identify the end of prior and start of next episode
@@ -391,27 +408,14 @@ def get_chapters_from_sb_intervals(srcpath, duration, tmp_dir, settings):
     for i in range((len(lines) - 1)):
         if ("silence" in lines[i] and "silence" in lines[i+1]) or ("black" in lines[i] and "black" in lines[i+1]):
             continue
-        if "silence" in lines[i] and "black" in lines[i+1]:
-            ss=re.search(r'silence_start: (\d+\.\d+).*$', lines[i])
-            se=re.search(r'.*silence_end: (\d+\.\d+).*$', lines[i])
-            silence=(float(ss.group(1)), float(se.group(1)))
-            bs=re.search(r'black_start: *(\d+\.\d+).*$', lines[i+1])
-            be=re.search(r'.*black_end: *(\d+\.\d+).*$', lines[i+1])
-            black=(float(bs.group(1)), float(be.group(1)))
-        elif "black" in lines[i] and "silence" in lines[i+1]:
-            bs=re.search(r'black_start: *(\d+\.\d+).*$', lines[i])
-            be=re.search(r'.*black_end: *(\d+\.\d+).*$', lines[i])
-            black=(float(bs.group(1)), float(be.group(1)))
-            ss=re.search(r'silence_start: (\d+\.\d+).*$', lines[i+1])
-            se=re.search(r'.*silence_end: (\d+\.\d+).*$', lines[i+1])
-            silence=(float(ss.group(1)), float(se.group(1)))
+        silence, black = sb_analyze(lines, i)
         logger.debug("chap_ep: '{}'".format(chap_ep))
         overlap = get_overlap(silence, black)
         logger.debug("overlap: '{}'".format(overlap))
         if overlap and i < len(lines) - 1:
             logger.debug("Overlap of '{}' seconds on interval '{}' betweeen silence and black intervals, high confidence interval represents a new episode.  Video: '{}'".format(overlap, i/2+1, split_base_noext))
-            chap_start = float(max(se.group(1), be.group(1)))
-            chap_end = float(min(ss.group(1), bs.group(1)))
+            chap_start = float(max(silence[1], black[1]))
+            chap_end = float(min(silence[0], black[0]))
             chapters[chap_ep-1].update({"end": chap_end})
             chap_ep += 1
             chapters.append({"start": chap_start})
@@ -510,15 +514,23 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
         chapters[chap_ep-1].update({"end": cumulative_runtime})
         chap_start = cumulative_runtime + 2
         for i in range((len(lines) - 1)):
-            if "black" in lines[i]:
-                bs=re.search(r'black_start: *(\d+\.\d+).*$', lines[i])
-                be=re.search(r'.*black_end: *(\d+\.\d+).*$', lines[i])
-                if bs and be and cumulative_runtime -180 <= float(bs.group(1)) <= 180 + cumulative_runtime:
-                    ep_end_offset = float(bs.group(1)) - cumulative_runtime
+            if ("silence" in lines[i] and "silence" in lines[i+1]) or ("black" in lines[i] and "black" in lines[i+1]):
+                continue
+            silence, black = sb_analyze(lines, i)
+            overlap = get_overlap(silence, black)
+            if overlap and i < len(lines) - 1:
+                logger.debug("Overlap of '{}' seconds on interval '{}' betweeen silence and black intervals - test if interval near episode from lookup.  Video: '{}'".format(overlap, i/2+1, split_base_noext))
+                interval_end = float(max(silence[1], black[1]))
+                interval_start = float(min(silence[0], black[0]))
+                logger.debug(f"cumulative runtime - 180: {cumulative_runtime -180}, interval start: {interval_start}, interval end: {interval_end}; cumulative runtime + 180: {cumulative_runtime + 180}; total cumulative runtime: {cumulative_runtime}")
+                if interval_start and interval_end and (cumulative_runtime - 180 <= interval_start <= interval_end <= 180 + cumulative_runtime) and (interval_end < cumulative_runtime):
+                    logger.debug(f"cumulative runtime - 180: {cumulative_runtime -180}, interval start: {interval_start}, interval end: {interval_end}; cumulative runtime + 180: {cumulative_runtime + 180}; total cumulative runtime: {cumulative_runtime}")
+                    ep_end_offset = interval_end - cumulative_runtime
                     chapters[chap_ep-1]['end'] += ep_end_offset
                     episode_runtimes[chap_ep-1] += ep_end_offset
-                    chap_start=min(cumulative_runtime + ep_end_offset, float(be.group(1)))
-                    if float(be.group(1)) - chap_start < 30: chap_start = float(be.group(1))
+                    chap_start=min(cumulative_runtime + ep_end_offset, interval_end)
+                    if interval_end - chap_start < 30: chap_start = interval_end
+                    logger.debug(f"chapters[chap_ep-1]['end']: {chapters[chap_ep-1]['end']}; chap_start: {chap_start}")
                     break
         chap_ep += 1
         chapters.append({"start": chap_start})
