@@ -400,7 +400,7 @@ def sb_analyze(lines, i):
             se=re.search(r'.*silence_end: (\d+\.\d+).*$', lines[i+1])
             try:
                 silence=(float(ss.group(1)), float(se.group(1)))
-            except NoneType:
+            except AttributeError:
                 silence = ()
         return silence, black
 

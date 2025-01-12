@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.19</span>**
+- fixed 2nd recurrence of NoneType error from v0.0.16
+
 **<span style="color:#56adda">0.0.18</span>**
 - create black scene only fine tune option for tmdb
 - fix error in try block exception handling for valid silence/black detection intervals introduced in v0.0.16 
