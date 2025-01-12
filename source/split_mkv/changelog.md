@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.20</span>**
+- allow fine tuning to adjust the episode end time further than the cumulative run time
+
 **<span style="color:#56adda">0.0.19</span>**
 - fixed 2nd recurrence of NoneType error from v0.0.16
 

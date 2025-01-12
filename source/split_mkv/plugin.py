@@ -581,7 +581,7 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
                     interval_end = float(max(silence[1], black[1]))
                     interval_start = float(min(silence[0], black[0]))
                     logger.debug(f"cumulative runtime - 180: {cumulative_runtime -180}, interval start: {interval_start}, interval end: {interval_end}; cumulative runtime + 180: {cumulative_runtime + 180}; total cumulative runtime: {cumulative_runtime}")
-                    if interval_start and interval_end and (cumulative_runtime - 180 <= interval_start <= interval_end <= 180 + cumulative_runtime) and (interval_end < cumulative_runtime):
+                    if interval_start and interval_end and (cumulative_runtime - 180 <= interval_start <= interval_end <= 180 + cumulative_runtime):
                         logger.debug(f"cumulative runtime - 180: {cumulative_runtime -180}, interval start: {interval_start}, interval end: {interval_end}; cumulative runtime + 180: {cumulative_runtime + 180}; total cumulative runtime: {cumulative_runtime}")
                         ep_end_offset = interval_end - cumulative_runtime
                         chapters[chap_ep-1]['end'] += ep_end_offset
@@ -596,7 +596,7 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
                     if i_s: interval_start = float(i_s.group(1))
                     i_e = re.search(r'.*black_end: *(\d+\.\d+).*$', lines[i])
                     if i_e: interval_end = float(i_e.group(1))
-                    if i_s and i_e and (cumulative_runtime - 180 <= interval_start <= interval_end <= 180 + cumulative_runtime) and (interval_end < cumulative_runtime):
+                    if i_s and i_e and (cumulative_runtime - 180 <= interval_start <= interval_end <= 180 + cumulative_runtime):
                         logger.debug(f"cumulative runtime - 180: {cumulative_runtime -180}, interval start: {interval_start}, interval end: {interval_end}; cumulative runtime + 180: {cumulative_runtime + 180}; total cumulative runtime: {cumulative_runtime}")
                         ep_end_offset = interval_end - cumulative_runtime
                         chapters[chap_ep-1]['end'] += ep_end_offset
