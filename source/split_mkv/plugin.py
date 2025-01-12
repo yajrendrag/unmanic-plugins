@@ -385,24 +385,32 @@ def sb_analyze(lines, i):
         if "silence" in lines[i] and "black" in lines[i+1]:
             ss=re.search(r'silence_start: (\d+\.\d+).*$', lines[i])
             se=re.search(r'.*silence_end: (\d+\.\d+).*$', lines[i])
-            silence=(float(ss.group(1)), float(se.group(1)))
+            try:
+                silence=(float(ss.group(1)), float(se.group(1)))
+            except AttributeError:
+                silence = ()
             bs=re.search(r'black_start: *(\d+\.\d+).*$', lines[i+1])
             be=re.search(r'.*black_end: *(\d+\.\d+).*$', lines[i+1])
             try:
                 black=(float(bs.group(1)), float(be.group(1)))
             except AttributeError:
                 black = ()
+            return silence, black
         elif "black" in lines[i] and "silence" in lines[i+1]:
             bs=re.search(r'black_start: *(\d+\.\d+).*$', lines[i])
             be=re.search(r'.*black_end: *(\d+\.\d+).*$', lines[i])
-            black=(float(bs.group(1)), float(be.group(1)))
+            try:
+                black=(float(bs.group(1)), float(be.group(1)))
+            except AttributeError:
+                black = ()
             ss=re.search(r'silence_start: (\d+\.\d+).*$', lines[i+1])
             se=re.search(r'.*silence_end: (\d+\.\d+).*$', lines[i+1])
             try:
                 silence=(float(ss.group(1)), float(se.group(1)))
             except AttributeError:
                 silence = ()
-        return silence, black
+            return silence, black
+        return (),()
 
 def get_chapters_from_sb_intervals(srcpath, duration, tmp_dir, settings):
     """
