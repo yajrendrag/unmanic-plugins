@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.21</span>**
+- new split method of detecting ending credits text
+
 **<span style="color:#56adda">0.0.20</span>**
 - allow fine tuning to adjust the episode end time further than the cumulative run time
 

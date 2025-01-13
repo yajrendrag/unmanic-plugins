@@ -49,6 +49,7 @@ class Settings(PluginSettings):
         "min_black":             "3",
         "tmdb_api_key":              "enter your tmdb apikey",
         "tmdb_api_read_access_token":    "enter your tmdb api read access token",
+        "window_size":           "3",
     }
 
     def __init__(self, *args, **kwargs):
@@ -67,6 +68,7 @@ class Settings(PluginSettings):
             "min_black":           self.__set_min_black_form_settings(),
             "tmdb_api_key": self.__set_tmdb_api_key_form_settings(),
             "tmdb_api_read_access_token": self.__set_tmdb_api_read_access_token_form_settings(),
+            "window_size":         self.__set_window_size_form_settings(),
         }
 
     def __set_split_method_form_settings(self):
@@ -94,6 +96,10 @@ class Settings(PluginSettings):
                 {
                     "value": 'tmdb',
                     "label": 'Create chapter marks based on looking up episode duration on tmdb',
+                },
+                {
+                    "value": 'credits',
+                    "label": 'Create chapter marks based on looking up episode duration on tmdb and fine tuning with text search for credits',
                 },
             ],
         }
@@ -159,11 +165,11 @@ class Settings(PluginSettings):
                 "step": 0.1
             }
         }
-        if self.get_setting('split_method') == 'sbi' or self.get_setting('split_method') == 'sbi':
+        if self.get_setting('split_method') == 'sbi':
             return values
         if (self.get_setting('split_method') == 'tmdb' and self.get_setting('tmdb_fine_tune') != 'sb'):
             values["display"] = 'hidden'
-        if self.get_setting('split_method') == 'chapters' or self.get_setting('split_method') == 'time' or self.get_setting('split_method') == 'combo':
+        if self.get_setting('split_method') == 'chapters' or self.get_setting('split_method') == 'time' or self.get_setting('split_method') == 'combo' or self.get_setting('split_method') == 'credits':
             values["display"] = 'hidden'
         return values
 
@@ -178,8 +184,10 @@ class Settings(PluginSettings):
                 "step": 0.1
             }
         }
-        if self.get_setting('split_method') != 'sbi' and self.get_setting('split_method') != 'tmdb':
+        if self.get_setting('split_method') == 'chapters' or self.get_setting('split_method') == 'time' or self.get_setting('split_method') == 'combo' or self.get_setting('split_method') == 'credits':
             values["display"] = 'hidden'
+        if self.get_setting('split_method') == 'sbi' or self.get_setting('split_method') == 'tmdb' or self.get_setting('split_method') == 'credits':
+            return values
         return values
 
     def __set_tmdb_api_key_form_settings(self):
@@ -187,7 +195,7 @@ class Settings(PluginSettings):
             "label":      "enter your tmdb (the movie database) api key",
             "input_type": "textarea",
         }
-        if self.get_setting('split_method') != 'tmdb':
+        if self.get_setting('split_method') != 'tmdb' and self.get_setting('split_method') != 'credits':
             values["display"] = 'hidden'
         return values
 
@@ -196,7 +204,22 @@ class Settings(PluginSettings):
             "label":      "enter your tmdb (the movie database) api api read access token",
             "input_type": "textarea",
         }
-        if self.get_setting('split_method') != 'tmdb':
+        if self.get_setting('split_method') != 'tmdb' and self.get_setting('split_method') != 'credits':
+            values["display"] = 'hidden'
+        return values
+
+    def __set_window_size_form_settings(self):
+        values = {
+            "label":          "Time",
+            "description":    "Number of minutes before and after the tmdb lookup to search for credit text - 3 is a good starting point",
+            "input_type":     "slider",
+            "slider_options": {
+                "min": 1,
+                "max": 12,
+                "step": 1
+            }
+        }
+        if self.get_setting('split_method') != 'credits':
             values["display"] = 'hidden'
         return values
 
@@ -603,7 +626,6 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
                         episode_runtimes[chap_ep-1] += ep_end_offset
                         chap_start=min(cumulative_runtime + ep_end_offset, interval_end)
                         if interval_end - chap_start < 30: chap_start = interval_end
-                        chap_start=min(cumulative_runtime + ep_end_offset, interval_end)
                         break
         chap_ep += 1
         chapters.append({"start": chap_start})
@@ -619,6 +641,152 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
         print_chap_file(tmp_dir, chapters, first_episode, chap_ep)
         r = subprocess.run(['mkvpropedit', cache_file, '--chapters', tmp_dir + 'chapters.xml'], capture_output=True)
         return [True]
+
+def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
+    """
+    lookup episode duration on tmdb. fine tune with text search for credit text.
+    """
+
+    # remove any existing chapter marks and write to cache
+    split_base, split_base_noext, sfx = get_split_details(srcpath)
+    cache_file = tmp_dir + split_base
+    r = subprocess.run(['cp', '-a', srcpath, cache_file], capture_output=True)
+    if r.returncode > 0:
+        logger.error("Unable to copy source to cache - '{}' - aborting".format(srcpath))
+        raise Exception("Cache copy issue")
+        return
+    r = subprocess.run(['mkvpropedit', cache_file, '--chapters', ''], capture_output=True)
+    if r.returncode > 0:
+        logger.error("Unable to remove existing chapter marks - '{}' - aborting".format(srcpath))
+        raise Exception("Chapter marks removal issue")
+        return
+
+    tmdb_api_key = settings.get_setting("tmdb_api_key")
+    tmdb_api_read_access_token = settings.get_setting("tmdb_api_read_access_token")
+    tmdburl = 'https://api.themoviedb.org/3/search/tv?query='
+    tmdb_season_url = 'https://api.themoviedb.org/3/tv/'
+    headers = {'accept': 'application/json', 'Authorization': 'Bearer ' + tmdb_api_read_access_token}
+    window_size = settings.get_setting("window_size")
+
+    parsed_info = get_parsed_info(split_base)
+
+    try:
+        title = parsed_info["title"]
+    except KeyError:
+        title = ""
+        logger.error("Error Parsing title from file: '{}'".format(srcpath))
+        raise Exception("Unable to parse Series Title from multiepisode file name")
+        return False
+
+    try:
+        episodes = parsed_info['episode']
+    except KeyError:
+        episodes = ""
+        logger.error("Error parsing episode list from file: '{}'".format(srcpath))
+        raise Exception("Unable to parse episode range from multiepisode file name")
+        return False
+
+    first_episode, last_episode = get_first_and_last_episodes(episodes)
+
+    try:
+        season = parsed_info["season"]
+    except KeyError:
+        title = ""
+        logger.error("Error Parsing title from file: '{}'".format(srcpath))
+        raise Exception("Unable to parse Season from multiepisode file name")
+        return False
+
+    vurl = tmdburl + title + '&api_key=' + tmdb_api_key
+    try:
+        video = requests.request("GET", vurl, headers=headers)
+        id = video.json()["results"][0]['id']
+    except:
+        logger.error("Error requesting video info from tmdb. Aborting")
+        raise Exception(f"Unable to find video {srcpath} in tmdb")
+        return False
+
+    chapters = []
+    chap_ep = 1
+    chapters.append({"start": 0.0})
+    episode_runtimes = []
+    stream=[s['index'] for s in ffmpeg.probe(cache_file)['streams'] if s['codec_type'] == 'video']
+    if stream:
+        width = ffmpeg.probe(cache_file)['streams'][stream[0]]['width']
+        height = ffmpeg.probe(cache_file)['streams'][stream[0]]['height']
+    else:
+        logger.error(f"Cannot find video stream in file {cache_file} to extract width and height - aborting")
+        return False
+    for episode in range(first_episode, last_episode):
+        show_url = tmdb_season_url + str(id) + '/season/' + str(season) + '/episode/' + str(episode)
+        episode_result = requests.request("GET", show_url, headers=headers)
+        episode_duration = float(episode_result.json()['runtime'])
+        episode_runtimes.append(episode_duration * 60.0)
+        cumulative_runtime = sum(float(i) for i in episode_runtimes)
+        chapters[chap_ep-1].update({"end": cumulative_runtime})
+        chap_start = cumulative_runtime + 2
+        window_start = str(int(cumulative_runtime) - int(window_size)*60)
+        window_end = str(int(cumulative_runtime) + int(window_size)*60)
+
+        fout = tmp_dir + '%04d.png'
+        command=['ffmpeg', '-ss', window_start, '-to', window_end, '-i', cache_file, '-vf', f"crop={width}:{height-100}:0:100,fps=1/2,setpts=N/FRAME_RATE/TB", '-fps_mode:v', 'passthrough', '-frame_pts', 'true', fout]
+        logger.debug(f"Command: {command}")
+        r=subprocess.run(command, capture_output=True)
+        logger.debug(f"return code: {r.returncode}")
+        if r.returncode == 0:
+            pngfiles=glob.glob(tmp_dir + '/*.png')
+            for pngfile in pngfiles:
+                pngnum = re.search(r'(\d\d\d\d).png', pngfile)
+                n=pngnum.group(1)
+                subprocess.run(['tesseract', pngfile, tmp_dir+"check_" + str(n), '--tessdata-dir', '/usr/share/tesseract-ocr/5/tessdata'], capture_output=True)
+
+            checkfiles=glob.glob(tmp_dir + 'check*.txt')
+            zeroflag = 0
+            firstfile =''
+            checkfiles.sort()
+            for check in checkfiles:
+                if not zeroflag and os.stat(check).st_size == 0:
+                    continue
+                zeroflag = 1
+                if not firstfile:
+                    firstfile = check
+                if os.stat(check).st_size == 0 or check == checkfiles[len(checkfiles)-1]:
+                    lastfile = check
+                    break
+
+            if firstfile and lastfile:
+                frame_credit_start = int(re.search(r'^.*_(\d+).txt', firstfile).group(1))
+                frame_credit_end = int(re.search(r'^.*_(\d+).txt', lastfile).group(1))
+                time_credit_start = frame_credit_start*2 + int(window_start)
+                time_credit_end = frame_credit_end*2 + int(window_start)
+                chapters[chap_ep-1]['end'] = time_credit_end
+                delta = time_credit_end - cumulative_runtime
+                logger.debug(f"credits in episode {episode} start at {time_credit_start} and end at {time_credit_end} in file {srcpath}")
+                episode_runtimes[chap_ep-1] += delta
+                chap_start = time_credit_end + 1
+        chap_ep += 1
+        chapters.append({"start": chap_start})
+        logger.debug(f"current chapters: {chapters}")
+
+        for f in pngfiles:
+            os.remove(f)
+        for f in checkfiles:
+            os.remove(f)
+
+    if "end" not in chapters[chap_ep-1]:
+        chapters[chap_ep-1].update({"end": duration})
+    logger.debug(f"final chapters: {chapters}")
+    if chap_ep == 1:
+        logger.info("no chapters found based on tmdb lookup, '{}'".format(srcpath))
+    else:
+        logger.info("Chapters derived from tmdb lookup, '{}' chapters, '{}' episodes in file '{}'".format(chap_ep, last_episode - first_episode + 1, srcpath))
+
+    if chap_ep > 1:
+        print_chap_file(tmp_dir, chapters, first_episode, chap_ep)
+        r = subprocess.run(['mkvpropedit', cache_file, '--chapters', tmp_dir + 'chapters.xml'], capture_output=True)
+        return [True]
+    else:
+        return [False]
+
 
 def on_worker_process(data):
     """
@@ -706,6 +874,14 @@ def on_worker_process(data):
         else:
             logger.info("Splitting file '{}' based on identification of '{}' chapters using tmdb lookup".format(abspath, chapters))
 
+    if split_method == 'credits':
+        chapters = get_chapters_from_credits(srcpath, duration, tmp_dir, settings)
+        if not chapters:
+            logger.info("Chapters could not be identified from tmdb lookup '{}' - Aborting".format(abspath))
+            return data
+        else:
+            logger.info("Splitting file '{}' based on identification of '{}' chapters using tmdb lookup".format(abspath, chapters))
+
     # Construct command
     logger.debug("basename for split - no ext: '{}'".format(split_base_noext))
     # match = re.search(r'(.*)(S\d+[ -]*E)\d+-E*\d+(.*$)', split_base_noext)
@@ -743,7 +919,7 @@ def on_worker_process(data):
     split_file += sfx
 
     data['exec_command'] = ['mkvmerge']
-    if split_method == 'chapters' or (split_method == 'combo' and chapters) or (split_method == 'sbi' and chapters) or (split_method == 'tmdb' and chapters):
+    if split_method == 'chapters' or (split_method == 'combo' and chapters) or (split_method == 'sbi' and chapters) or (split_method == 'tmdb' and chapters) or (split_method == 'credits' and chapters):
         f = abspath
         if split_method == 'sbi' or split_method == 'tmdb': f = tmp_dir + split_base
         data['exec_command'] += ['-o', tmp_dir + split_file, '--split', 'chapters:all', f]
