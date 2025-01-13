@@ -921,7 +921,7 @@ def on_worker_process(data):
     data['exec_command'] = ['mkvmerge']
     if split_method == 'chapters' or (split_method == 'combo' and chapters) or (split_method == 'sbi' and chapters) or (split_method == 'tmdb' and chapters) or (split_method == 'credits' and chapters):
         f = abspath
-        if split_method == 'sbi' or split_method == 'tmdb': f = tmp_dir + split_base
+        if split_method == 'sbi' or split_method == 'tmdb' or split_method == 'credits': f = tmp_dir + split_base
         data['exec_command'] += ['-o', tmp_dir + split_file, '--split', 'chapters:all', f]
         return data
     if split_method == 'combo' or split_method == 'time':

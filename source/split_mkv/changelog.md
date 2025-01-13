@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.22</span>**
+- use cache path for multiepisode source in mkvmerge command for credits method
+
 **<span style="color:#56adda">0.0.21</span>**
 - new split method of detecting ending credits text
 
