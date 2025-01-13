@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.23</span>**
+- make window size for credits split method adjustable in .1 minute increments
+
 **<span style="color:#56adda">0.0.22</span>**
 - use cache path for multiepisode source in mkvmerge command for credits method
 
