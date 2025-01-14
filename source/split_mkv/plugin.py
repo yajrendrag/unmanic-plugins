@@ -732,8 +732,8 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
         cumulative_runtime = sum(float(i) for i in episode_runtimes)
         chapters[chap_ep-1].update({"end": cumulative_runtime})
         chap_start = cumulative_runtime + 2
-        window_start = str(cumulative_runtime - window_size*60)
-        window_end = str(cumulative_runtime + window_size*60)
+        window_start = str(int(cumulative_runtime - window_size*60))
+        window_end = str(int(cumulative_runtime + window_size*60))
 
         fout = tmp_dir + '%04d.png'
         command=['ffmpeg', '-ss', window_start, '-to', window_end, '-i', cache_file, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1,setpts=N/FRAME_RATE/TB", '-fps_mode:v', 'passthrough', '-frame_pts', 'true', fout]

@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.31</span>**
+- fix fix window_start and window_end to round to nearest second so later str() will not error out
+
 **<span style="color:#56adda">0.0.30</span>**
 - protect against TypeError in falseend
 
