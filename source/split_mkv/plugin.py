@@ -752,14 +752,24 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
             firstfile =''
             checkfiles.sort()
             density = [os.stat(check).st_size for check in checkfiles]
+            lastfile2 = ''
             try:
                 firstfile = [i for i in range(len(density)-3) if density[i] > 0 and density[i+1] > 50 and density[i+2] > 100 and density[i+3] > 150][0]
-            except KeyError:
+            except IndexError:
                 firstfile = ''
             try:
                 lastfile = [i for i in range(len(density)-3) if density[i] == 0 and density[i-1] > 10 and density[i-2] > 25 and density[i-3] > 40][0]
-            except KeyError:
+            except IndexError:
                 lastfile = ''
+            try:
+                falseend = [i for i in range(len(density)-3) if i> lastfile and density[i] == 0 and density[i+1] > 30 and density[i+2] > 100 and density[i+3] > 100][0]
+            except IndexError:
+                falseend = ''
+            else:
+                lastfile2 = [i for i in range(len(density)-3) if i >= falseend and density[i] == 0 and density[i-1] > 10 and density[i-2] > 25 and density[i-3] > 40 and density[+1] == 0][0]
+
+            if lastfile2: lastfile = lastfile2
+
             logger.debug(f"density: {density}")
 
             if firstfile and lastfile:

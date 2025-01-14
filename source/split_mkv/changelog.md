@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.27</span>**
+- try detecting an false positive of gap in credits erroneously signifying and end of credits
+
 **<span style="color:#56adda">0.0.26</span>**
 - do frame capture every second instead of every 2 seconds
 
