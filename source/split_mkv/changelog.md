@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.34</span>**
+- syntax errir
+
 **<span style="color:#56adda">0.0.33</span>**
 - typo in variable name lastfile -> firstfile
 
