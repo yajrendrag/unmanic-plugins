@@ -763,7 +763,7 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
                 lastfile = ''
             try:
                 falseend = [i for i in range(len(density)-3) if i> lastfile and density[i] == 0 and density[i+1] > 30 and density[i+2] > 100 and density[i+3] > 100][0]
-            except IndexError:
+            except (IndexError, TypeError):
                 falseend = ''
             else:
                 lastfile2 = [i for i in range(len(density)-3) if i >= falseend and density[i] == 0 and density[i-1] > 10 and density[i-2] > 25 and density[i-3] > 40 and density[i+1] == 0]
