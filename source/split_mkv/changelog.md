@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.28</span>**
+- fix typo in lastfile2
+
 **<span style="color:#56adda">0.0.27</span>**
 - try detecting an false positive of gap in credits erroneously signifying and end of credits
 
