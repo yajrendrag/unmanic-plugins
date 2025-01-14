@@ -732,8 +732,8 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
         cumulative_runtime = sum(float(i) for i in episode_runtimes)
         chapters[chap_ep-1].update({"end": cumulative_runtime})
         chap_start = cumulative_runtime + 2
-        window_start = str(int(cumulative_runtime) - int(window_size)*60)
-        window_end = str(int(cumulative_runtime) + int(window_size)*60)
+        window_start = str(cumulative_runtime - window_size*60)
+        window_end = str(cumulative_runtime + window_size*60)
 
         fout = tmp_dir + '%04d.png'
         command=['ffmpeg', '-ss', window_start, '-to', window_end, '-i', cache_file, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1,setpts=N/FRAME_RATE/TB", '-fps_mode:v', 'passthrough', '-frame_pts', 'true', fout]
@@ -766,7 +766,9 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
             except IndexError:
                 falseend = ''
             else:
-                lastfile2 = [i for i in range(len(density)-3) if i >= falseend and density[i] == 0 and density[i-1] > 10 and density[i-2] > 25 and density[i-3] > 40 and density[i+1] == 0][0]
+                lastfile2 = [i for i in range(len(density)-3) if i >= falseend and density[i] == 0 and density[i-1] > 10 and density[i-2] > 25 and density[i-3] > 40 and density[i+1] == 0]
+                if not lastfile2:
+                    lastfile2 = density[len(density)-1]
 
             if lastfile2: lastfile = lastfile2
 

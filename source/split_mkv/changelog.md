@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.29</span>**
+- fix window_start and window_end to allow using fractional minutes values from slider changes in 0.0.23 below
+- fix lastfile2 so it calculates without error if it reaches the end of the density array
+
 **<span style="color:#56adda">0.0.28</span>**
 - fix typo in lastfile2
 
