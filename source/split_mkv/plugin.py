@@ -751,19 +751,32 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
             zeroflag = 0
             firstfile =''
             checkfiles.sort()
-            for check in checkfiles:
-                if not zeroflag and os.stat(check).st_size == 0:
-                    continue
-                zeroflag = 1
-                if not firstfile:
-                    firstfile = check
-                if os.stat(check).st_size == 0 or check == checkfiles[len(checkfiles)-1]:
-                    lastfile = check
-                    break
-
+            density = [os.stat(check).st_size for check in checkfiles]
+            try:
+                firstfile = [i for i in range(len(density)-3) if density[i] > 0 and density[i+1] > 50 and density[i+2] > 100 and density[i+3] > 150][0]
+            except KeyError:
+                firstfile = ''
+            try:
+                lastfile = [i for i in range(len(density)-3) if density[i] == 0 and density[i-1] > 10 and density[i-2] > 25 and density[i-3] > 40][0]
+            except KeyError:
+                lastfile = ''
+            logger.debug(f"density: {density}")
+#            for check in checkfiles:
+#                if not zeroflag and os.stat(check).st_size == 0:
+#                    continue
+#                zeroflag = 1
+#                if not firstfile:
+#                    firstfile = check
+#                if os.stat(check).st_size == 0 or check == checkfiles[len(checkfiles)-1]:
+#                    lastfile = check
+#                    break
             if firstfile and lastfile:
-                frame_credit_start = int(re.search(r'^.*_(\d+).txt', firstfile).group(1))
-                frame_credit_end = int(re.search(r'^.*_(\d+).txt', lastfile).group(1))
+#                firstfile = f"check_{firstfile:04d}.txt"
+#                lastfile = f"check_{lastfile:04d}.txt"
+#                frame_credit_start = int(re.search(r'^.*_(\d+).txt', firstfile).group(1))
+#                frame_credit_end = int(re.search(r'^.*_(\d+).txt', lastfile).group(1))
+                frame_credit_start = int(firstfile)
+                frame_credit_end = int(lastfile)
                 time_credit_start = frame_credit_start*2 + int(window_start)
                 time_credit_end = frame_credit_end*2 + int(window_start)
                 chapters[chap_ep-1]['end'] = time_credit_end

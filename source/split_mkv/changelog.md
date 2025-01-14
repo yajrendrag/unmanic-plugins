@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.25</span>**
+- create a character density array to determine start and end of credits
+
 **<span style="color:#56adda">0.0.24</span>**
 - use library data to get path info so not wasting transfer time on multiepisode file back to library
 
