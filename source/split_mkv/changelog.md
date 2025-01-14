@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.33</span>**
+- typo in variable name lastfile -> firstfile
+
 **<span style="color:#56adda">0.0.32</span>**
 - ensure lastfile is after firstfile in density calcs
 
