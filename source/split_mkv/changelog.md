@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.24</span>**
+- use library data to get path info so not wasting transfer time on multiepisode file back to library
+
 **<span style="color:#56adda">0.0.23</span>**
 - make window size for credits split method adjustable in .1 minute increments
 

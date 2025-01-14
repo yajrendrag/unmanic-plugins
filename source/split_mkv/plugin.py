@@ -34,6 +34,8 @@ import requests
 import subprocess
 
 from unmanic.libs.unplugins.settings import PluginSettings
+from unmanic.libs.plugins import PluginsHandler
+from unmanic.libs.library import Library
 
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.split_mkv")
@@ -223,6 +225,10 @@ class Settings(PluginSettings):
             values["display"] = 'hidden'
         return values
 
+class my_library(Library):
+    {
+    }
+
 def on_library_management_file_test(data):
     """
     Runner function - enables additional actions during the library management file tests.
@@ -244,6 +250,8 @@ def on_library_management_file_test(data):
         settings = Settings(library_id=data.get('library_id'))
     else:
         settings = Settings()
+
+    library_id = data.get('library_id')
 
     basename = os.path.split(abspath)[1]
     base_noext = os.path.splitext(basename)[0]
@@ -945,15 +953,7 @@ def on_postprocessor_file_movement(data):
     :return:
     """
 
-    if data.get('library_id'):
-        settings = Settings(library_id=data.get('library_id'))
-    else:
-        settings = Settings()
-
-    keep_original = settings.get_setting('keep_original')
-    if not keep_original:
-        with open(data.get('file_in'), 'w') as f:
-            f.write("put something minimal in this file so it gets transferred back fast after which it will be deleted since keep_original = False")
+    data['run_default_file_copy'] = False
     return
 
 def on_postprocessor_task_results(data):
@@ -977,6 +977,22 @@ def on_postprocessor_task_results(data):
         logger.info("dest files: '{}'".format(data.get('destination_files')))
         srcpathbase = data.get('source_data')['basename']
         srcpathbase_no_ext = os.path.splitext(srcpathbase)[0]
+        srcpath = data.get('source_data')['abspath']
+
+        library_id = data.get('library_id')
+        lib_id = my_library(library_id).get_id()
+        lib_plugins = my_library(library_id).get_enabled_plugins(include_settings=True)
+        logger.debug(f"lib_plugins: {lib_plugins}")
+        lib_path = my_library(library_id).get_path()
+        mover2_path = ''
+        for i in range(len(lib_plugins)):
+            if lib_plugins[i]['plugin_id'] == 'mover2':
+                mover2_path = lib_plugins[i]['settings']['destination_directory']
+                mover2_recreate_directory_structure = lib_plugins[i]['settings']['recreate_directory_structure']
+                mover2_include_library_structure = lib_plugins[i]['settings']['include_library_structure']
+                logger.debug(f"Switching file path from {lib_path} to {mover2_path}")
+                logger.debug(f"mover2_include_library_structure: {mover2_include_library_structure}; mover2_recreate_directory_structure: {mover2_recreate_directory_structure}")
+                break
 
         parsed_info = get_parsed_info(srcpathbase)
 
@@ -1030,8 +1046,20 @@ def on_postprocessor_task_results(data):
             ep_offset = first_episode - 1
         split_hash = hashlib.md5(srcpathbase.encode('utf8')).hexdigest()
         tmp_dir = os.path.join('/tmp/unmanic/', '{}'.format(split_hash)) + '/'
-        dest_file = data.get('destination_files')[0]
-        dest_dir = os.path.split(dest_file)[0] + '/'
+        dest_file = srcpath
+        #dest_file = data.get('destination_files')[0]
+        #dest_dir = os.path.split(dest_file)[0] + '/'
+        dest_dir = os.path.split(srcpath)[0] + '/'
+        logger.debug(f"srcpath: {srcpath}")
+        logger.debug(f"dest_dir: {dest_dir}")
+        if mover2_path:
+            if mover2_include_library_structure:
+                dest_dir = mover2_path + dest_dir
+            elif mover2_recreate_directory_structure:
+                dest_dir = dest_dir.replace(lib_path, mover2_path)
+            else:
+                dest_dir = mover2_path
+            logger.debug(f"dest_dir: {dest_dir}")
 
         # get season number for new directory if plugin configured for  that option
         if season_dir:
