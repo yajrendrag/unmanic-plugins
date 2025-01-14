@@ -736,7 +736,7 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
         window_end = str(int(cumulative_runtime) + int(window_size)*60)
 
         fout = tmp_dir + '%04d.png'
-        command=['ffmpeg', '-ss', window_start, '-to', window_end, '-i', cache_file, '-vf', f"crop={width}:{height-100}:0:100,fps=1/2,setpts=N/FRAME_RATE/TB", '-fps_mode:v', 'passthrough', '-frame_pts', 'true', fout]
+        command=['ffmpeg', '-ss', window_start, '-to', window_end, '-i', cache_file, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1,setpts=N/FRAME_RATE/TB", '-fps_mode:v', 'passthrough', '-frame_pts', 'true', fout]
         logger.debug(f"Command: {command}")
         r=subprocess.run(command, capture_output=True)
         logger.debug(f"return code: {r.returncode}")
@@ -761,24 +761,12 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
             except KeyError:
                 lastfile = ''
             logger.debug(f"density: {density}")
-#            for check in checkfiles:
-#                if not zeroflag and os.stat(check).st_size == 0:
-#                    continue
-#                zeroflag = 1
-#                if not firstfile:
-#                    firstfile = check
-#                if os.stat(check).st_size == 0 or check == checkfiles[len(checkfiles)-1]:
-#                    lastfile = check
-#                    break
+
             if firstfile and lastfile:
-#                firstfile = f"check_{firstfile:04d}.txt"
-#                lastfile = f"check_{lastfile:04d}.txt"
-#                frame_credit_start = int(re.search(r'^.*_(\d+).txt', firstfile).group(1))
-#                frame_credit_end = int(re.search(r'^.*_(\d+).txt', lastfile).group(1))
                 frame_credit_start = int(firstfile)
                 frame_credit_end = int(lastfile)
-                time_credit_start = frame_credit_start*2 + int(window_start)
-                time_credit_end = frame_credit_end*2 + int(window_start)
+                time_credit_start = frame_credit_start*1 + int(window_start)
+                time_credit_end = frame_credit_end*1 + int(window_start)
                 chapters[chap_ep-1]['end'] = time_credit_end
                 delta = time_credit_end - cumulative_runtime
                 logger.debug(f"credits in episode {episode} start at {time_credit_start} and end at {time_credit_end} in file {srcpath}")

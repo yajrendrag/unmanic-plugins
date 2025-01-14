@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.26</span>**
+- do frame capture every second instead of every 2 seconds
+
 **<span style="color:#56adda">0.0.25</span>**
 - create a character density array to determine start and end of credits
 
