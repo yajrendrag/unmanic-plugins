@@ -677,6 +677,11 @@ def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, wi
     video.seek(float(window_start))
     scene_manager.detect_scenes(video, duration=float(window_size)*2*60)
     scene_list = scene_manager.get_scene_list()
+    if not scene_list:
+        logger.debug(f"Scene list is empty - move to next episode")
+    else:
+        for s in scene_list:
+            logger.debug(f"scene list: {s}")
 
     # extract collected frames and write to /tmp/unmanic cache
     fout='%06d.png'
@@ -684,8 +689,6 @@ def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, wi
         command = ['ffmpeg', '-hwaccel', 'cuda', '-hwaccel_output_format', 'nv12', '-ss', str(scene_list[i][0].get_seconds()), '-to', str(scene_list[i][1].get_seconds()), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1", '-start_number', str(scene_list[i][0].get_frames()), tmp_dir + fout]
         r=subprocess.run(command, capture_output=True)
         if r.returncode != 0:
-            for s in scene_list:
-                logger.debug(f"scene list: {scene_list[s]}")
             logger.debug(f"stderr: {r.stderr.decode()}")
             logger.debug(f"Failed to find a valid scene - moving to next episode")
             return '',''
@@ -1189,7 +1192,7 @@ def on_postprocessor_task_results(data):
             shutil.copy2(f, dest_dir + fdest_base)
 
         # remove temp files and directory
-        for ext in ['mkv', 'xml', 'log']:
+        for ext in ['mkv', 'xml', 'log', 'png', 'txt']:
             for f in glob.glob("*."+ext, root_dir=tmp_dir):
                 os.remove(tmp_dir + f)
         shutil.rmtree(tmp_dir)

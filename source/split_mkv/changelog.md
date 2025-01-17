@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.37</span>**
+- add scene list output to debug log
+
 **<span style="color:#56adda">0.0.36</span>**
 - add error handling to get_credits_start_and_end function
 
