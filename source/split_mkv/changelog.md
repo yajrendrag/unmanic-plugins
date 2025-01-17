@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.38</span>**
+- fix window start calcs
+- fix userdata settings getter
+
 **<span style="color:#56adda">0.0.37</span>**
 - add scene list output to debug log
 

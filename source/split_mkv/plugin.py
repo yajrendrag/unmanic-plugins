@@ -661,14 +661,7 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
         r = subprocess.run(['mkvpropedit', cache_file, '--chapters', tmp_dir + 'chapters.xml'], capture_output=True)
         return [True]
 
-def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, width, height):
-
-    if data.get('library_id'):
-        settings = Settings(library_id=data.get('library_id'))
-    else:
-        settings = Settings()
-
-    userdata = settings.get_profile_directory()
+def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, width, height, userdata):
 
     # get video frame rate from ffprobe
     frs = ffmpeg.probe(video_path)["streams"][0]['r_frame_rate']
@@ -796,6 +789,7 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
     tmdb_season_url = 'https://api.themoviedb.org/3/tv/'
     headers = {'accept': 'application/json', 'Authorization': 'Bearer ' + tmdb_api_read_access_token}
     window_size = settings.get_setting("window_size")
+    userdata = settings.get_profile_directory()
 
     parsed_info = get_parsed_info(split_base)
 
@@ -853,10 +847,10 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
         cumulative_runtime = sum(float(i) for i in episode_runtimes)
         chapters[chap_ep-1].update({"end": cumulative_runtime})
         chap_start = cumulative_runtime + 1
-        window_start = str(int(cumulative_runtime - window_size*60))
-        window_end = str(int(cumulative_runtime + window_size*60))
+        window_start = str(int(cumulative_runtime - int(window_size)*60))
+        window_end = str(int(cumulative_runtime + int(window_size)*60))
 
-        firstfile, lastfile = get_credits_start_and_end(cache_file, tmp_dir, window_start, window_size, width, height)
+        firstfile, lastfile = get_credits_start_and_end(cache_file, tmp_dir, window_start, window_size, width, height, userdata)
 
         if firstfile and lastfile:
             frame_credit_start = int(firstfile)
