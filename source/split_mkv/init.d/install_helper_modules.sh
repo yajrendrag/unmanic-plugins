@@ -23,4 +23,5 @@ if [[ -d /config/.unmanic/userdata/split_mkv ]]; then
         cp -a ./credits_dictionary  /config/.unmanic/userdata/split_mkv/credits_dictionary
     else
         cp -a ./credits_dictionary  /config/
+    fi
 fi
