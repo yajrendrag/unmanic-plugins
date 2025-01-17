@@ -20,8 +20,6 @@ fi
 if [[ -d /config/.unmanic/userdata/split_mkv ]]; then
     if [[ ! -f /config/.unmanic/userdata/split_mkv/credits_dictionary ]]; then
         echo "**** moving credits_dictionary into place ****"
-        cp -a ./credits_dictionary  /config/.unmanic/userdata/split_mkv/credits_dictionary
-    else
-        cp -a ./credits_dictionary  /config/
+        mv /config/.unmanic/plugins/credits_dictionary  /config/.unmanic/userdata/split_mkv/credits_dictionary
     fi
 fi

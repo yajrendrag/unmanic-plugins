@@ -662,6 +662,14 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
         return [True]
 
 def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, width, height):
+
+    if data.get('library_id'):
+        settings = Settings(library_id=data.get('library_id'))
+    else:
+        settings = Settings()
+
+    userdata = settings.get_profile_directory()
+
     # get video frame rate from ffprobe
     frs = ffmpeg.probe(video_path)["streams"][0]['r_frame_rate']
     if '/' in frs:
@@ -710,7 +718,8 @@ def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, wi
     # and identify the last file of the credits as that file which has '©' symbol signifying the video's copyright (typically on the last screen of credits)
     file_list = []
     copyright = ''
-    with open('/config/credits_dictionary') as cw:
+    cr_dict = userdata + '/credits_dictionary'
+    with open(cr_dict) as cw:
         cwords = cw.read().splitlines()
 
     for f in glob.glob(tmp_dir + 'check*.txt'):
