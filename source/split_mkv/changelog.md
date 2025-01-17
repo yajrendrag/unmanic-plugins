@@ -1,6 +1,11 @@
 
+**<span style="color:#56adda">0.0.35</span>**
+- completely new credits detection function originally introduced in v0.0.21
+- based on PySceneDetect
+- also uses credit words dictionary located in /config/
+
 **<span style="color:#56adda">0.0.34</span>**
-- syntax errir
+- syntax error
 
 **<span style="color:#56adda">0.0.33</span>**
 - typo in variable name lastfile -> firstfile

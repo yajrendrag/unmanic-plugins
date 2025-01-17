@@ -8,3 +8,9 @@ if ! command -v mkvmerge &> /dev/null; then
     apt-get install mkvtoolnix -y
 else
     echo "**** mkvtoolnix already installed ****"
+
+if ! command -v scenedetect &> /dev/null; then
+    echo "**** Installing pyscenedetect ****"
+    python3 -m pip install --upgrade scenedetect[opencv-headless]
+else
+    echo "**** pyscenedetect already installed ****"

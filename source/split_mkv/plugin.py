@@ -5,11 +5,13 @@
     plugins.__init__.py
 
     Written by:               yajrendrag <yajdude@gmail.com>
-    Date:                     3 Dec 2024, (17:45 PM)
+    Date:                     17 Jan 2025(09:45 AM)
 
     Copyright:
-        Copyright (C) 2024 Jay Gardner
+        Unmanic plugin code Copyright (C) 2024, 2025 Jay Gardner
+        PySceneDetect module code Copyright (C) 2024, Brandon Castellano
 
+        Unmanic Code:
         This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
         Public License as published by the Free Software Foundation, version 3.
 
@@ -19,6 +21,11 @@
 
         You should have received a copy of the GNU General Public License along with this program.
         If not, see <https://www.gnu.org/licenses/>.
+
+        PySceneDetect:
+        This Unmanic plugin module uses PySceneDetect (https://github.com/Breakthrough/PySceneDetect) which is governed by it's own
+        license terms using BSD 3-Clause "New" or "Revised" License.  The text of this license has accompanied this program (PySceneDetectLICENSE).
+        If for some reason you do not have it, please refer to <https://github.com/Breakthrough/PySceneDetect/blob/main/LICENSE>.
 
 """
 import logging
@@ -32,6 +39,10 @@ import shlex
 import PTN
 import requests
 import subprocess
+import numpy as np
+from scenedetect import open_video, detect, SceneManager, ContentDetector
+from scenedetect.detectors import ThresholdDetector
+import cv2
 
 from unmanic.libs.unplugins.settings import PluginSettings
 from unmanic.libs.plugins import PluginsHandler
@@ -650,6 +661,89 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
         r = subprocess.run(['mkvpropedit', cache_file, '--chapters', tmp_dir + 'chapters.xml'], capture_output=True)
         return [True]
 
+def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, width, height):
+    # get video frame rate from ffprobe
+    frs = ffmpeg.probe(video_path)["streams"][0]['r_frame_rate']
+    if '/' in frs:
+        fr = int(frs.split('/')[0])/int(frs.split('/')[1])
+    else:
+        fr = int(frs)
+
+    # get video scenes using PySceneDetect - assume minimum scene length is 30 seconds 
+    # seek to start of episode window start and collect 6 minutes of frames
+    video = open_video(video_path)
+    scene_manager = SceneManager()
+    scene_manager.add_detector(ThresholdDetector(threshold=15, min_scene_len=int(fr*30)))
+    video.seek(float(window_start))
+    scene_manager.detect_scenes(video, duration=float(window_size)*2*60)
+    scene_list = scene_manager.get_scene_list()
+
+    # extract collected frames and write to /tmp/unmanic cache
+    for i in scene_list: print(i)
+    fout='%06d.png'
+    for i in range(len(scene_list)):
+        command = ['ffmpeg', '-hwaccel', 'cuda', '-hwaccel_output_format', 'nv12', '-ss', str(scene_list[i][0].get_seconds()), '-to', str(scene_list[i][1].get_seconds()), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1", '-start_number', str(scene_list[i][0].get_frames()), tmp_dir + fout]
+        r=subprocess.run(command, capture_output=True)
+
+    # perform OCR on captured frames and write to text file
+    os.environ["TESSDATA_PREFIX"] = f"/usr/share/tesseract-ocr/5/tessdata"
+    pngfiles=glob.glob(tmp_dir + '/*.png')
+    for pngfile in pngfiles:
+        pngnum = re.search(r'(\d\d\d\d\d\d).png', pngfile)
+        n=pngnum.group(1)
+        subprocess.run(['tesseract', pngfile, tmp_dir+"check_" + str(n), '--oem', '1', '--psm', '3'], capture_output=True)
+
+    # using credits_dictionary (/config/credits_dictionary) find first file in scenes with text matching any words in credits dictionary
+    # and identify the last file of the credits as that file which has '©' symbol signifying the video's copyright (typically on the last screen of credits)
+    file_list = []
+    copyright = ''
+    with open('/config/credits_dictionary') as cw:
+        cwords = cw.read().splitlines()
+
+    for f in glob.glob(tmp_dir + 'check*.txt'):
+        with open(f) as file:
+            strings = file.read()
+            for w in cwords:
+                if w in strings.lower():
+                    file_list.append(f)
+                    if w == '©': copyright=f
+                    break
+
+    file_list.sort()
+    checkfiles = glob.glob(tmp_dir + 'check*.txt')
+    checkfiles.sort()
+    try:
+        firstfile = [i for i in range(len(checkfiles)) if checkfiles[i] == file_list[0]][0]
+    except:
+        firstfile = ''
+    try:
+        lastfile = [i for i in range(len(checkfiles)) if checkfiles[i] == copyright][0]
+    except:
+        lastfile = ''
+
+    # Adjust lastfile to last frame containing '©' within 3 frames after first found:
+    for adjacent in range(lastfile,lastfile+3):
+        try:
+            with open(checkfiles[adjacent], 'r') as f:
+                strings = f.read()
+                if '©' in strings.lower(): copyright=checkfiles[adjacent]
+        except IndexError:
+            break
+
+    # Adjust firstfile to first frame containing text within 4 frames prior to first cword found:
+    for adjacent in range(firstfile, firstfile-4, -1):
+        if os.stat(checkfiles[adjacent]).st_size > 0:
+            firstfile = adjacent
+        else:
+            break
+
+    for f in pngfiles:
+        os.remove(f)
+    for f in checkfiles:
+        os.remove(f)
+
+    return firstfile, lastfile
+
 def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
     """
     lookup episode duration on tmdb. fine tune with text search for credit text.
@@ -731,68 +825,25 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
         episode_runtimes.append(episode_duration * 60.0)
         cumulative_runtime = sum(float(i) for i in episode_runtimes)
         chapters[chap_ep-1].update({"end": cumulative_runtime})
-        chap_start = cumulative_runtime + 2
+        chap_start = cumulative_runtime + 1
         window_start = str(int(cumulative_runtime - window_size*60))
         window_end = str(int(cumulative_runtime + window_size*60))
 
-        fout = tmp_dir + '%04d.png'
-        command=['ffmpeg', '-ss', window_start, '-to', window_end, '-i', cache_file, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1,setpts=N/FRAME_RATE/TB", '-fps_mode:v', 'passthrough', '-frame_pts', 'true', fout]
-        logger.debug(f"Command: {command}")
-        r=subprocess.run(command, capture_output=True)
-        logger.debug(f"return code: {r.returncode}")
-        if r.returncode == 0:
-            pngfiles=glob.glob(tmp_dir + '/*.png')
-            for pngfile in pngfiles:
-                pngnum = re.search(r'(\d\d\d\d).png', pngfile)
-                n=pngnum.group(1)
-                subprocess.run(['tesseract', pngfile, tmp_dir+"check_" + str(n), '--tessdata-dir', '/usr/share/tesseract-ocr/5/tessdata'], capture_output=True)
+        firstfile, lastfile = get_credits_start_and_end(cache_file, tmp_dir, window_start, window_size, width, height)
 
-            checkfiles=glob.glob(tmp_dir + 'check*.txt')
-            zeroflag = 0
-            firstfile =''
-            checkfiles.sort()
-            density = [os.stat(check).st_size for check in checkfiles]
-            lastfile2 = ''
-            try:
-                firstfile = [i for i in range(len(density)-3) if density[i] > 0 and density[i+1] > 50 and density[i+2] > 100 and density[i+3] > 150][0]
-            except IndexError:
-                firstfile = ''
-            try:
-                lastfile = [i for i in range(len(density)-3) if (firstfile != '' and i > firstfile and density[i] == 0 and density[i-1] > 10 and density[i-2] > 25 and density[i-3] > 40) or 
-                            (firstfile =='' and density[i] == 0 and density[i-1] > 10 and density[i-2] > 25 and density[i-3] > 40)][0]
-            except (IndexError, TypeError):
-                lastfile = ''
-            try:
-                falseend = [i for i in range(len(density)-3) if i> lastfile and density[i] == 0 and density[i+1] > 30 and density[i+2] > 100 and density[i+3] > 100][0]
-            except (IndexError, TypeError):
-                falseend = ''
-            else:
-                lastfile2 = [i for i in range(len(density)-3) if i >= falseend and density[i] == 0 and density[i-1] > 10 and density[i-2] > 25 and density[i-3] > 40 and density[i+1] == 0]
-                if not lastfile2:
-                    lastfile2 = density[len(density)-1]
-
-            if lastfile2: lastfile = lastfile2
-
-            logger.debug(f"density: {density}")
-
-            if firstfile and lastfile:
-                frame_credit_start = int(firstfile)
-                frame_credit_end = int(lastfile)
-                time_credit_start = frame_credit_start*1 + int(window_start)
-                time_credit_end = frame_credit_end*1 + int(window_start)
-                chapters[chap_ep-1]['end'] = time_credit_end
-                delta = time_credit_end - cumulative_runtime
-                logger.debug(f"credits in episode {episode} start at {time_credit_start} and end at {time_credit_end} in file {srcpath}")
-                episode_runtimes[chap_ep-1] += delta
-                chap_start = time_credit_end + 1
+        if firstfile and lastfile:
+            frame_credit_start = int(firstfile)
+            frame_credit_end = int(lastfile)
+            time_credit_start = frame_credit_start*1 + int(window_start)
+            time_credit_end = frame_credit_end*1 + int(window_start)
+            chapters[chap_ep-1]['end'] = time_credit_end
+            delta = time_credit_end - cumulative_runtime
+            logger.debug(f"credits in episode {episode} start at {time_credit_start} and end at {time_credit_end} in file {srcpath}")
+            episode_runtimes[chap_ep-1] += delta
+            chap_start = time_credit_end + 1
         chap_ep += 1
         chapters.append({"start": chap_start})
         logger.debug(f"current chapters: {chapters}")
-
-        for f in pngfiles:
-            os.remove(f)
-        for f in checkfiles:
-            os.remove(f)
 
     if "end" not in chapters[chap_ep-1]:
         chapters[chap_ep-1].update({"end": duration})
@@ -875,6 +926,7 @@ def on_worker_process(data):
             if split_method != 'combo':
                 logger.info("No chapters found and split_method = chapters. Aborting")
                 return data
+
     if split_method == 'combo' or split_method == 'time':
         n_episodes = last_episode - first_episode + 1
         chapter_time = duration / n_episodes
@@ -950,6 +1002,8 @@ def on_worker_process(data):
         split_time = str(60 * int(chapter_time)) + 's'
         data['exec_command'] += ['-o', tmp_dir + split_file, '--split', split_time, abspath]
         return data
+
+    data['file_out'] = None
 
 def on_postprocessor_file_movement(data):
     """
