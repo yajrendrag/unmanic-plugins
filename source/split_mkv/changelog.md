@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.36</span>**
+- add error handling to get_credits_start_and_end function
+
 **<span style="color:#56adda">0.0.35</span>**
 - completely new credits detection function originally introduced in v0.0.21
 - based on PySceneDetect

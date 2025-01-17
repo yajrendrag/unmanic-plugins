@@ -679,19 +679,29 @@ def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, wi
     scene_list = scene_manager.get_scene_list()
 
     # extract collected frames and write to /tmp/unmanic cache
-    for i in scene_list: print(i)
     fout='%06d.png'
     for i in range(len(scene_list)):
         command = ['ffmpeg', '-hwaccel', 'cuda', '-hwaccel_output_format', 'nv12', '-ss', str(scene_list[i][0].get_seconds()), '-to', str(scene_list[i][1].get_seconds()), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1", '-start_number', str(scene_list[i][0].get_frames()), tmp_dir + fout]
         r=subprocess.run(command, capture_output=True)
+        if r.returncode != 0:
+            for s in scene_list:
+                logger.debug(f"scene list: {scene_list[s]}")
+            logger.debug(f"stderr: {r.stderr.decode()}")
+            logger.debug(f"Failed to find a valid scene - moving to next episode")
+            return '',''
 
     # perform OCR on captured frames and write to text file
     os.environ["TESSDATA_PREFIX"] = f"/usr/share/tesseract-ocr/5/tessdata"
     pngfiles=glob.glob(tmp_dir + '/*.png')
     for pngfile in pngfiles:
         pngnum = re.search(r'(\d\d\d\d\d\d).png', pngfile)
-        n=pngnum.group(1)
-        subprocess.run(['tesseract', pngfile, tmp_dir+"check_" + str(n), '--oem', '1', '--psm', '3'], capture_output=True)
+        try:
+            n=pngnum.group(1)
+        except:
+            logger.debug(f"pngfiles: {pngfiles}")
+            logger.debug(f"Failed to find pngfile - moving to next episode")
+            return '',''
+        subprocess.run(['tesseract', pngfile, tmp_dir+"check_" + str(n)], capture_output=True)
 
     # using credits_dictionary (/config/credits_dictionary) find first file in scenes with text matching any words in credits dictionary
     # and identify the last file of the credits as that file which has '©' symbol signifying the video's copyright (typically on the last screen of credits)
@@ -720,6 +730,11 @@ def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, wi
         lastfile = [i for i in range(len(checkfiles)) if checkfiles[i] == copyright][0]
     except:
         lastfile = ''
+
+    # abort if firstfile or lastfile is '' - means it could not find start or end of credits in window
+    if  lastfile == '' or firstfile == '':
+        logger.debug(f"did not find credit start or end in window - move to next episode")
+        return '',''
 
     # Adjust lastfile to last frame containing '©' within 3 frames after first found:
     for adjacent in range(lastfile,lastfile+3):
