@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.39</span>**
+- added iteration to auto expand window up to 2x
+- added code to use gpu accelerated decode on frame capture
+
 **<span style="color:#56adda">0.0.38</span>**
 - fix window start calcs
 - fix userdata settings getter

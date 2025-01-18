@@ -45,7 +45,6 @@ from scenedetect.detectors import ThresholdDetector
 import cv2
 
 from unmanic.libs.unplugins.settings import PluginSettings
-from unmanic.libs.plugins import PluginsHandler
 from unmanic.libs.library import Library
 
 # Configure plugin logger
@@ -652,6 +651,7 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
     if "end" not in chapters[chap_ep-1]:
         chapters[chap_ep-1].update({"end": duration})
     if chap_ep == 1:
+
         logger.info("no chapters found based on tmdb lookup, '{}'".format(srcpath))
     else:
         logger.info("Chapters derived from tmdb lookup, '{}' chapters, '{}' episodes in file '{}'".format(chap_ep, last_episode - first_episode + 1, srcpath))
@@ -670,91 +670,125 @@ def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, wi
     else:
         fr = int(frs)
 
-    # get video scenes using PySceneDetect - assume minimum scene length is 30 seconds 
-    # seek to start of episode window start and collect 6 minutes of frames
-    video = open_video(video_path)
-    scene_manager = SceneManager()
-    scene_manager.add_detector(ThresholdDetector(threshold=15, min_scene_len=int(fr*30)))
-    video.seek(float(window_start))
-    scene_manager.detect_scenes(video, duration=float(window_size)*2*60)
-    scene_list = scene_manager.get_scene_list()
-    if not scene_list:
-        logger.debug(f"Scene list is empty - move to next episode")
-    else:
-        for s in scene_list:
-            logger.debug(f"scene list: {s}")
-
-    # extract collected frames and write to /tmp/unmanic cache
-    fout='%06d.png'
-    for i in range(len(scene_list)):
-        command = ['ffmpeg', '-hwaccel', 'cuda', '-hwaccel_output_format', 'nv12', '-ss', str(scene_list[i][0].get_seconds()), '-to', str(scene_list[i][1].get_seconds()), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1", '-start_number', str(scene_list[i][0].get_frames()), tmp_dir + fout]
-        r=subprocess.run(command, capture_output=True)
-        if r.returncode != 0:
-            logger.debug(f"stderr: {r.stderr.decode()}")
-            logger.debug(f"Failed to find a valid scene - moving to next episode")
-            return '',''
-
-    # perform OCR on captured frames and write to text file
-    os.environ["TESSDATA_PREFIX"] = f"/usr/share/tesseract-ocr/5/tessdata"
-    pngfiles=glob.glob(tmp_dir + '/*.png')
-    for pngfile in pngfiles:
-        pngnum = re.search(r'(\d\d\d\d\d\d).png', pngfile)
-        try:
-            n=pngnum.group(1)
-        except:
-            logger.debug(f"pngfiles: {pngfiles}")
-            logger.debug(f"Failed to find pngfile - moving to next episode")
-            return '',''
-        subprocess.run(['tesseract', pngfile, tmp_dir+"check_" + str(n)], capture_output=True)
-
-    # using credits_dictionary (/config/credits_dictionary) find first file in scenes with text matching any words in credits dictionary
-    # and identify the last file of the credits as that file which has '©' symbol signifying the video's copyright (typically on the last screen of credits)
-    file_list = []
+    # initialize end credits detection parameters
     copyright = ''
     cr_dict = userdata + '/credits_dictionary'
     with open(cr_dict) as cw:
         cwords = cw.read().splitlines()
+    iteration = 0
+    fout='%06d.png'
+    os.environ["TESSDATA_PREFIX"] = f"/usr/share/tesseract-ocr/5/tessdata"
+    try:
+        gpu = subprocess.run(["nvidia-smi"], capture_output=True)
+    except FileNotFoundError:
+        gpu = "no nvidia gpu acceleration"
 
-    for f in glob.glob(tmp_dir + 'check*.txt'):
-        with open(f) as file:
-            strings = file.read()
-            for w in cwords:
-                if w in strings.lower():
-                    file_list.append(f)
-                    if w == '©': copyright=f
+    while not copyright:
+        # get video scenes using PySceneDetect - assume minimum scene length is 30 seconds 
+        # seek to start of episode window start and collect 6 minutes of frames
+        video = open_video(video_path)
+        scene_manager = SceneManager()
+        scene_manager.add_detector(ThresholdDetector(threshold=15, min_scene_len=int(fr*30)))
+        video.seek(float(window_start))
+        scene_manager.detect_scenes(video, duration=float(window_size)*2*60)
+        scene_list = scene_manager.get_scene_list()
+        if not scene_list:
+            logger.debug(f"Scene list is empty - move to next episode/iteration")
+        else:
+            for s in scene_list:
+                logger.debug(f"scene list: {s}")
+
+        # extract collected frames and write to /tmp/unmanic cache
+        if scene_list:
+            for i in range(len(scene_list)):
+                pngfile = tmp_dir + f"{scene_list[i][0].get_frames():06}.png" 
+                if os.path.isfile(pngfile):
+                    continue
+                if gpu != "no nvidia gpu acceleration":
+                    command = ['ffmpeg', '-hwaccel', 'cuda', '-hwaccel_output_format', 'nv12', '-ss', str(scene_list[i][0].get_seconds()), '-to', str(scene_list[i][1].get_seconds()), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1", '-start_number', str(scene_list[i][0].get_frames()), tmp_dir + fout]
+                else:
+                    command = ['ffmpeg', '-ss', str(scene_list[i][0].get_seconds()), '-to', str(scene_list[i][1].get_seconds()), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1", '-start_number', str(scene_list[i][0].get_frames()), tmp_dir + fout]
+                r=subprocess.run(command, capture_output=True)
+                if r.returncode != 0:
+                    logger.debug(f"stderr: {r.stderr.decode()}")
+                    logger.debug(f"Failed to find a valid scene - moving to next frame")
+                    continue
+
+        pngfiles=glob.glob(tmp_dir + '/*.png')
+        if not pngfiles:
+            logger.debug(f"Failed to find valid scene data - no png files created.  Moving to next episode/iteration")
+
+        # perform OCR on captured frames and write to text file
+        for pngfile in pngfiles:
+            pngnum = re.search(r'(\d\d\d\d\d\d).png', pngfile)
+            try:
+                n=pngnum.group(1)
+            except:
+                logger.debug(f"pngfiles: {pngfiles}")
+                logger.debug(f"Failed to find pngfile - moving to next episode")
+            checkfile = tmp_dir + "check_" + str(n)
+            if os.path.isfile(checkfile):
+                continue
+            subprocess.run(['tesseract', pngfile, tmp_dir+"check_" + str(n), '--oem', '1', '--psm', '3'], capture_output=True)
+
+        checkfiles = glob.glob(tmp_dir + 'check*.txt')
+        if not checkfiles:
+            logger.debug(f"Failed to find any text in captured scene images - moving to next episode/ieration")
+
+        # using credits_dictionary (/config/.unmanic/userdata/split_mkv/credits_dictionary) find first file in scenes with text matching any words in credits dictionary
+        # and identify the last file of the credits as that file which has '©' symbol signifying the video's copyright (typically on the last screen of credits)
+        file_list = []
+        for f in checkfiles:
+            with open(f) as file:
+                strings = file.read()
+                for w in cwords:
+                    if w in strings.lower():
+                        file_list.append(f)
+                        if w == '©': copyright=f
+                        break
+
+        file_list.sort()
+        checkfiles.sort()
+        try:
+            firstfile = [i for i in range(len(checkfiles)) if checkfiles[i] == file_list[0]][0]
+        except:
+            firstfile = ''
+        try:
+            lastfile = [i for i in range(len(checkfiles)) if checkfiles[i] == copyright][0]
+        except:
+            lastfile = ''
+
+        # abort if firstfile or lastfile is '' - means it could not find start or end of credits in window
+        if  lastfile == '' or firstfile == '':
+            logger.debug(f"did not find credit start or end in window - expand window size by 3 minutes")
+            if  copyright != '':
+                copyright = ''
+
+        # Adjust lastfile to last frame containing '©' within 3 frames after first found:
+        if lastfile:
+            for adjacent in range(lastfile,lastfile+3):
+                try:
+                    with open(checkfiles[adjacent], 'r') as f:
+                        strings = f.read()
+                        if '©' in strings.lower(): copyright=checkfiles[adjacent]
+                except IndexError:
                     break
 
-    file_list.sort()
-    checkfiles = glob.glob(tmp_dir + 'check*.txt')
-    checkfiles.sort()
-    try:
-        firstfile = [i for i in range(len(checkfiles)) if checkfiles[i] == file_list[0]][0]
-    except:
-        firstfile = ''
-    try:
-        lastfile = [i for i in range(len(checkfiles)) if checkfiles[i] == copyright][0]
-    except:
-        lastfile = ''
+        # Adjust firstfile to first frame containing text within 4 frames prior to first cword found:
+        if firstfile:
+            for adjacent in range(firstfile, firstfile-4, -1):
+                if os.stat(checkfiles[adjacent]).st_size > 0:
+                    firstfile = adjacent
+                else:
+                    break
 
-    # abort if firstfile or lastfile is '' - means it could not find start or end of credits in window
-    if  lastfile == '' or firstfile == '':
-        logger.debug(f"did not find credit start or end in window - move to next episode")
-        return '',''
-
-    # Adjust lastfile to last frame containing '©' within 3 frames after first found:
-    for adjacent in range(lastfile,lastfile+3):
-        try:
-            with open(checkfiles[adjacent], 'r') as f:
-                strings = f.read()
-                if '©' in strings.lower(): copyright=checkfiles[adjacent]
-        except IndexError:
-            break
-
-    # Adjust firstfile to first frame containing text within 4 frames prior to first cword found:
-    for adjacent in range(firstfile, firstfile-4, -1):
-        if os.stat(checkfiles[adjacent]).st_size > 0:
-            firstfile = adjacent
-        else:
+        window_start = str(int(window_start) - 180)
+        window_size = str(int(window_size) +3)
+        iteration += 1
+        if iteration >= 3:
+            logger.debug(f"Expanded window size 2 times and could not find start or end of credits - move to next episode")
+            lastfile = ''
+            firstfile = ''
             break
 
     for f in pngfiles:
