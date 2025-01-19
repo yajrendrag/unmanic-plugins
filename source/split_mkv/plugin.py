@@ -684,7 +684,8 @@ def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, wi
         gpu = "no nvidia gpu acceleration"
 
     while not copyright:
-        # get video scenes using PySceneDetect - assume minimum scene length is 30 seconds 
+        logger.debug(f"Iteration counter: {iteration}")
+        # get video scenes using PySceneDetect - assume minimum scene length is 30 seconds
         # seek to start of episode window start and collect 6 minutes of frames
         video = open_video(video_path)
         scene_manager = SceneManager()
@@ -705,9 +706,9 @@ def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, wi
                 if os.path.isfile(pngfile):
                     continue
                 if gpu != "no nvidia gpu acceleration":
-                    command = ['ffmpeg', '-hwaccel', 'cuda', '-hwaccel_output_format', 'nv12', '-ss', str(scene_list[i][0].get_seconds()), '-to', str(scene_list[i][1].get_seconds()), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1", '-start_number', str(scene_list[i][0].get_frames()), tmp_dir + fout]
+                    command = ['ffmpeg', '-hwaccel', 'cuda', '-hwaccel_output_format', 'nv12', '-ss', str(scene_list[i][0].get_seconds()), '-to', str(scene_list[i][1].get_seconds()), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=2/1", '-start_number', str(scene_list[i][0].get_frames()), tmp_dir + fout]
                 else:
-                    command = ['ffmpeg', '-ss', str(scene_list[i][0].get_seconds()), '-to', str(scene_list[i][1].get_seconds()), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1", '-start_number', str(scene_list[i][0].get_frames()), tmp_dir + fout]
+                    command = ['ffmpeg', '-ss', str(scene_list[i][0].get_seconds()), '-to', str(scene_list[i][1].get_seconds()), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=2/1", '-start_number', str(scene_list[i][0].get_frames()), tmp_dir + fout]
                 r=subprocess.run(command, capture_output=True)
                 if r.returncode != 0:
                     logger.debug(f"stderr: {r.stderr.decode()}")
@@ -782,8 +783,8 @@ def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, wi
                 else:
                     break
 
-        window_start = str(int(window_start) - 180)
-        window_size = str(int(window_size) +3)
+        window_start = str(int(window_start) - 90)
+        window_size = str(float(window_size) + 1.5)
         iteration += 1
         if iteration >= 3:
             logger.debug(f"Expanded window size 2 times and could not find start or end of credits - move to next episode")
@@ -889,8 +890,8 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
         if firstfile and lastfile:
             frame_credit_start = int(firstfile)
             frame_credit_end = int(lastfile)
-            time_credit_start = frame_credit_start*1 + int(window_start)
-            time_credit_end = frame_credit_end*1 + int(window_start)
+            time_credit_start = frame_credit_start*1/2 + float(window_start)
+            time_credit_end = frame_credit_end*1/2 + float(window_start)
             chapters[chap_ep-1]['end'] = time_credit_end
             delta = time_credit_end - cumulative_runtime
             logger.debug(f"credits in episode {episode} start at {time_credit_start} and end at {time_credit_end} in file {srcpath}")

@@ -1,4 +1,9 @@
 
+**<span style="color:#56adda">0.0.40</span>**
+- added debug output of iteration counter
+- fixed window_size calculation to make it grow by 3 minutes
+- changed frame capture rate to 2 frames per second
+
 **<span style="color:#56adda">0.0.39</span>**
 - added iteration to auto expand window up to 2x
 - added code to use gpu accelerated decode on frame capture
