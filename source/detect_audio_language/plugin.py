@@ -173,7 +173,7 @@ def detect_language(video_file, tmp_dir):
         logger.info("File '{}' too short to process (<11.5 minutes), skipping".format(video_file))
         return None
 
-    # Sample 3 random spots from the trimmed video
+    # Sample 6 random spots from the trimmed video
     sample_times = sorted(random.sample(range(int(duration)), 6))
     logger.debug("sample_times: '{}'".format(sample_times))
 
@@ -193,13 +193,14 @@ def detect_language(video_file, tmp_dir):
         _, probs = model.detect_language(mel)
         lang = max(probs, key=probs.get)
         detected_languages.append(lang)
+        logger.debug(f"lang {lang} detected in sample {sample_time}")
 
-    # Check if all detected languages are the same
+    # Check if at least 4 of the 6 samples are the same
     if len(set(detected_languages)) == 1:
         return detected_languages[0]
     elif len(set(detected_languages)) == 2:
         for lang in set(detected_languages):
-          if detected_languages.count(lang) >= 5:
+          if detected_languages.count(lang) >= 4:
             return lang
     else:
         return None

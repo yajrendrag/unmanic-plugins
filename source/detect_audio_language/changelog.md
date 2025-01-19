@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.18</span>**
+- relax % of samples needed to match to 66.6%
+- added lang detected in sample to debug output
+
 **<span style="color:#56adda">0.0.17</span>**
 - fixed description.md file
 - relax % of samples needed to match - but double number of samples
