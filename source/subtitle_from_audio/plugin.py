@@ -322,19 +322,20 @@ def on_worker_process(data):
         lang_in_model = lang_code_to_name(audio_language_to_convert)
         logger.debug("lang_in_model: '{}'".format(lang_in_model))
 
-        if lang_in_model:
+        if lang_in_model or re.search(fr'[0-9]', audio_language_to_convert):
             try:
                 duration = float(probe_format["duration"])
             except KeyError:
                 duration = 0.0
 
             astream = 0
-            astreams = [i for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio']
-            for stream,abs_stream in enumerate(astreams):
-                if 'tags' in probe_streams[abs_stream] and 'language' in probe_streams[abs_stream]['tags'] and probe_streams[abs_stream]['tags']['language'] == audio_language_to_convert:
-                    astream = stream
-                    logger.debug("astream: '{}'".format(astream))
-                    break
+            if not re.search(fr'[0-9]', audio_language_to_convert):
+                astreams = [i for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio']
+                for stream,abs_stream in enumerate(astreams):
+                    if 'tags' in probe_streams[abs_stream] and 'language' in probe_streams[abs_stream]['tags'] and probe_streams[abs_stream]['tags']['language'] == audio_language_to_convert:
+                        astream = stream
+                        logger.debug("astream: '{}'".format(astream))
+                        break
 
             output_dir = os.path.dirname(original_file_path)
             sfx = os.path.splitext(original_file_path)[1]
