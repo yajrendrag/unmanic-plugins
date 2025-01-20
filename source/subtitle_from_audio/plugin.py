@@ -315,7 +315,7 @@ def on_worker_process(data):
     else:
         settings = Settings()
 
-    srt_exists, audio_language_to_convert = srt_already_created(settings, abspath, probe_streams)
+    srt_exists, audio_language_to_convert = srt_already_created(settings, original_file_path, probe_streams)
     logger.debug("srt_exists: '{}', audio_language_to_convert: '{}'".format(srt_exists, audio_language_to_convert))
 
     if not srt_exists and audio_language_to_convert != "":
