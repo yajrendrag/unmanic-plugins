@@ -8,10 +8,8 @@
     Date:                     17 Jan 2025(09:45 AM)
 
     Copyright:
-        Unmanic plugin code Copyright (C) 2024, 2025 Jay Gardner
-        PySceneDetect module code Copyright (C) 2024, Brandon Castellano
+        Copyright (C) 2024-2025 Jay Gardner
 
-        Unmanic Code:
         This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
         Public License as published by the Free Software Foundation, version 3.
 
@@ -21,11 +19,6 @@
 
         You should have received a copy of the GNU General Public License along with this program.
         If not, see <https://www.gnu.org/licenses/>.
-
-        PySceneDetect:
-        This Unmanic plugin module uses PySceneDetect (https://github.com/Breakthrough/PySceneDetect) which is governed by it's own
-        license terms using BSD 3-Clause "New" or "Revised" License.  The text of this license has accompanied this program (PySceneDetectLICENSE).
-        If for some reason you do not have it, please refer to <https://github.com/Breakthrough/PySceneDetect/blob/main/LICENSE>.
 
 """
 import logging
@@ -39,10 +32,6 @@ import shlex
 import PTN
 import requests
 import subprocess
-import numpy as np
-from scenedetect import open_video, detect, SceneManager, ContentDetector
-from scenedetect.detectors import ThresholdDetector
-import cv2
 
 from unmanic.libs.unplugins.settings import PluginSettings
 from unmanic.libs.library import Library
@@ -661,14 +650,14 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
         r = subprocess.run(['mkvpropedit', cache_file, '--chapters', tmp_dir + 'chapters.xml'], capture_output=True)
         return [True]
 
-def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, width, height, userdata):
+def get_credits_start_and_end(video_path, tmp_dir, calculated_cumulative_duration, window_size, width, height, userdata):
 
     # get video frame rate from ffprobe
     frs = ffmpeg.probe(video_path)["streams"][0]['r_frame_rate']
     if '/' in frs:
-        fr = int(frs.split('/')[0])/int(frs.split('/')[1])
+        fr = float(frs.split('/')[0])/float(frs.split('/')[1])
     else:
-        fr = int(frs)
+        fr = float(frs)
 
     # initialize end credits detection parameters
     copyright = ''
@@ -682,38 +671,26 @@ def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, wi
         gpu = subprocess.run(["nvidia-smi"], capture_output=True)
     except FileNotFoundError:
         gpu = "no nvidia gpu acceleration"
+    window_start = str(round(calculated_cumulative_duration - int(window_size) * 60))
+    window_end = str(round(calculated_cumulative_duration + int(window_size) * 60))
 
     while not copyright:
         logger.debug(f"Iteration counter: {iteration}")
-        # get video scenes using PySceneDetect - assume minimum scene length is 30 seconds
-        # seek to start of episode window start and collect 6 minutes of frames
-        video = open_video(video_path)
-        scene_manager = SceneManager()
-        scene_manager.add_detector(ThresholdDetector(threshold=15, min_scene_len=int(fr*30)))
-        video.seek(float(window_start))
-        scene_manager.detect_scenes(video, duration=float(window_size)*2*60)
-        scene_list = scene_manager.get_scene_list()
-        if not scene_list:
-            logger.debug(f"Scene list is empty - move to next episode/iteration")
-        else:
-            for s in scene_list:
-                logger.debug(f"scene list: {s}")
+        logger.debug(f"calculated_cumulative_duration: {calculated_cumulative_duration}")
+        logger.debug(f"window_start: {window_start}; window_end: {window_end}")
+        logger.debug(f"window_size: {window_size}")
 
         # extract collected frames and write to /tmp/unmanic cache
-        if scene_list:
-            for i in range(len(scene_list)):
-                pngfile = tmp_dir + f"{scene_list[i][0].get_frames():06}.png" 
-                if os.path.isfile(pngfile):
-                    continue
-                if gpu != "no nvidia gpu acceleration":
-                    command = ['ffmpeg', '-hwaccel', 'cuda', '-hwaccel_output_format', 'nv12', '-ss', str(scene_list[i][0].get_seconds()), '-to', str(scene_list[i][1].get_seconds()), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=2/1", '-start_number', str(scene_list[i][0].get_frames()), tmp_dir + fout]
-                else:
-                    command = ['ffmpeg', '-ss', str(scene_list[i][0].get_seconds()), '-to', str(scene_list[i][1].get_seconds()), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=2/1", '-start_number', str(scene_list[i][0].get_frames()), tmp_dir + fout]
-                r=subprocess.run(command, capture_output=True)
-                if r.returncode != 0:
-                    logger.debug(f"stderr: {r.stderr.decode()}")
-                    logger.debug(f"Failed to find a valid scene - moving to next frame")
-                    continue
+        start_number = round(fr*float(window_start))
+        if gpu != "no nvidia gpu acceleration":
+            command = ['ffmpeg', '-hwaccel', 'cuda', '-hwaccel_output_format', 'nv12', '-ss', str(window_start), '-to', str(window_end), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1", '-start_number', str(start_number), tmp_dir + fout]
+        else:
+            command = ['ffmpeg', '-ss', str(window_start), '-to', str(window_end), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1", '-start_number', str(start_number), tmp_dir + fout]
+        r=subprocess.run(command, capture_output=True)
+        if r.returncode != 0:
+            logger.debug(f"stderr: {r.stderr.decode()}")
+            logger.debug(f"Failed to extract frames")
+            return '', '',  window_start, window_end
 
         pngfiles=glob.glob(tmp_dir + '/*.png')
         if not pngfiles:
@@ -783,7 +760,10 @@ def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, wi
                 else:
                     break
 
+        old_window_start = window_start
+        old_window_end = window_end
         window_start = str(int(window_start) - 90)
+        window_start = str(int(window_end) + 90)
         window_size = str(float(window_size) + 1.5)
         iteration += 1
         if iteration >= 3:
@@ -797,7 +777,7 @@ def get_credits_start_and_end(video_path, tmp_dir, window_start, window_size, wi
     for f in checkfiles:
         os.remove(f)
 
-    return firstfile, lastfile
+    return firstfile, lastfile, old_window_start, old_window_end
 
 def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
     """
@@ -882,16 +862,17 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
         cumulative_runtime = sum(float(i) for i in episode_runtimes)
         chapters[chap_ep-1].update({"end": cumulative_runtime})
         chap_start = cumulative_runtime + 1
-        window_start = str(int(cumulative_runtime - int(window_size)*60))
-        window_end = str(int(cumulative_runtime + int(window_size)*60))
 
-        firstfile, lastfile = get_credits_start_and_end(cache_file, tmp_dir, window_start, window_size, width, height, userdata)
+        firstfile, lastfile, window_start, window_end = get_credits_start_and_end(cache_file, tmp_dir, cumulative_runtime, window_size, width, height, userdata)
+        logger.debug(f"firstfile: {firstfile}; lastfile; {lastfile}")
+        logger.debug(f"window_start: {window_start}; window_end: {window_end}")
 
         if firstfile and lastfile:
             frame_credit_start = int(firstfile)
             frame_credit_end = int(lastfile)
-            time_credit_start = frame_credit_start*1/2 + float(window_start)
-            time_credit_end = frame_credit_end*1/2 + float(window_start)
+            # the fractions below should be the reciprocals of the fraction in the fps filter in the ffmpeg command in get_credits_start_and_end
+            time_credit_start = frame_credit_start*1/1 + float(window_start)
+            time_credit_end = frame_credit_end*1/1 + float(window_start)
             chapters[chap_ep-1]['end'] = time_credit_end
             delta = time_credit_end - cumulative_runtime
             logger.debug(f"credits in episode {episode} start at {time_credit_start} and end at {time_credit_end} in file {srcpath}")

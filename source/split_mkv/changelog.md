@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.41</span>**
+- remove PySceneDetect & revert to just generating frames based on window tims
+
 **<span style="color:#56adda">0.0.40</span>**
 - added debug output of iteration counter
 - fixed window_size calculation to make it grow by 3 minutes
