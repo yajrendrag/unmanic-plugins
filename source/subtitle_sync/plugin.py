@@ -152,15 +152,15 @@ def matching_astream_in_video_file(lang, sub_languages_to_sync_iso639, abspath, 
             if probe:
                 streams = ffmpeg.probe(video_file)['streams']
                 astreams = [i for i in range(len(streams)) if 'codec_type' in streams[i] and streams[i]['codec_type'] == 'audio']
-                astream = [s for s in range(len(streams)) if 'codec_type' in streams[s] and streams[s]['codec_type'] == 'audio' and 'tags' in streams[s] and
-                           'language' in streams[s]['tags'] and iso639.Language.match(streams[s]['tags']['language']) == iso639.Language.match(lang)]
+                astream_lang_index = [i for i,s in enumerate(astreams) if 'codec_type' in streams[s] and streams[s]['codec_type'] == 'audio' and 'tags' in streams[s] and
+                                     'language' in streams[s]['tags'] and iso639.Language.match(streams[s]['tags']['language']) == iso639.Language.match(lang)]
                 try:
                     duration = float(ffmpeg.probe(video_file)['format']['duration'])
                 except KeyError:
                     logger.error(f"duration not available - ETA counter will not function")
                     duration = 0.0
 
-    return astream, astreams, video_file
+    return astream_lang_index, astreams, video_file
 
 def on_library_management_file_test(data):
     """
@@ -295,7 +295,7 @@ def on_worker_process(data):
     preferred_audio_stream = astream[0]
     if len(astream) > 1:
         streams = ffmpeg.probe(video_file)['streams']
-        stream_channels = [streams[astream[i]]['channels'] for i in range(len(astream))]
+        stream_channels = [streams[astreams[astream[i]]]['channels'] for i in range(len(astream))]
         for i in range(len(stream_channels)):
             if stream_channels[i] == 2 and mc_st == 'stereo':
                 preferred_audio_stream = astream[i]

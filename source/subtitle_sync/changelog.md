@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.9</span>**
+- return the audio stream index and not the absolute stream index in matching_astream_in_video_file
+
 **<span style="color:#56adda">0.0.8</span>**
 - modify basefile & lang parsing in get_sub_lang function to accommodate '.'s in other parts of pathname
 
