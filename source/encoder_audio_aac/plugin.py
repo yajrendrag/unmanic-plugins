@@ -134,6 +134,8 @@ class PluginStreamMapper(StreamMapper):
     @staticmethod
     def calculate_bitrate(stream_info: dict):
         channels = stream_info.get('channels', 2)
+        if int(channels) > 6:
+            channels = 6
         return int(channels) * 64
 
     def test_stream_needs_processing(self, stream_info: dict):
@@ -152,6 +154,8 @@ class PluginStreamMapper(StreamMapper):
                 # Use 64K for the bitrate per channel
                 calculated_bitrate = self.calculate_bitrate(stream_info)
                 channels = int(stream_info.get('channels'))
+                if int(channels) > 6:
+                    channels = 6
                 stream_encoding += [
                     '-ac:a:{}'.format(stream_id), '{}'.format(channels), '-b:a:{}'.format(stream_id), "{}k".format(calculated_bitrate)
                 ]

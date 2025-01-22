@@ -1,5 +1,8 @@
 
 **<span style="color:#56adda">0.0.6</span>**
+- add check in calculate_bitrate and custom_stream_mapping to set channels to 6 if channels > 6.  ffmpeg cannot encode > 6 channels of aac audio.
+
+**<span style="color:#56adda">0.0.6</span>**
 - add 'ac' parameter to ffmpeg command to ensure proper channel_layout field for compatiability with normalization plugin to avoid unsupported channel layout error
 
 **<span style="color:#56adda">0.0.5</span>**
