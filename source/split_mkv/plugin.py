@@ -660,7 +660,7 @@ def get_credits_start_and_end(video_path, tmp_dir, calculated_cumulative_duratio
         fr = float(frs)
 
     # initialize end credits detection parameters
-    copyright = ''
+    cright = ''
     cr_dict = userdata + '/credits_dictionary'
     with open(cr_dict) as cw:
         cwords = cw.read().splitlines()
@@ -674,7 +674,7 @@ def get_credits_start_and_end(video_path, tmp_dir, calculated_cumulative_duratio
     window_start = str(round(calculated_cumulative_duration - int(window_size) * 60))
     window_end = str(round(calculated_cumulative_duration + int(window_size) * 60))
 
-    while not copyright:
+    while not cright:
         logger.debug(f"Iteration counter: {iteration}")
         logger.debug(f"calculated_cumulative_duration: {calculated_cumulative_duration}")
         logger.debug(f"window_start: {window_start}; window_end: {window_end}")
@@ -722,8 +722,9 @@ def get_credits_start_and_end(video_path, tmp_dir, calculated_cumulative_duratio
                 for w in cwords:
                     if w in strings.lower():
                         file_list.append(f)
-                        if w == '©': copyright=f
-                        break
+                        if w == '©':
+                            cright=f
+                            break
 
         file_list.sort()
         checkfiles.sort()
@@ -732,15 +733,15 @@ def get_credits_start_and_end(video_path, tmp_dir, calculated_cumulative_duratio
         except:
             firstfile = ''
         try:
-            lastfile = [i for i in range(len(checkfiles)) if checkfiles[i] == copyright][0]
+            lastfile = [i for i in range(len(checkfiles)) if checkfiles[i] == cright][0]
         except:
             lastfile = ''
 
         # abort if firstfile or lastfile is '' - means it could not find start or end of credits in window
         if  lastfile == '' or firstfile == '':
             logger.debug(f"did not find credit start or end in window - expand window size by 3 minutes")
-            if  copyright != '':
-                copyright = ''
+            if  cright != '':
+                cright = ''
 
         # Adjust lastfile to last frame containing '©' within 3 frames after first found:
         if lastfile:
@@ -748,7 +749,7 @@ def get_credits_start_and_end(video_path, tmp_dir, calculated_cumulative_duratio
                 try:
                     with open(checkfiles[adjacent], 'r') as f:
                         strings = f.read()
-                        if '©' in strings.lower(): copyright=checkfiles[adjacent]
+                        if '©' in strings.lower(): cright=checkfiles[adjacent]
                 except IndexError:
                     break
 

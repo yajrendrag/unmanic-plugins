@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.42</span>**
+- break out of loop after identifying copyright character
+
 **<span style="color:#56adda">0.0.41</span>**
 - remove PySceneDetect & revert to just generating frames based on window tims
 
