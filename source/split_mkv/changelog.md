@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.43</span>**
+- fix window_end adjustment when window size expand
+
 **<span style="color:#56adda">0.0.42</span>**
 - break out of loop after identifying copyright character
 

@@ -764,7 +764,7 @@ def get_credits_start_and_end(video_path, tmp_dir, calculated_cumulative_duratio
         old_window_start = window_start
         old_window_end = window_end
         window_start = str(int(window_start) - 90)
-        window_start = str(int(window_end) + 90)
+        window_end = str(int(window_end) + 90)
         window_size = str(float(window_size) + 1.5)
         iteration += 1
         if iteration >= 3:
