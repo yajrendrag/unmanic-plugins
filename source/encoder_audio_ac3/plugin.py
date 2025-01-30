@@ -139,6 +139,9 @@ class PluginStreamMapper(StreamMapper):
             logger.debug("Stream did not contain 'channels'. Setting max AC3 bit rate (640k).")
             return '640'
 
+        if int(channels) > 6:
+            channels = 6
+
         # Determine bitrate based on source channel count
         if int(channels) <= 2:
             logger.debug("Stream 'channels' is <= 2. Setting AC3 bit rate to 448k.")
@@ -171,6 +174,8 @@ class PluginStreamMapper(StreamMapper):
                 # Use 64K for the bitrate per channel
                 calculated_bitrate = self.calculate_bitrate(stream_info)
                 channels = int(stream_info.get('channels'))
+                if int(channels) > 6:
+                    channels = 6
                 stream_encoding += [
                     '-ac:a:{}'.format(stream_id), '{}'.format(channels), '-b:a:{}'.format(stream_id), "{}k".format(calculated_bitrate)
                 ]
