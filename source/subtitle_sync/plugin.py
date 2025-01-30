@@ -137,10 +137,12 @@ def file_is_subtitle(probe):
 def matching_astream_in_video_file(lang, sub_languages_to_sync_iso639, abspath, basefile):
     global duration
 
-    mimetypes.add_type('video/mastroska', 'mkv')
+    mimetypes.add_type('video/mastroska', '.mkv')
+    mimetypes.add_type('video/MP2T', '.ts')
     astream = []
     astreams = []
     video_file = ""
+    astream_lang_index = []
     video_suffix_list = [k for k in mimetypes.types_map if 'video/' in mimetypes.types_map[k]]
     if lang and iso639.Language.match(lang) in sub_languages_to_sync_iso639:
         logger.info (f"Language code {lang} subtitle stream found in file {abspath}")

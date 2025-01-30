@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.10</span>**
+- correct mimetype additions to include the '.'
+- initialize astream_lang_index
+
 **<span style="color:#56adda">0.0.9</span>**
 - return the audio stream index and not the absolute stream index in matching_astream_in_video_file
 
