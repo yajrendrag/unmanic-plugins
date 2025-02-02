@@ -32,6 +32,9 @@ import shlex
 import PTN
 import requests
 import subprocess
+import cv2
+import imagehash
+from PIL import Image
 
 from unmanic.libs.unplugins.settings import PluginSettings
 from unmanic.libs.library import Library
@@ -51,6 +54,9 @@ class Settings(PluginSettings):
         "tmdb_api_key":              "enter your tmdb apikey",
         "tmdb_api_read_access_token":    "enter your tmdb api read access token",
         "window_size":           "3",
+        "group_of_frames":       "3",
+        "frame_batch":           "120",
+        "threshold":             "5",
     }
 
     def __init__(self, *args, **kwargs):
@@ -70,6 +76,9 @@ class Settings(PluginSettings):
             "tmdb_api_key": self.__set_tmdb_api_key_form_settings(),
             "tmdb_api_read_access_token": self.__set_tmdb_api_read_access_token_form_settings(),
             "window_size":         self.__set_window_size_form_settings(),
+            "group_of_frames":         self.__set_group_of_frames_form_settings(),
+            "frame_batch":         self.__set_frame_batch_form_settings(),
+            "threshold":         self.__set_threshold_form_settings(),
         }
 
     def __set_split_method_form_settings(self):
@@ -100,7 +109,7 @@ class Settings(PluginSettings):
                 },
                 {
                     "value": 'credits',
-                    "label": 'Create chapter marks based on looking up episode duration on tmdb and fine tuning with text search for credits',
+                    "label": 'Create chapter marks based on looking up episode duration on tmdb and fine tuning with imagehash analysis of sequence of frames',
                 },
             ],
         }
@@ -218,6 +227,51 @@ class Settings(PluginSettings):
                 "min": 1,
                 "max": 12,
                 "step": .1
+            }
+        }
+        if self.get_setting('split_method') != 'credits':
+            values["display"] = 'hidden'
+        return values
+
+    def __set_group_of_frames_form_settings(self):
+        values = {
+            "label":          "Frame Frequency",
+            "description":    "Sample every N frames - 3 is a good starting point",
+            "input_type":     "slider",
+            "slider_options": {
+                "min": 1,
+                "max": 12,
+                "step": .1
+            }
+        }
+        if self.get_setting('split_method') != 'credits':
+            values["display"] = 'hidden'
+        return values
+
+    def __set_frame_batch_form_settings(self):
+        values = {
+            "label":          "Frame batch size",
+            "description":    "target batch size * frame frequency / video frame rate to be about 10-15 seconds",
+            "input_type":     "slider",
+            "slider_options": {
+                "min": 10,
+                "max": 300,
+                "step": 10
+            }
+        }
+        if self.get_setting('split_method') != 'credits':
+            values["display"] = 'hidden'
+        return values
+
+    def __set_threshold_form_settings(self):
+        values = {
+            "label":          "Hamming distance threshold",
+            "description":    "maximum difference between two frame hash values - frame differences less than this value means the two compared frames are close enough to identical.  5 is a good start",
+            "input_type":     "slider",
+            "slider_options": {
+                "min": 1,
+                "max": 10,
+                "step": 1
             }
         }
         if self.get_setting('split_method') != 'credits':
@@ -650,135 +704,39 @@ def get_chapters_based_on_tmdb(srcpath, duration, tmp_dir, settings):
         r = subprocess.run(['mkvpropedit', cache_file, '--chapters', tmp_dir + 'chapters.xml'], capture_output=True)
         return [True]
 
-def get_credits_start_and_end(video_path, tmp_dir, calculated_cumulative_duration, window_size, width, height, userdata):
-
-    # get video frame rate from ffprobe
-    frs = ffmpeg.probe(video_path)["streams"][0]['r_frame_rate']
-    if '/' in frs:
-        fr = float(frs.split('/')[0])/float(frs.split('/')[1])
-    else:
-        fr = float(frs)
-
-    # initialize end credits detection parameters
-    cright = ''
-    cr_dict = userdata + '/credits_dictionary'
-    with open(cr_dict) as cw:
-        cwords = cw.read().splitlines()
-    iteration = 0
-    fout='%06d.png'
-    os.environ["TESSDATA_PREFIX"] = f"/usr/share/tesseract-ocr/5/tessdata"
-    try:
-        gpu = subprocess.run(["nvidia-smi"], capture_output=True)
-    except FileNotFoundError:
-        gpu = "no nvidia gpu acceleration"
-    window_start = str(round(calculated_cumulative_duration - int(window_size) * 60))
-    window_end = str(round(calculated_cumulative_duration + int(window_size) * 60))
-
-    while not cright:
-        logger.debug(f"Iteration counter: {iteration}")
-        logger.debug(f"calculated_cumulative_duration: {calculated_cumulative_duration}")
-        logger.debug(f"window_start: {window_start}; window_end: {window_end}")
-        logger.debug(f"window_size: {window_size}")
-
-        # extract collected frames and write to /tmp/unmanic cache
-        start_number = round(fr*float(window_start))
-        if gpu != "no nvidia gpu acceleration":
-            command = ['ffmpeg', '-hwaccel', 'cuda', '-hwaccel_output_format', 'nv12', '-ss', str(window_start), '-to', str(window_end), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1", '-start_number', str(start_number), tmp_dir + fout]
-        else:
-            command = ['ffmpeg', '-ss', str(window_start), '-to', str(window_end), '-i', video_path, '-vf', f"crop={width}:{height-100}:0:100,fps=1/1", '-start_number', str(start_number), tmp_dir + fout]
-        r=subprocess.run(command, capture_output=True)
-        if r.returncode != 0:
-            logger.debug(f"stderr: {r.stderr.decode()}")
-            logger.debug(f"Failed to extract frames")
-            return '', '',  window_start, window_end
-
-        pngfiles=glob.glob(tmp_dir + '/*.png')
-        if not pngfiles:
-            logger.debug(f"Failed to find valid scene data - no png files created.  Moving to next episode/iteration")
-
-        # perform OCR on captured frames and write to text file
-        for pngfile in pngfiles:
-            pngnum = re.search(r'(\d\d\d\d\d\d).png', pngfile)
-            try:
-                n=pngnum.group(1)
-            except:
-                logger.debug(f"pngfiles: {pngfiles}")
-                logger.debug(f"Failed to find pngfile - moving to next episode")
-            checkfile = tmp_dir + "check_" + str(n)
-            if os.path.isfile(checkfile):
-                continue
-            subprocess.run(['tesseract', pngfile, tmp_dir+"check_" + str(n), '--oem', '1', '--psm', '3'], capture_output=True)
-
-        checkfiles = glob.glob(tmp_dir + 'check*.txt')
-        if not checkfiles:
-            logger.debug(f"Failed to find any text in captured scene images - moving to next episode/ieration")
-
-        # using credits_dictionary (/config/.unmanic/userdata/split_mkv/credits_dictionary) find first file in scenes with text matching any words in credits dictionary
-        # and identify the last file of the credits as that file which has '©' symbol signifying the video's copyright (typically on the last screen of credits)
-        file_list = []
-        for f in checkfiles:
-            with open(f) as file:
-                strings = file.read()
-                for w in cwords:
-                    if w in strings.lower():
-                        file_list.append(f)
-                        if w == '©':
-                            cright=f
-                            break
-
-        file_list.sort()
-        checkfiles.sort()
-        try:
-            firstfile = [i for i in range(len(checkfiles)) if checkfiles[i] == file_list[0]][0]
-        except:
-            firstfile = ''
-        try:
-            lastfile = [i for i in range(len(checkfiles)) if checkfiles[i] == cright][0]
-        except:
-            lastfile = ''
-
-        # abort if firstfile or lastfile is '' - means it could not find start or end of credits in window
-        if  lastfile == '' or firstfile == '':
-            logger.debug(f"did not find credit start or end in window - expand window size by 3 minutes")
-            if  cright != '':
-                cright = ''
-
-        # Adjust lastfile to last frame containing '©' within 3 frames after first found:
-        if lastfile:
-            for adjacent in range(lastfile,lastfile+3):
-                try:
-                    with open(checkfiles[adjacent], 'r') as f:
-                        strings = f.read()
-                        if '©' in strings.lower(): cright=checkfiles[adjacent]
-                except IndexError:
-                    break
-
-        # Adjust firstfile to first frame containing text within 4 frames prior to first cword found:
-        if firstfile:
-            for adjacent in range(firstfile, firstfile-4, -1):
-                if os.stat(checkfiles[adjacent]).st_size > 0:
-                    firstfile = adjacent
-                else:
-                    break
-
-        old_window_start = window_start
-        old_window_end = window_end
-        window_start = str(int(window_start) - 90)
-        window_end = str(int(window_end) + 90)
-        window_size = str(float(window_size) + 1.5)
-        iteration += 1
-        if iteration >= 3:
-            logger.debug(f"Expanded window size 2 times and could not find start or end of credits - move to next episode")
-            lastfile = ''
-            firstfile = ''
+def extract_frames(video_path, start_time, end_time, interval=1):
+    video = cv2.VideoCapture(video_path)
+    fr = video.get(cv2.CAP_PROP_FPS)
+    start_frame = int(start_time * fr)
+    end_frame = int(end_time * fr)
+    frames = []
+    for count in range(start_frame, end_frame + interval, interval):
+        video.set(cv2.CAP_PROP_POS_FRAMES, count)
+        ret, frame = video.read()
+        if not ret:
             break
+        frames.append(frame)
+    video.release()
+    return frames
 
-    for f in pngfiles:
-        os.remove(f)
-    for f in checkfiles:
-        os.remove(f)
+def compute_hashes(frames):
+    hashes = []
+    for frame in frames:
+        img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        hash = imagehash.dhash(img)
+        hashes.append(hash)
+    return hashes
 
-    return firstfile, lastfile, old_window_start, old_window_end
+def compare_sequences(hashes1, hashes2, window_size=10, threshold=5):
+    matches = []
+    for i in range(len(hashes1) - window_size + 1):
+        for j in range(len(hashes2) - window_size + 1):
+            match_count = sum(hashes1[i+k] - hashes2[j+k] <= threshold for k in range(window_size))
+            if match_count >= 0.75 * window_size:
+                matches.append((i, j))
+                # returning after the first match defines the start of the episode
+                return matches
+    return matches
 
 def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
     """
@@ -799,14 +757,14 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
         raise Exception("Chapter marks removal issue")
         return
 
+    # get input data for tmdb lookup
     tmdb_api_key = settings.get_setting("tmdb_api_key")
     tmdb_api_read_access_token = settings.get_setting("tmdb_api_read_access_token")
     tmdburl = 'https://api.themoviedb.org/3/search/tv?query='
     tmdb_season_url = 'https://api.themoviedb.org/3/tv/'
     headers = {'accept': 'application/json', 'Authorization': 'Bearer ' + tmdb_api_read_access_token}
-    window_size = settings.get_setting("window_size")
-    userdata = settings.get_profile_directory()
 
+    # parse file name for show title, starting, ending episodes, & season number
     parsed_info = get_parsed_info(split_base)
 
     try:
@@ -835,6 +793,7 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
         raise Exception("Unable to parse Season from multiepisode file name")
         return False
 
+    # get tmdb series id
     vurl = tmdburl + title + '&api_key=' + tmdb_api_key
     try:
         video = requests.request("GET", vurl, headers=headers)
@@ -844,47 +803,60 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
         raise Exception(f"Unable to find video {srcpath} in tmdb")
         return False
 
+    # initialize parameters for imagehash analysis
     chapters = []
     chap_ep = 1
     chapters.append({"start": 0.0})
     episode_runtimes = []
-    stream=[s['index'] for s in ffmpeg.probe(cache_file)['streams'] if s['codec_type'] == 'video']
-    if stream:
-        width = ffmpeg.probe(cache_file)['streams'][stream[0]]['width']
-        height = ffmpeg.probe(cache_file)['streams'][stream[0]]['height']
-    else:
-        logger.error(f"Cannot find video stream in file {cache_file} to extract width and height - aborting")
-        return False
-    for episode in range(first_episode, last_episode):
-        show_url = tmdb_season_url + str(id) + '/season/' + str(season) + '/episode/' + str(episode)
+    video = cv2.VideoCapture(cache_file)
+    fr = video.get(cv2.CAP_PROP_FPS)
+    video.release()
+    start_adjustment = 0
+    ep_offset = first_episode -1
+    group_of_frames = int(settings.get_setting("group_of_frames"))
+    frame_batch = int(settings.get_setting("frame_batch"))
+    threshold = int(settings.get_setting("threshold"))
+    window_size = int(settings.get_setting("window_size"))*60
+
+    # get hashes for first episode - use this as the reference frame
+    frames1 = extract_frames(cache_file, 0, window_size, group_of_frames)
+    hashes1 = compute_hashes(frames1)
+
+    for episode in range(first_episode-ep_offset, last_episode-ep_offset):
+        show_url = tmdb_season_url + str(id) + '/season/' + str(season) + '/episode/' + str(episode + ep_offset)
         episode_result = requests.request("GET", show_url, headers=headers)
         episode_duration = float(episode_result.json()['runtime'])
         episode_runtimes.append(episode_duration * 60.0)
-        cumulative_runtime = sum(float(i) for i in episode_runtimes)
-        chapters[chap_ep-1].update({"end": cumulative_runtime})
-        chap_start = cumulative_runtime + 1
+        logger.debug(f"episode_runtimes: {episode_runtimes}")
 
-        firstfile, lastfile, window_start, window_end = get_credits_start_and_end(cache_file, tmp_dir, cumulative_runtime, window_size, width, height, userdata)
-        logger.debug(f"firstfile: {firstfile}; lastfile; {lastfile}")
-        logger.debug(f"window_start: {window_start}; window_end: {window_end}")
+        start_time = sum(episode_runtimes) - window_size
+        end_time = sum(episode_runtimes) + window_size
+        logger.debug(f"episode: {episode}, start_time: {start_time}, end_time: {end_time}")
+        frames2 = extract_frames(cache_file, start_time, end_time, group_of_frames)
+        hashes2 = compute_hashes(frames2)
+        match_sequence = compare_sequences(hashes1, hashes2, frame_batch, threshold)
+        if match_sequence:
+            t1 = match_sequence[0][0] * group_of_frames / fr
+            t2 = match_sequence[0][1] * group_of_frames / fr + start_time
+            if episode == 1:
+                logger.debug(f"start of episode {first_episode} is {match_sequence[0][0]} frames after start which equates to {t1} seconds")
+            logger.debug(f"start of episode {episode + 1 + ep_offset} is {match_sequence[0][1]} frames after start of episode which equates to {t2} seconds")
+            start_adjustment = sum(episode_runtimes) - t2
+            episode_runtimes[episode-1] -= start_adjustment
+        else:
+            logger.error(f"Unable to identify matching sequence of frames of sufficient length between the episodes")
+            return False
 
-        if firstfile and lastfile:
-            frame_credit_start = int(firstfile)
-            frame_credit_end = int(lastfile)
-            # the fractions below should be the reciprocals of the fraction in the fps filter in the ffmpeg command in get_credits_start_and_end
-            time_credit_start = frame_credit_start*1/1 + float(window_start)
-            time_credit_end = frame_credit_end*1/1 + float(window_start)
-            chapters[chap_ep-1]['end'] = time_credit_end
-            delta = time_credit_end - cumulative_runtime
-            logger.debug(f"credits in episode {episode} start at {time_credit_start} and end at {time_credit_end} in file {srcpath}")
-            episode_runtimes[chap_ep-1] += delta
-            chap_start = time_credit_end + 1
+        chapters[chap_ep-1].update({"end": t2 - 0.1})
+        chap_start = t2
+
         chap_ep += 1
         chapters.append({"start": chap_start})
         logger.debug(f"current chapters: {chapters}")
 
     if "end" not in chapters[chap_ep-1]:
         chapters[chap_ep-1].update({"end": duration})
+
     logger.debug(f"final chapters: {chapters}")
     if chap_ep == 1:
         logger.info("no chapters found based on tmdb lookup, '{}'".format(srcpath))

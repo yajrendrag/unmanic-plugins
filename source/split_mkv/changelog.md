@@ -1,4 +1,9 @@
 
+**<span style="color:#56adda">0.0.44</span>**
+- rewrote credits method to identify a sequence of identical frames across episodes
+- no longer uses credit words
+- adds imagehash python module
+
 **<span style="color:#56adda">0.0.43</span>**
 - fix window_end adjustment when window size expand
 
