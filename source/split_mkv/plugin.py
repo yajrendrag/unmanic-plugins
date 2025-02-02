@@ -863,6 +863,7 @@ def get_chapters_from_credits(srcpath, duration, tmp_dir, settings):
     else:
         logger.info("Chapters derived from tmdb lookup, '{}' chapters, '{}' episodes in file '{}'".format(chap_ep, last_episode - first_episode + 1, srcpath))
 
+    logger.debug(f"chap_ep: {chap_ep}")
     if chap_ep > 1:
         print_chap_file(tmp_dir, chapters, first_episode, chap_ep)
         r = subprocess.run(['mkvpropedit', cache_file, '--chapters', tmp_dir + 'chapters.xml'], capture_output=True)
