@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- rewrote analyze function
+
 **<span style="color:#56adda">0.0.4</span>**
 - add option to analyze media file
 

@@ -73,26 +73,13 @@ def analyze_video(media_dir, plex_url, plex_token):
         video = parsed_info['episodeName']
     except KeyError:
         video = parsed_info['title']
-    query_url = plex_url + '/search/?X-Plex-Token=' + plex_token + '&query=' + video
-    response = requests.get(query_url, headers=headers)
-    if response.status_code == 200:
-        videos = response.json()['MediaContainer']['Metadata']
-        for vid in range(len(videos)):
-            if basename in videos[vid]['Media'][0]['Part'][0]['file']:
-                if videos[vid]['type'] == 'movie':
-                    lib = plex.library.section(videos[vid]['librarySectionTitle'])
-                    movie=lib.get(video)
-                    logger.debug(f"analyzing movie {basename} in library {videos[vid]['librarySectionTitle']}")
-                    movie.analyze()
-                else:
-                    show_title = parsed_info['title']
-                    if videos[vid]['title'] == video:
-                        lib = plex.library.section(videos[vid]['librarySectionTitle'])
-                        episodes = lib.get(show_title).episodes()
-                        for k in range(len(episodes)):
-                            if episodes[k].title == video:
-                                logger.debug(f"analyzing show {basename} in library {videos[vid]['librarySectionTitle']}")
-                                episodes[k].analyze()
+    item = plex.library.search(title=video)
+    for i in item:
+        i.analyze()
+        if i.type == 'episode':
+            logger.info(f"analyzing {i.show().title} Season {i.season().seasonNumber}, episode {i.episodeNumber}, {i.title}")
+        else:
+            logger.info(f"analyzing video {i.title}")
 
 def on_postprocessor_task_results(data):
     """
