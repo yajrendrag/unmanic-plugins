@@ -24,6 +24,9 @@ from unmanic.libs.unplugins.settings import PluginSettings
 import requests
 import re
 import urllib.parse
+from plexapi.server import PlexServer
+import os
+import PTN
 
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.notify_plex_partial")
@@ -35,6 +38,7 @@ class Settings(PluginSettings):
         'Plex Token':              '',
         'Unmanic Library Mapping':	'',
         'Notify on Task Failure?': False,
+        'Analyze Video':           False,
     }
 
 def get_section(media_dir, plex_url, plex_token):
@@ -58,6 +62,37 @@ def update_plex(plex_url, plex_token, media_dir, section_id):
         logger.info("Notifying Plex ({}) to update its library.".format(plex_url))
     else:
         logger.error("Error requesting Plex to update: '{}'".format(media_dir))
+
+def analyze_video(media_dir, plex_url, plex_token):
+    headers = {'Accept': 'application/json'}
+    plex = PlexServer(plex_url, plex_token)
+    basename = os.path.splitext(os.path.basename(media_dir))[0]
+    basename = re.sub(r' \(\d\d\d\d\)','', basename)
+    parsed_info = PTN.parse(basename, standardise = False)
+    try:
+        video = parsed_info['episodeName']
+    except KeyError:
+        video = parsed_info['title']
+    query_url = plex_url + '/search/?X-Plex-Token=' + plex_token + '&query=' + video
+    response = requests.get(query_url, headers=headers)
+    if response.status_code == 200:
+        videos = response.json()['MediaContainer']['Metadata']
+        for vid in range(len(videos)):
+            if basename in videos[vid]['Media'][0]['Part'][0]['file']:
+                if videos[vid]['type'] == 'movie':
+                    lib = plex.library.section(videos[vid]['librarySectionTitle'])
+                    movie=lib.get(video)
+                    logger.debug(f"analyzing movie {basename} in library {videos[vid]['librarySectionTitle']}")
+                    movie.analyze()
+                else:
+                    show_title = parsed_info['title']
+                    if videos[vid]['title'] == video:
+                        lib = plex.library.section(videos[vid]['librarySectionTitle'])
+                        episodes = lib.get(show_title).episodes()
+                        for k in range(len(episodes)):
+                            if episodes[k].title == video:
+                                logger.debug(f"analyzing show {basename} in library {videos[vid]['librarySectionTitle']}")
+                                episodes[k].analyze()
 
 def on_postprocessor_task_results(data):
     """
@@ -88,6 +123,9 @@ def on_postprocessor_task_results(data):
        logger.error("Non-existent destination file - plex cannot be notified.")
        return data
 
+    analyze = settings.get_setting('Analyze Video')
+
+    # Get host mapping of library folder
     lib_map = settings.get_setting('Unmanic Library Mapping')
     unmanic_dir=re.search(r'.*:(.*$)', lib_map)
     if unmanic_dir:
@@ -112,5 +150,9 @@ def on_postprocessor_task_results(data):
     if not section_id:
         return data
     update_plex(plex_url, plex_token, media_dir, section_id)
+
+    # Analyze Video
+    if analyze:
+        analyze_video(media_dir, plex_url, plex_token)
 
     return data
