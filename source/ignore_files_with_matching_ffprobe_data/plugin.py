@@ -48,8 +48,8 @@ class Settings(PluginSettings):
             "description": "A comma separated list of strings to match agianst the JSONata query results."
         },
         "force_processing_if_no_disallowed_values":   {
-            "label:"       "True or False"
-            "description": "if checked, this plugin will force the plugin to add the file to the task list when no disallowed values are found, otherwise if not checked, additional plugins can continue to test the file"
+            "label": "if checked, this plugin will force the plugin to immediately add the file to the task list when no disallowed values are found, otherwise if not checked, additional plugins can continue to test the file"
+        },
     }
 
     def __init__(self, *args, **kwargs):
