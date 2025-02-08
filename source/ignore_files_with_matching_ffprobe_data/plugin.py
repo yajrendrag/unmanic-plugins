@@ -41,7 +41,7 @@ class Settings(PluginSettings):
     form_settings = {
         "stream_field":            {
             "label":       "field to match against",
-            "description": "A JSONata query to match name of the mediainfo field to match against with the search strings below."
+            "description": "A JSONata query to match name of the ffprobe field to match against with the search strings below."
         },
         "disallowed_values":          {
             "label":       "Search strings",
