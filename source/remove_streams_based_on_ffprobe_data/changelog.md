@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.6</span>**
+- make the comparison string based so strings_to_remove doesn't fail trying to compare a number as string from input to a number read from ffprobe, e.g., channels
+
 **<span style="color:#56adda">0.0.5</span>**
 - add '.lower()' to end of 'probe_streams[i]["tags"][probe_field[j].lower()]' in order to get the result be all lower case for test
 

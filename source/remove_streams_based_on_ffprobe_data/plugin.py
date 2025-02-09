@@ -61,8 +61,8 @@ def stream_has_ffprobe_data(path, probe_streams, probe_field, probe_value):
     logger.debug("probe_field: '{}', probe_value: '{}'.".format(probe_field, probe_value))
 
     # Check streams that contain ffprobe_field with ffprobe_value
-    streams_to_remove = [probe_streams[i]['index'] for i in range(0, len(probe_streams)) for j in range(0, len(probe_field)) if (probe_field[j].lower() in probe_streams[i] and probe_value[j].lower() in probe_streams[i][probe_field[j].lower()]) or
-                         ("tags" in probe_streams[i] and probe_field[j].lower() in probe_streams[i]["tags"] and probe_value[j].lower() in probe_streams[i]["tags"][probe_field[j].lower()].lower())]
+    streams_to_remove = [probe_streams[i]['index'] for i in range(0, len(probe_streams)) for j in range(0, len(probe_field)) if (probe_field[j].lower() in probe_streams[i] and probe_value[j].lower() in str(probe_streams[i][probe_field[j].lower()])) or
+                         ("tags" in probe_streams[i] and probe_field[j].lower() in probe_streams[i]["tags"] and probe_value[j].lower() in str(probe_streams[i]["tags"][probe_field[j].lower()].lower()))]
     logger.debug("streams to remove: '{}'".format(streams_to_remove))
     streams_to_remove.sort()
     streams_to_remove = [*set(streams_to_remove)]
@@ -78,7 +78,7 @@ def stream_has_ffprobe_data(path, probe_streams, probe_field, probe_value):
 
 def on_worker_process(data):
     """
-    Runner function - enables additional configured processing jobs during the worker stages of a task.
+probe_value[j].lower()    Runner function - enables additional configured processing jobs during the worker stages of a task.
 
     The 'data' object argument includes:
         exec_command            - A command that Unmanic should execute. Can be empty.
