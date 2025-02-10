@@ -33,7 +33,7 @@ from unmanic.libs.unplugins.settings import PluginSettings
 from reorder_audio_streams2.lib.ffmpeg import Probe, Parser
 
 # Configure plugin logger
-logger = logging.getLogger("Unmanic.Plugin.reorder_by_origina_language")
+logger = logging.getLogger("Unmanic.Plugin.reorder_by_original_language")
 
 lang_codes = [('aa', 'aar'), ('ab', 'abk'), ('af', 'afr'), ('ak', 'aka'), ('am', 'amh'), ('ar', 'ara'), ('an', 'arg'), ('as', 'asm'), ('av', 'ava'), ('ae', 'ave'), ('ay', 'aym'), ('az', 'aze'), ('ba', 'bak'), ('bm', 'bam'), ('be', 'bel'), ('bn', 'ben'), ('bi', 'bis'), ('bo', 'bod / tib*'),
               ('bs', 'bos'), ('br', 'bre'), ('bg', 'bul'), ('ca', 'cat'), ('cs', 'ces / cze*'), ('ch', 'cha'), ('ce', 'che'), ('cn', 'zho / chi*'), ('cu', 'chu'), ('cv', 'chv'), ('kw', 'cor'), ('co', 'cos'), ('cr', 'cre'), ('cy', 'cym / wel*'), ('da', 'dan'), ('de', 'deu / ger*'), ('dv', 'div'), ('dz', 'dzo'),
