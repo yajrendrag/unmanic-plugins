@@ -1,5 +1,9 @@
 
 **<span style="color:#56adda">0.0.6</span>**
+- fix string function parens in 0.0.6 fix
+- add disposition so can remove streams identified as commentary streams (comment=1 in disposition section)
+
+**<span style="color:#56adda">0.0.6</span>**
 - make the comparison string based so strings_to_remove doesn't fail trying to compare a number as string from input to a number read from ffprobe, e.g., channels
 
 **<span style="color:#56adda">0.0.5</span>**
