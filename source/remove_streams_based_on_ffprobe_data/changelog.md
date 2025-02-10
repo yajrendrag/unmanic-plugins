@@ -1,5 +1,5 @@
 
-**<span style="color:#56adda">0.0.6</span>**
+**<span style="color:#56adda">0.0.7</span>**
 - fix string function parens in 0.0.6 fix
 - add disposition so can remove streams identified as commentary streams (comment=1 in disposition section)
 
