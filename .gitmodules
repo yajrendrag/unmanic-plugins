@@ -73,3 +73,6 @@
 [submodule "source/convert_multichannel_audio_keep_one_codec/lib/ffmpeg"]
 	path = source/convert_multichannel_audio_keep_one_codec/lib/ffmpeg
 	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/reorder_by_original_language/lib/ffmpeg"]
+	path = source/reorder_by_original_language/lib/ffmpeg
+	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
