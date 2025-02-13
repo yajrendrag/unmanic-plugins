@@ -1,3 +1,7 @@
+
+**<span style="color:#56adda">0.0.11</span>**
+- remove note in description.md since plugin has a file test section since 0.0.8
+	
 **<span style="color:#56adda">0.0.10</span>**
 - Added user of .unmanic file to track processed files
 
