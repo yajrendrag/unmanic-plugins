@@ -33,10 +33,11 @@ import iso639
 from pathlib import Path
 import subprocess
 import random
-import moviepy.editor as mp
+from moviepy import *
 import shutil
 import os
 import glob
+import torch
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -153,20 +154,47 @@ def tag_streams(astreams, vid_file):
     for f in glob.glob(tmp_dir + '/*' + temp_sfx):
         os.remove(f)
 
-    shutil.rmtree(dir, ignore_errors=True)
+    shutil.rmtree(dir)
     return tag_args
+
+def get_model():
+    model_order = ['base', 'small', 'medium', 'turbo', 'large']
+    model_index = 3
+    model = model_order[model_index]
+    model_too_big = True
+    device = 'cuda'
+    while model_too_big:
+        try:
+            whisper.load_model(model, device='cuda')
+        except torch.OutOfMemoryError:
+            model_index -= 1
+            model = model_order[model_index]
+            logger.info(f"model {model_order[model_index + 1]} too big, trying model {model}")
+            model_too_big = True
+        else:
+            model_too_big = False
+        finally:
+            if model_index == -1:
+                logger.error(f"Insufficient GPU resources to run whisper, switching to CPU")
+                device = 'cpu'
+                model = 'medium'
+                model_too_big = False
+            torch.cuda.empty_cache()
+    logger.info(f"model = {model}, device = {device}")
+    return model, device
 
 def detect_language(video_file, tmp_dir):
     # Load Whisper model
-    model = whisper.load_model("base")
+    model_name, device = get_model()
+    model = whisper.load_model(model_name, device)
     logger.debug("video_file: '{}'; tmp_dir: '{}'".format(video_file, tmp_dir))
 
     # Load video and get duration
-    video = mp.VideoFileClip(video_file)
+    video = VideoFileClip(video_file)
     duration = video.duration
 
     # Define subclip to start 10 minutes into video and end 7 minutes before end
-    video = video.subclip(600, duration-430)
+    video = video.subclipped(600, duration-430)
     duration = video.duration - 30
 
     if duration < 690:
@@ -183,13 +211,14 @@ def detect_language(video_file, tmp_dir):
     for sample_time in sample_times:
 
         # Extract 30 seconds of audio clip from the video
-        audio_clip = video.subclip(sample_time, sample_time + 30)
+        audio_clip = video.subclipped(sample_time, sample_time + 30)
         audio_file = f"{tmp_dir}/sample_{str(sample_time)}.wav"
         audio_clip.audio.write_audiofile(audio_file, codec='pcm_s16le')
         logger.debug("audio_file: '{}'".format(audio_file))
 
         # Run Whisper to detect language from the audio sample
-        mel = whisper.log_mel_spectrogram(audio_file).to(model.device)
+        n_mels = model.dims.n_mels
+        mel = whisper.log_mel_spectrogram(audio_file, n_mels=n_mels).to(model.device)
         _, probs = model.detect_language(mel)
         lang = max(probs, key=probs.get)
         detected_languages.append(lang)
@@ -200,8 +229,10 @@ def detect_language(video_file, tmp_dir):
         return detected_languages[0]
     elif len(set(detected_languages)) == 2:
         for lang in set(detected_languages):
-          if detected_languages.count(lang) >= 4:
-            return lang
+            if detected_languages.count(lang) >= 4:
+                return lang
+            else:
+                return None
     else:
         return None
 

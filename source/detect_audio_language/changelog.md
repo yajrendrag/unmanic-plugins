@@ -1,4 +1,10 @@
 
+**<span style="color:#56adda">0.0.19</span>**
+- update moviepy to 2.1.2
+- select largest model possible on GPU, fall back to medium on CPU if no GPU or insufficient memory
+- fix spacing around function to checking number of languages detected
+- allow errors in shutil.rmtree
+
 **<span style="color:#56adda">0.0.18</span>**
 - relax % of samples needed to match to 66.6%
 - added lang detected in sample to debug output
