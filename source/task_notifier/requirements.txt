@@ -1,1 +1,1 @@
-paho-mqtt
+paho-mqtt<2.0

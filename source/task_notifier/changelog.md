@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- set paho-mqtt version to < 2.0 in requirements.txt
+
 **<span style="color:#56adda">0.0.4</span>**
 - add result text to error messages
 - documentation updates
