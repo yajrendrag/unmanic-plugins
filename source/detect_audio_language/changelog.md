@@ -1,5 +1,5 @@
 
-**<span style="color:#56adda">0.0.19</span>**
+**<span style="color:#56adda">0.0.20</span>**
 - add exception so that CPU only systems can run plugin
 - fix get_model while loop so loop index of -1 is detected & tested before use
 
