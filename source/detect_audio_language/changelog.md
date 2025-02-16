@@ -1,5 +1,9 @@
 
 **<span style="color:#56adda">0.0.19</span>**
+- add exception so that CPU only systems can run plugin
+- fix get_model while loop so loop index of -1 is detected & tested before use
+
+**<span style="color:#56adda">0.0.19</span>**
 - update moviepy to 2.1.2
 - select largest model possible on GPU, fall back to medium on CPU if no GPU or insufficient memory
 - fix spacing around function to checking number of languages detected

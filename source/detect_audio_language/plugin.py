@@ -168,9 +168,10 @@ def get_model():
             whisper.load_model(model, device='cuda')
         except torch.OutOfMemoryError:
             model_index -= 1
-            model = model_order[model_index]
-            logger.info(f"model {model_order[model_index + 1]} too big, trying model {model}")
             model_too_big = True
+        except RuntimeError:
+            model_index = -1
+            model_too_big = False
         else:
             model_too_big = False
         finally:
@@ -179,6 +180,10 @@ def get_model():
                 device = 'cpu'
                 model = 'medium'
                 model_too_big = False
+            else:
+                if model_too_big == True:
+                    model = model_order[model_index]
+                    logger.info(f"model {model_order[model_index + 1]} too big, trying model {model}")
             torch.cuda.empty_cache()
     logger.info(f"model = {model}, device = {device}")
     return model, device
