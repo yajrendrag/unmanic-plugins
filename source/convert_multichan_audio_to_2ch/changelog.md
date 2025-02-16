@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.23</span>**
+- streams_to_stereo_encode should return streams as a number
+
 **<span style="color:#56adda">0.0.22</span>**
 - copy paste error in probe_streams index variable
 

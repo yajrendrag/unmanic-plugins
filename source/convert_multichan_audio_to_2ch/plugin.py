@@ -130,7 +130,8 @@ def streams_to_stereo_encode(probe_streams):
         if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == "audio":
             audio_stream += 1
             if  int(probe_streams[i]["channels"]) > 4 and 'tags' in probe_streams[i] and 'language' in probe_streams[i]['tags'] and probe_streams[i]['tags']['language'] not in stereo_streams:
-                streams.append(str(audio_stream))
+                streams.append(audio_stream)
+
     return streams
 
 def streams_to_aac_encode(probe_streams, streams, keep_mc):
