@@ -56,7 +56,7 @@ class Settings(PluginSettings):
         super(Settings, self).__init__(*args, **kwargs)
 
 
-def file_contains_disallowed_values(probe, stream_field, disallowed_values):
+def file_contains_disallowed_values(probe, stream_field, disallowed_values, file_path):
     """
     Check if the file contains any values in the list of values being searched for
 
@@ -131,7 +131,7 @@ def on_library_management_file_test(data):
     disallowed_values = settings.get_setting('disallowed_values')
     force_processing_if_no_disallowed_values = settings.get_setting('force_processing_if_no_disallowed_values')
 
-    in_disallowed_values = file_contains_disallowed_values(probe, stream_field, disallowed_values)
+    in_disallowed_values = file_contains_disallowed_values(probe, stream_field, disallowed_values, abspath)
     if in_disallowed_values:
         # Ingore this file
         data['add_file_to_pending_tasks'] = False
