@@ -12,7 +12,7 @@ fi
 mpy=$(python3 -m pip list | grep moviepy)
 if [ ! "$mpy" ]; then 
     echo "**** Installing moviepy ****"
-    python3 -m pip install moviepy==1.0.3
+    python3 -m pip install moviepy==2.1.2
 else
     echo "**** moviepy already installed ****"
 fi

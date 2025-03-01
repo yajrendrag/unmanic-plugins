@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.21</span>**
+- fix init.d to install moviepy 2.1.2 - it was still set to 1.03 after 0.0.19 fix
+
 **<span style="color:#56adda">0.0.20</span>**
 - add exception so that CPU only systems can run plugin
 - fix get_model while loop so loop index of -1 is detected & tested before use
