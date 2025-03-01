@@ -129,7 +129,7 @@ def file_is_subtitle(probe):
         logger.debug(f"malformed probe - setting streams to []")
         streams = []
     ctype = [streams[i]['codec_type'] for i in range(len(streams)) if 'codec_type' in streams[i] and streams[i]['codec_type'] == 'subtitle']
-    if streams and type and 'subtitle' in ctype:
+    if streams and ctype and 'subtitle' in ctype:
         return True
     else:
         return False

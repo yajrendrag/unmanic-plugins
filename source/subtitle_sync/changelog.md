@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.11</span>**
+- in file_is_subtitle function fix reference to "type" in if statement - should have been "ctype"
+
 **<span style="color:#56adda">0.0.10</span>**
 - correct mimetype additions to include the '.'
 - initialize astream_lang_index
