@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.22</span>**
+- in tag_streams configure shutil.rmtree to ignore errors
+
 **<span style="color:#56adda">0.0.21</span>**
 - fix init.d to install moviepy 2.1.2 - it was still set to 1.03 after 0.0.19 fix
 

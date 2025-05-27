@@ -154,7 +154,7 @@ def tag_streams(astreams, vid_file):
     for f in glob.glob(tmp_dir + '/*' + temp_sfx):
         os.remove(f)
 
-    shutil.rmtree(dir)
+    shutil.rmtree(dir, ignore_errors=True)
     return tag_args
 
 def get_model():
