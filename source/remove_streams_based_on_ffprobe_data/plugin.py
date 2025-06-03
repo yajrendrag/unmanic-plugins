@@ -61,7 +61,7 @@ def stream_has_ffprobe_data(path, probe_streams, probe_field, probe_value):
     logger.debug("probe_field: '{}', probe_value: '{}'.".format(probe_field, probe_value))
 
     # Check streams that contain ffprobe_field with ffprobe_value
-    streams_to_remove = [probe_streams[i]['index'] for i in range(0, len(probe_streams)) for j in range(0, len(probe_field)) if (probe_field[j].lower() in probe_streams[i] and probe_value[j].lower() in str(probe_streams[i][probe_field[j].lower()])) or
+    streams_to_remove = [probe_streams[i]['index'] for i in range(0, len(probe_streams)) for j in range(0, len(probe_field)) if (probe_field[j].lower() in probe_streams[i] and probe_value[j].lower() in str(probe_streams[i][probe_field[j].lower()]).lower()) or
                          ("tags" in probe_streams[i] and probe_field[j].lower() in probe_streams[i]["tags"] and probe_value[j].lower() in str(probe_streams[i]["tags"][probe_field[j].lower()]).lower()) or
                          ("disposition" in probe_streams[i] and probe_field[j].lower() in probe_streams[i]["disposition"] and probe_value[j].lower() in str(probe_streams[i]["disposition"][probe_field[j].lower()]).lower())]
 

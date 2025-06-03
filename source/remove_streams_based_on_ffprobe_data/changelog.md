@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.8</span>**
+- add missing ".lower()" at the end of the first comparison in streams_to_remove calculation in stream_has_ffprobe_data
+
 **<span style="color:#56adda">0.0.7</span>**
 - fix string function parens in 0.0.6 fix
 - add disposition so can remove streams identified as commentary streams (comment=1 in disposition section)
