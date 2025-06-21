@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.24</span>**
+- try adding explicit model deletion and cache emptying to get GPU to release whisper resources
+
 **<span style="color:#56adda">0.0.23</span>**
 - fix test of length of detected_languages check as both 2 & 3 are legit lengths
 - misc fix of debug string messages

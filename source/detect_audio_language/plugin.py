@@ -229,6 +229,17 @@ def detect_language(video_file, tmp_dir):
         detected_languages.append(lang)
         logger.debug(f"lang {lang} detected in sample {sample_time}")
 
+    # try to force removal of resources left in GPU
+    # move model to CPU
+    # delete model
+    # empty cuda cache
+    try:
+        model.cpu()
+        del model
+    except:
+        pass
+    torch.cuda.empty_cache()
+
     # Check if at least 4 of the 6 samples are the same
     if len(set(detected_languages)) == 1:
         return detected_languages[0]
