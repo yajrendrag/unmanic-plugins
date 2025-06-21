@@ -247,10 +247,7 @@ def detect_language(video_file, tmp_dir):
         for lang in set(detected_languages):
             if detected_languages.count(lang) >= 4:
                 return lang
-            else:
-                return None
-    else:
-        return None
+    return None
 
 def on_worker_process(data):
     """

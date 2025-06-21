@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.25</span>**
+- fix test of length of detected_languages check - removed return None from elif in case it's not the first lang that has enough sample occurences
+
 **<span style="color:#56adda">0.0.24</span>**
 - try adding explicit model deletion and cache emptying to get GPU to release whisper resources
 
