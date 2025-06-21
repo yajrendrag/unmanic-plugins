@@ -232,7 +232,7 @@ def detect_language(video_file, tmp_dir):
     # Check if at least 4 of the 6 samples are the same
     if len(set(detected_languages)) == 1:
         return detected_languages[0]
-    elif len(set(detected_languages)) == 2:
+    elif len(set(detected_languages)) == 2 or len(set(detected_languages)) == 3:
         for lang in set(detected_languages):
             if detected_languages.count(lang) >= 4:
                 return lang
@@ -306,7 +306,7 @@ def on_worker_process(data):
             parser.set_probe(probe_data)
             data['command_progress_parser'] = parser.parse_progress
         else:
-            logger.info("File not processed - no streams iddentified or duasrtion too short")
+            logger.info("File not processed - no streams identified or duration too short")
 
     return data
 

@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.23</span>**
+- fix test of length of detected_languages check as both 2 & 3 are legit lengths
+- misc fix of debug string messages
+
 **<span style="color:#56adda">0.0.22</span>**
 - in tag_streams configure shutil.rmtree to ignore errors
 
