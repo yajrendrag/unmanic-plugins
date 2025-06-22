@@ -133,6 +133,8 @@ def tag_streams(astreams, vid_file):
         temp_sfx = '.mkv'
         output_file = tmp_dir + '/' + os.path.splitext(os.path.basename(vid_file))[0] + '.' + str(astream) + temp_sfx
         command = ['ffmpeg', '-hide_banner', '-loglevel', 'info', '-i', str(vid_file), '-strict', '-2', '-max_muxing_queue_size', '9999', '-map', '0:v:0', '-map', '0:a:'+str(astream), '-map_metadata', '-1', '-c', 'copy', '-y', output_file]
+        logger.debug(f"output_file: {output_file}")
+        logger.debug(f"command: {command}")
 
         try:
             result = subprocess.run(command, shell=False, check=True, capture_output=True)
