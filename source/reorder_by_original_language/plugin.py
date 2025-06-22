@@ -30,7 +30,7 @@ yr = re.compile(r'\d\d\d\d')
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
-from reorder_audio_streams2.lib.ffmpeg import Probe, Parser
+from reorder_by_original_language.lib.ffmpeg import Probe, Parser
 
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.reorder_by_original_language")

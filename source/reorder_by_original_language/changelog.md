@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.1</span>**
+- fix logger line to reference new name of plugin
+
 **<span style="color:#56adda">0.1.0</span>**
 - name change only
 - previously known as reorder_audio_streams2
