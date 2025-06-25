@@ -202,7 +202,7 @@ def get_model():
 
 def detect_language(video_file, tmp_dir, settings):
     # Get multilingual process setting
-    process_as_multilingual_audio_file = settings.get_setting("process_as_multilingual_audio_file")_
+    process_as_multilingual_audio_file = settings.get_setting("process_as_multilingual_audio_file")
 
     # Load Whisper model
     model_name, device = get_model()
