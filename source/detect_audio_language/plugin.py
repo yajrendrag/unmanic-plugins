@@ -48,11 +48,16 @@ logger = logging.getLogger("Unmanic.Plugin.detect_audio_language")
 
 class Settings(PluginSettings):
     settings = {
+        "process_as_multilingual_audio_file": False,
     }
 
     def __init__(self, *args, **kwargs):
         super(Settings, self).__init__(*args, **kwargs)
-
+        self.form_settings = {
+            "process_as_multilingual_audio_file":   {
+                "label": "check to process file as multilingual meaning it has multiple languages in the audio streams so the lang tag is the most observed language in the samples.",
+            },
+        }
 
 def get_audio_streams(probe_streams):
 
@@ -117,7 +122,7 @@ def on_library_management_file_test(data):
 
     return data
 
-def tag_streams(astreams, vid_file):
+def tag_streams(astreams, vid_file, settings):
     # create temporary work space in cache
     src_file_hash = hashlib.md5(os.path.basename(vid_file).encode('utf8')).hexdigest()
     tmp_dir = os.path.join('/tmp/unmanic/', '{}'.format(src_file_hash))
@@ -131,9 +136,9 @@ def tag_streams(astreams, vid_file):
     for astream, _ in enumerate(astreams):
         sfx = os.path.splitext(os.path.basename(vid_file))[1]
         temp_sfx = '.mkv'
-        output_file = tmp_dir + '/' + os.path.splitext(os.path.basename(vid_file))[0] + '.' + str(astream) + temp_sfx
+        output_file = tmp_dir + '/' + str(os.path.splitext(os.path.basename(vid_file))[0]) + '.' + str(astream) + temp_sfx
         command = ['ffmpeg', '-hide_banner', '-loglevel', 'info', '-i', str(vid_file), '-strict', '-2', '-max_muxing_queue_size', '9999', '-map', '0:v:0', '-map', '0:a:'+str(astream), '-map_metadata', '-1', '-c', 'copy', '-y', output_file]
-        logger.debug(f"output_file: {output_file}")
+        logger.debug(f"tag_streams output_file: {output_file}")
         logger.debug(f"command: {command}")
 
         try:
@@ -141,10 +146,15 @@ def tag_streams(astreams, vid_file):
         except subprocess.CalledProcessError as e:
             reason = e.stderr.decode()
             logger.error("Can not create output for audio stream '{}' of file '{}', so skipping stream".format(astream, vid_file))
+            continue
+        except OSError as e:
+            reason = e.stderr.decode()
+            logger.error(f"OSError: {reason}, skipping stream")
+            continue
+        else:
+            logger.debug("temp video file to detect language in: '{}".format(output_file))
 
-        logger.debug("temp video file to detect language in: '{}".format(output_file))
-
-        lang_tag = detect_language(output_file, tmp_dir)
+        lang_tag = detect_language(output_file, tmp_dir, settings)
         if lang_tag:
             lang_tag = iso639.Language.from_part1(lang_tag).part2b
             tag_args += ["-metadata:s:a:"+str(astream), 'language='+lang_tag]
@@ -190,7 +200,10 @@ def get_model():
     logger.info(f"model = {model}, device = {device}")
     return model, device
 
-def detect_language(video_file, tmp_dir):
+def detect_language(video_file, tmp_dir, settings):
+    # Get multilingual process setting
+    process_as_multilingual_audio_file = settings.get_setting("process_as_multilingual_audio_file")_
+
     # Load Whisper model
     model_name, device = get_model()
     model = whisper.load_model(model_name, device)
@@ -242,6 +255,14 @@ def detect_language(video_file, tmp_dir):
         pass
     torch.cuda.empty_cache()
 
+    # if processing as multilingual file, just return language with maximum number of detected ocurrences
+    if process_as_multilingual_audio_file:
+        lang_ctr = {}
+        for lang in set(detected_languages):
+            lang_ctr[lang]=detected_languages.count(lang)
+        lang_ctr = dict(sorted(lang_ctr.items(), key=lambda item: item[1], reverse=True))
+        return next(iter(lang_ctr.keys()))
+
     # Check if at least 4 of the 6 samples are the same
     if len(set(detected_languages)) == 1:
         return detected_languages[0]
@@ -272,6 +293,7 @@ def on_worker_process(data):
 
     """
     global duration
+
     # Default to no FFMPEG command required. This prevents the FFMPEG command from running if it is not required
     data['exec_command'] = []
     data['repeat'] = False
@@ -279,6 +301,8 @@ def on_worker_process(data):
     # Get the input and output file paths
     abspath = data.get('file_in')
     outfile = data.get('file_out')
+
+    logger.debug(f"worker process output file: {outfile}")
 
     # Get file probe
     probe_data = Probe(logger, allowed_mimetypes=['video'])
@@ -300,7 +324,7 @@ def on_worker_process(data):
     streams_needing_tags = get_audio_streams(probe_streams)
     if streams_needing_tags:
 
-        tag_args = tag_streams(streams_needing_tags, abspath)
+        tag_args = tag_streams(streams_needing_tags, abspath, settings)
 
         if tag_args:
             ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-map', '0', '-c', 'copy'] + tag_args + [ '-y', outfile]

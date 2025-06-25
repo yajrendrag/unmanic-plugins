@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.27</span>**
+- added a check for OSError in try except block of tag streams to help identify failed ffmpeg command construction
+- added an option to process declared multilingual files by just tagging stream with most detected language across the 6 samples
+ 
 **<span style="color:#56adda">0.0.26</span>**
 - added debug output to view output_file name and command in tag_streams
 
