@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.28</span>**
+- set custom version of ffmpeg for moviepy so it uses same ffmpeg version as unmanic
+
 **<span style="color:#56adda">0.0.27</span>**
 - added a check for OSError in try except block of tag streams to help identify failed ffmpeg command construction
 - added an option to process declared multilingual files by just tagging stream with most detected language across the 6 samples

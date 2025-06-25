@@ -28,6 +28,7 @@
 import logging
 import hashlib
 import os
+os.environ["FFMPEG_BINARY"] = "/usr/local/bin/ffmpeg"
 import whisper
 import iso639
 from pathlib import Path
