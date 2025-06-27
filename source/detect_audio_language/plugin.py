@@ -49,6 +49,7 @@ logger = logging.getLogger("Unmanic.Plugin.detect_audio_language")
 class Settings(PluginSettings):
     settings = {
         "process_as_multilingual_audio_file": False,
+        "force_cpu": False,
     }
 
     def __init__(self, *args, **kwargs):
@@ -56,6 +57,9 @@ class Settings(PluginSettings):
         self.form_settings = {
             "process_as_multilingual_audio_file":   {
                 "label": "check to process file as multilingual meaning it has multiple languages in the audio streams so the lang tag is the most observed language in the samples.",
+            },
+            "force_cpu":    {
+                "label": "check this to only attempt processing with CPU.  This is helpful if you encounter issues using GPU such as GPU memory not being freed up after the plugin runs or if you do not have an nvidia GPU",
             },
         }
 
@@ -201,11 +205,16 @@ def get_model():
     return model, device
 
 def detect_language(video_file, tmp_dir, settings):
-    # Get multilingual process setting
+    # Get multilingual process and force cpu settings
     process_as_multilingual_audio_file = settings.get_setting("process_as_multilingual_audio_file")
+    force_cpu = settings.get_setting("force_cpu")
 
     # Load Whisper model
-    model_name, device = get_model()
+    if force_cpu:
+        model_name = 'medium'
+        device = 'cpu'
+    else:
+        model_name, device = get_model()
     model = whisper.load_model(model_name, device)
     logger.debug("video_file: '{}'; tmp_dir: '{}'".format(video_file, tmp_dir))
 
@@ -245,12 +254,13 @@ def detect_language(video_file, tmp_dir, settings):
     # move model to CPU
     # delete model
     # empty cuda cache
-    try:
-        model.cpu()
-        del model
-    except:
-        pass
-    torch.cuda.empty_cache()
+    if not force_cpu:
+        try:
+            model.cpu()
+            del model
+        except:
+            pass
+        torch.cuda.empty_cache()
 
     # if processing as multilingual file, just return language with maximum number of detected ocurrences
     if process_as_multilingual_audio_file:

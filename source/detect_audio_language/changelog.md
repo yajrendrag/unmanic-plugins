@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.31</span>**
+- add option to force_cpu - useful if no nvidia GPU or if encountering issues of GPU memory not being released after plugin runs
+
 **<span style="color:#56adda">0.0.30</span>**
 - modify whisper commands to work with ffmpeg produced audio file (moviepy was producing this directly)
 
