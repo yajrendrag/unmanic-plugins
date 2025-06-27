@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.30</span>**
+- modify whisper commands to work with ffmpeg produced audio file (moviepy was producing this directly)
+
 **<span style="color:#56adda">0.0.29</span>**
 - removed moviepy and just processed files natively with ffmpeg using pytho-ffmpeg
 

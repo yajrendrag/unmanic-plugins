@@ -230,10 +230,12 @@ def detect_language(video_file, tmp_dir, settings):
         audio_file = f"{tmp_dir}/sample_{str(sample_time)}.wav"
         ffmpeg.input(video_file, ss=sample_time, t=sample_time+30).output(audio_file, vn=None, acodec='pcm_s16le').run()
         logger.debug("audio_file: '{}'".format(audio_file))
+        audio = whisper.load_audio(audio_file)
+        audio = whisper.pad_or_trim(audio)
 
         # Run Whisper to detect language from the audio sample
         n_mels = model.dims.n_mels
-        mel = whisper.log_mel_spectrogram(audio_file, n_mels=n_mels).to(model.device)
+        mel = whisper.log_mel_spectrogram(audio, n_mels=n_mels).to(model.device)
         _, probs = model.detect_language(mel)
         lang = max(probs, key=probs.get)
         detected_languages.append(lang)
