@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.29</span>**
+- removed moviepy and just processed files natively with ffmpeg using pytho-ffmpeg
+
 **<span style="color:#56adda">0.0.28</span>**
 - set custom version of ffmpeg for moviepy so it uses same ffmpeg version as unmanic
 

@@ -28,17 +28,16 @@
 import logging
 import hashlib
 import os
-os.environ["FFMPEG_BINARY"] = "/usr/local/bin/ffmpeg"
 import whisper
 import iso639
 from pathlib import Path
 import subprocess
 import random
-from moviepy import *
 import shutil
 import os
 import glob
 import torch
+import ffmpeg
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -211,19 +210,15 @@ def detect_language(video_file, tmp_dir, settings):
     logger.debug("video_file: '{}'; tmp_dir: '{}'".format(video_file, tmp_dir))
 
     # Load video and get duration
-    video = VideoFileClip(video_file)
-    duration = video.duration
+    duration = float(ffmpeg.probe(video_file)['format']['duration'])
 
     # Define subclip to start 10 minutes into video and end 7 minutes before end
-    video = video.subclipped(600, duration-430)
-    duration = video.duration - 30
-
-    if duration < 690:
+    if (duration - 430) - 600 < 690:
         logger.info("File '{}' too short to process (<11.5 minutes), skipping".format(video_file))
         return None
 
     # Sample 6 random spots from the trimmed video
-    sample_times = sorted(random.sample(range(int(duration)), 6))
+    sample_times = sorted(random.sample(range(int((duration - 430) - 600)), 6))
     logger.debug("sample_times: '{}'".format(sample_times))
 
     detected_languages = []
@@ -232,9 +227,8 @@ def detect_language(video_file, tmp_dir, settings):
     for sample_time in sample_times:
 
         # Extract 30 seconds of audio clip from the video
-        audio_clip = video.subclipped(sample_time, sample_time + 30)
         audio_file = f"{tmp_dir}/sample_{str(sample_time)}.wav"
-        audio_clip.audio.write_audiofile(audio_file, codec='pcm_s16le')
+        ffmpeg.input(video_file, ss=sample_time, t=sample_time+30).output(audio_file, vn=None, acodec='pcm_s16le').run()
         logger.debug("audio_file: '{}'".format(audio_file))
 
         # Run Whisper to detect language from the audio sample
