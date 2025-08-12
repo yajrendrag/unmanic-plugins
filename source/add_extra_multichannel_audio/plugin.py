@@ -37,7 +37,8 @@ class Settings(PluginSettings):
     settings = {
         "skip_files_less_than_4k_resolution":         False,
         "replace_original":                           False,
-        "encoder": "ac3",
+        "encoder":                                    "ac3",
+        "allow_2_ch_source":                          False,
     }
 
     def __init__(self, *args, **kwargs):
@@ -51,7 +52,7 @@ class Settings(PluginSettings):
             },
             "encoder": {
                 "label":      "Enter encoder",
-                "description": "Select ac3 or libfdk_aac for the encoder - libfdk_aac requires ffmpeg5.x",
+                "description": "Select ac3 or libfdk_aac for the encoder - libfdk_aac requires ffmpeg >= 5.x",
                 "input_type": "select",
                 "select_options": [
                     {
@@ -64,15 +65,21 @@ class Settings(PluginSettings):
                     },
                 ],
             },
+            "allow_2_ch_source":  {
+                "label": "check if you want to allow 2 channel streams as sources - this will only encode to a new 2 channel stream"
+            },
+
         }
 
-def s2_encode(probe_streams, encoder, replace_original, abspath):
+def s2_encode(probe_streams, encoder, replace_original, allow_2_ch_source, abspath):
+    min_chnls = 6
+    if allow_2_ch_source: min_chnls = 2
     try:
         streams_list = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] in ["truehd", "eac3", "dts"]]
         all_audio_streams=[i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio']
-        # below returns the audio stream with the maximum number of audio channels > 5, it's audio stream #, and absolute stream # as a tuple, and final index selects key number 1 from the tuple (audio stream #)
+        # below returns the audio stream with the maximum number of audio channels >= min_chnls, it's audio stream #, and absolute stream # as a tuple, and final index selects key number 1 from the tuple (audio stream #)
         # audio_stream_to_encode = max([(probe_streams[streams_list[i]]["channels"], i, ind) for i,ind in enumerate(streams_list) if probe_streams[streams_list[i]]["channels"] >= 6], key = itemgetter(0))[1]
-        absolute_stream_num = max([(probe_streams[streams_list[i]]["channels"], i, ind) for i,ind in enumerate(streams_list) if probe_streams[streams_list[i]]["channels"] >= 6], key = itemgetter(0))[2]
+        absolute_stream_num = max([(probe_streams[streams_list[i]]["channels"], i, ind) for i,ind in enumerate(streams_list) if probe_streams[streams_list[i]]["channels"] >= min_chnls], key = itemgetter(0))[2]
         audio_stream_to_encode = [i for i in range(len(all_audio_streams)) if all_audio_streams[i] == absolute_stream_num][0]
         new_audio_stream = len(all_audio_streams)
         if replace_original:
@@ -81,17 +88,17 @@ def s2_encode(probe_streams, encoder, replace_original, abspath):
         logger.error("Error finding audio stream to encode")
         return 0, 0, 0, False
     if encoder != 'libfdk_aac':
-        existing_mc_stream = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == encoder and probe_streams[i]["channels"] == 6]
+        existing_mc_stream = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == encoder and probe_streams[i]["channels"] >= min_chnls]
     else:
         existing_mc_stream = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == 'aac' and (
-                              probe_streams[i]["channels"] == 6 and 'tags' in probe_streams[i] and 'ENCODER' in probe_streams[i]["tags"] and encoder in probe_streams[i]["tags"]["ENCODER"])]
+                              probe_streams[i]["channels"] >= min_chnls and 'tags' in probe_streams[i] and 'ENCODER' in probe_streams[i]["tags"] and encoder in probe_streams[i]["tags"]["ENCODER"])]
     mc_stream_exists_already = [existing_mc_stream[i] for i in range(0, len(existing_mc_stream)) if "tags" in probe_streams[existing_mc_stream[i]] and "language" in probe_streams[existing_mc_stream[i]]["tags"] and probe_streams[existing_mc_stream[i]]["tags"]["language"] in probe_streams[absolute_stream_num]["tags"]["language"]]
     if mc_stream_exists_already == []:
         logger.debug("Existing mc stream test: '{}'".format(existing_mc_stream))
         logger.debug("audio stream to encode: '{}', new audio stream: '{}', absolute stream: '{}'".format(audio_stream_to_encode, new_audio_stream, absolute_stream_num))
         return audio_stream_to_encode, new_audio_stream, absolute_stream_num, True
     else:
-        logger.info("6 channel '{}' stream with matching language already exists, skipping file '{}'".format(encoder, abspath))
+        logger.info(f"{min_chnls} channel '{encoder}' stream with matching language already exists, skipping file '{abspath}'")
         return 0,0,0, False
 
 def on_library_management_file_test(data):
@@ -131,6 +138,7 @@ def on_library_management_file_test(data):
     # get encoder & replace_original settings
     encoder = settings.get_setting('encoder')
     replace_original = settings.get_setting('replace_original')
+    allow_2_ch_source = settings.get_setting('allow_2_ch_source')
 
     # Check if configured to skip files with resolution less than 4k, skip file if so
     if settings.get_setting('skip_files_less_than_4k_resolution'):
@@ -142,16 +150,16 @@ def on_library_management_file_test(data):
                     logger.info("resolution is less than 4k, skipping file per configured instruction - width x height: '{}'x'{}'".format(width, height))
                     return data
 
-    stream_to_encode, new_audio_stream, absolute_stream_num, process_stream = s2_encode(probe_streams, encoder, replace_original, abspath)
+    stream_to_encode, new_audio_stream, absolute_stream_num, process_stream = s2_encode(probe_streams, encoder, replace_original, allow_2_ch_source, abspath)
     if process_stream:
         data['add_file_to_pending_tasks'] = True
         if new_audio_stream == stream_to_encode:
-            logger.info("Multichannel audio stream '{}' is being encoded as '{}' replacing original audio stream".format(stream_to_encode, encoder))
+            logger.info("Audio stream '{}' is being encoded as '{}' replacing original audio stream".format(stream_to_encode, encoder))
         else:
-            logger.info("Multichannel audio stream '{}' is being encoded as extra '{}' audio channel '{}'".format(stream_to_encode, encoder, new_audio_stream))
+            logger.info("Audio stream '{}' is being encoded as extra '{}' audio channel '{}'".format(stream_to_encode, encoder, new_audio_stream))
     else:
 #        data['add_file_to_pending_tasks'] = False
-        logger.info("do not add file '{}' to task list - no multichannel audio streams found or one already exists with same language as lossless audio stream".format(abspath))
+        logger.info("do not add file '{}' to task list - no source dts, truehd, or eac3 audio streams found or one already exists with same language as source audio stream".format(abspath))
 
     return data
 
@@ -199,9 +207,12 @@ def on_worker_process(data):
     # get encoder & replace_original settings
     encoder = settings.get_setting('encoder')
     replace_original = settings.get_setting('replace_original')
+    allow_2_ch_source = settings.get_setting('allow_2_ch_source')
 
-    stream_to_encode, new_audio_stream, absolute_stream_num, process_stream = s2_encode(probe_streams, encoder, replace_original, abspath)
-    channels = '6'
+    stream_to_encode, new_audio_stream, absolute_stream_num, process_stream = s2_encode(probe_streams, encoder, replace_original, allow_2_ch_source, abspath)
+    channels = str(probe_streams[absolute_stream_num]["channels"])
+    label = '5.1 surround'
+    if channels == '2': label = 'stereo'
     if process_stream:
         # Get bit rate of stream to encode:
         if "bit_rate" in probe_streams[absolute_stream_num]:
@@ -211,14 +222,17 @@ def on_worker_process(data):
             else:
                 bit_rate = str(int(int(bitrate)/1000)) + 'k'
         else:
-            bit_rate = '640k'
+            if allow_2_ch_source and probe_streams[absolute_stream_num]["channels"] == 2:
+                bit_rate = '128k'
+            else:
+                bit_rate= '640k'
 
         # Set initial ffmpeg args
         ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-strict', '-2']
 
         # Get added/replaced stream maps & add to ffmpeg_args
         if new_audio_stream != stream_to_encode:
-            stream_map = ['-map', '0', '-c', 'copy', '-map', '0:a:'+str(stream_to_encode), '-c:a:'+str(new_audio_stream), encoder, '-ac', channels, '-b:a:'+str(new_audio_stream), bit_rate, '-metadata:s:a:'+str(new_audio_stream), 'title="'+encoder+' 5.1 surround"']
+            stream_map = ['-map', '0', '-c', 'copy', '-map', '0:a:'+str(stream_to_encode), '-c:a:'+str(new_audio_stream), encoder, '-ac', channels, '-b:a:'+str(new_audio_stream), bit_rate, '-metadata:s:a:'+str(new_audio_stream), 'title=' + encoder + ' ' + label]
         else:
             astreams = [i for i in range(len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio']
             stream_map=['-map', '0:v', '-c:v', 'copy']
@@ -226,7 +240,7 @@ def on_worker_process(data):
                 if i != stream_to_encode:
                     stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), 'copy']
                 else:
-                    stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac', channels, '-b:a:'+str(i), bit_rate, '-metadata:s:a:'+str(i), 'title="'+encoder+' 5.1 surround"']
+                    stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac', channels, '-b:a:'+str(i), bit_rate, '-metadata:s:a:'+str(i), 'title=' + encoder + ' ' + label]
 
             stream_map += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy']
 

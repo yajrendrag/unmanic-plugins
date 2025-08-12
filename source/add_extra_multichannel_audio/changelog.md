@@ -1,4 +1,9 @@
 
+**<span style="color:#56adda">0.0.19</span>**
+- add option to allow 2 channel source
+- a 2 channel source only enables creating a new 2 channel stream
+- if a file contains both a 2 channel stream and multichannel stream in the same language, only the multichannel stream will be encoded to a new multichannel stream
+
 **<span style="color:#56adda">0.0.18</span>**
 - fix missing quote
 
