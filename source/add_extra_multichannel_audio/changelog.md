@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.20</span>**
+- set 2 channel bit rate to 256k when bit_rate not in probe_streams
+
 **<span style="color:#56adda">0.0.19</span>**
 - add option to allow 2 channel source
 - a 2 channel source only enables creating a new 2 channel stream

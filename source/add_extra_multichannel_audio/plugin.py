@@ -223,7 +223,7 @@ def on_worker_process(data):
                 bit_rate = str(int(int(bitrate)/1000)) + 'k'
         else:
             if allow_2_ch_source and probe_streams[absolute_stream_num]["channels"] == 2:
-                bit_rate = '128k'
+                bit_rate = '256k'
             else:
                 bit_rate= '640k'
 
