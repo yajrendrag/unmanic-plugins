@@ -69,7 +69,7 @@ def on_library_management_file_test(data):
     else:
         settings = Settings()
 
-    border_thresh = settings.get_setting('border_threshold'):
+    border_thresh = settings.get_setting('border_threshold')
 
     # Get the path to the file
     abspath = data.get('path')
