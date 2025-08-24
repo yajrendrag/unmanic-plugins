@@ -5,8 +5,8 @@
     ],
     "description": "Runs ffmpeg's crop detect and if black borders are found adds the file to the task list",
     "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/detect_bars/icon.png",
-    "id": "detect_borders",
-    "name": "Detect Borders",
+    "id": "detect_bars",
+    "name": "Detect Bars",
     "platform": [
         "all"
     ],
