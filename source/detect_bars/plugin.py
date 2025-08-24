@@ -86,7 +86,7 @@ def on_library_management_file_test(data):
 
     out, err = (
         ffmpeg
-        .input(input_file, ss=10)  # start 10s in, optional for cropping to main scene
+        .input(abspath, ss=10)  # start 10s in, optional for cropping to main scene
         .output('null', f='null', vf='cropdetect')
         .run(capture_stdout=True, capture_stderr=True)
     )
