@@ -81,8 +81,8 @@ def on_library_management_file_test(data):
         logger.error(f"could not probe file {abspath} - aborting")
         return data
 
-    width = [streams[i]['width'] for i in range (len(streams)) if streams[i]['codec_type'] == 'video']
-    height = [streams[i]['height'] for i in range (len(streams)) if streams[i]['codec_type'] == 'video']
+    width = [streams[i]['width'] for i in range (len(streams)) if streams[i]['codec_type'] == 'video'][0]
+    height = [streams[i]['height'] for i in range (len(streams)) if streams[i]['codec_type'] == 'video'][0]
 
     out, err = (
         ffmpeg
