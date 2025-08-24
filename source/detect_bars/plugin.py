@@ -34,6 +34,7 @@ logger = logging.getLogger("Unmanic.Plugin.detect_bars")
 class Settings(PluginSettings):
     settings = {
         "border_threshold":         "",
+        "add_2_queue_block":        False,
     }
 
     def __init__(self, *args, **kwargs):
@@ -41,7 +42,10 @@ class Settings(PluginSettings):
         self.form_settings = {
             "border_threshold":              {
                 "label": "Enter border threshold in pixels - bars smaller than this size will be ignored and file will not be added to queue",
-            }
+            },
+            "add_2_queue_block":              {
+                "label": "Check this option to immediately block files with bars from being added to the task queue & preventing subsequent plugins from adding it",
+            },
     }
 
 def get_probe(f):
@@ -70,6 +74,7 @@ def on_library_management_file_test(data):
         settings = Settings()
 
     border_thresh = settings.get_setting('border_threshold')
+    a2qb = settings.get_setting('add_2_queue_block')
 
     # Get the path to the file
     abspath = data.get('path')
@@ -103,6 +108,8 @@ def on_library_management_file_test(data):
         logger.info(f"video file {abspath} has black bars larger than the threshold; add file to task queue")
         data['add_file_to_pending_tasks'] = True
     else:
+        if a2qb:
+            data['add_file_to_pending_tasks'] = False
         logger.info(f"video file {abspath} does not have black bars or they are less than the threshold; do not add file to task queue")
 
     return data
