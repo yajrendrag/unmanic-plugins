@@ -1,0 +1,18 @@
+{
+    "author": "yajrendrag",
+    "compatibility": [
+        2
+    ],
+    "description": "Runs ffmpeg's crop detect and if black borders are found adds the file to the task list",
+    "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/detect_bars/icon.png",
+    "id": "detect_bars",
+    "name": "Detect Bars",
+    "platform": [
+        "all"
+    ],
+    "priorities": {
+        "on_library_management_file_test": 99
+    },
+    "tags": "library file test",
+    "version": "0.0.5"
+}
