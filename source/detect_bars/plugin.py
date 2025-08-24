@@ -44,7 +44,7 @@ class Settings(PluginSettings):
                 "label": "Enter border threshold in pixels - bars smaller than this size will be ignored and file will not be added to queue",
             },
             "add_2_queue_block":              {
-                "label": "Check this option to immediately block files with bars from being added to the task queue & preventing subsequent plugins from adding it",
+                "label": "Check this option to immediately block files without bars from being added to the task queue & preventing subsequent plugins from adding it",
             },
     }
 
@@ -103,8 +103,9 @@ def on_library_management_file_test(data):
     crop_h = crops[-1].split(':')[1]
 
     logger.debug(f"crop width: {crop_w}, crop height: {crop_h}")
+    logger.debug(f"add to queue block: {a2qb}")
 
-    if int(width) - int(crop_w) > int(border_thresh) and int(height) - int(crop_h) > int(border_thresh):
+    if int(width) - int(crop_w) > int(border_thresh) or int(height) - int(crop_h) > int(border_thresh):
         logger.info(f"video file {abspath} has black bars larger than the threshold; add file to task queue")
         data['add_file_to_pending_tasks'] = True
     else:
@@ -112,5 +113,6 @@ def on_library_management_file_test(data):
             data['add_file_to_pending_tasks'] = False
         logger.info(f"video file {abspath} does not have black bars or they are less than the threshold; do not add file to task queue")
 
+    logger.debug(f"data['add_file_to_pending_tasks']: {data['add_file_to_pending_tasks']}")
     return data
 
