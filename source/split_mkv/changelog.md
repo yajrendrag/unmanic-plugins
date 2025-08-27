@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.45</span>**
+- add opencv-python-headless to requirements.txt so import cv2 doesn't fail
+
 **<span style="color:#56adda">0.0.44</span>**
 - rewrote credits method to identify a sequence of identical frames across episodes
 - no longer uses credit words
