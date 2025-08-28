@@ -1,4 +1,0 @@
-ffmpeg-python
-parse-torrent-title
-imagehash
-opencv-python-headless
