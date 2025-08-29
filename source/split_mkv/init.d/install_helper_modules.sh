@@ -9,3 +9,11 @@ if ! command -v mkvmerge &> /dev/null; then
 else
     echo "**** mkvtoolnix already installed ****"
 fi
+
+ffopcv=$(python3 -m pip list | grep opencv-python-headless)
+if [ ! "$ffopcv" ]; then 
+    echo "**** Installing opencv-python-headless ****"
+    python3 -m pip install opencv-python-headless
+else
+    echo "**** opencv-python-headless already installed ****"
+fi
