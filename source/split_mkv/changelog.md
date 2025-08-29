@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.46</span>**
+- use defer_dependency_install flag
+
 **<span style="color:#56adda">0.0.45</span>**
 - add opencv-python-headless to requirements.txt so import cv2 doesn't fail
 
