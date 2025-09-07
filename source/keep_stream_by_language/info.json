@@ -4,7 +4,7 @@
         1,
         2
     ],
-    "description": "Specify one audio stream and one subtitle stream to keep.",
+    "description": "Specify lists of audio and subtitle languages to keep",
     "icon": "https://raw.githubusercontent.com/Unmanic/plugin.remove_stream_by_language/master/icon.png",
     "id": "keep_stream_by_language",
     "name": "Keep stream by language",
@@ -16,5 +16,5 @@
         "on_worker_process": 1
     },
     "tags": "audio,subtitle, ffmpeg,library file test",
-    "version": "0.1.4"
+    "version": "0.1.5"
 }

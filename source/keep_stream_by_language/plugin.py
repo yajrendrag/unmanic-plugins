@@ -24,7 +24,8 @@
 import logging
 import os
 from configparser import NoSectionError, NoOptionError
-import iso639
+from langcodes.tag_parser import LanguageTagError
+from langcodes import *
 
 from unmanic.libs.unplugins.settings import PluginSettings
 from unmanic.libs.directoryinfo import UnmanicDirectoryInfo
@@ -75,8 +76,11 @@ class PluginStreamMapper(StreamMapper):
 
     def null_streams(self, streams):
         alcl, audio_streams_list = streams_list(self.settings.get_setting('audio_languages'), streams, 'audio')
-        slcl, subtitle_streams_list = streams_list(self.settings.get_setting('subtitle_languages'), streams, 'subtitle')
-        if (any(l in audio_streams_list for l in alcl) or alcl == ['*'] or audio_streams_list == []) and (any(l in subtitle_streams_list for l in slcl) or slcl == ['*'] or subtitle_streams_list == []):
+        # slcl, subtitle_streams_list = streams_list(self.settings.get_setting('subtitle_languages'), streams, 'subtitle')
+        # This change in the line below results in the fail-safe to only apply to audio streams
+        alcl = [standardize_tag(l) if l != '*' else '*' for l in alcl]
+        audio_streams_list = [standardize_tag(l) for l in audio_streams_list]
+        if (any(l in audio_streams_list for l in alcl) or alcl == ['*'] or audio_streams_list == []): # and (any(l in subtitle_streams_list for l in slcl) or slcl == ['*'] or subtitle_streams_list == []):
             return True
         logger.info("One of the lists of languages does not contain a language matching any streams in the file - the entire stream type would be removed if processed, aborting.\n alcl: '{}', audio streams in file: '{}';\n slcl: '{}', subtitle streams in file: '{}'".format(alcl, audio_streams_list, slcl, subtitle_streams_list))
         return False
@@ -90,6 +94,11 @@ class PluginStreamMapper(StreamMapper):
 
         # if subtitle or audio _streams_list is empty the "all" statements will not test properly so the if statements work around this
         # and then we set the audio/subtitle_in a/slcl to True so no_work_to_do is properly determined.
+
+        alcl = [standardize_tag(l) if l != '*' else '*' for l in alcl]
+        audio_streams_list = [standardize_tag(l) for l in audio_streams_list]
+        slcl = [standardize_tag(l) if l != '*' else '*' for l in slcl]
+        subtitle_streams_list = [standardize_tag(l) for l in subtitle_streams_list]
         if subtitle_streams_list and slcl != ['*']:
             subs_in_slcl = all(l in slcl for l in subtitle_streams_list)
         else:
@@ -122,24 +131,20 @@ class PluginStreamMapper(StreamMapper):
             languages = [languages[i].strip() for i in range(len(languages))]
             if '*' not in languages and languages:
                 try:
-                    languages = [iso639.Language.match(languages[i]).part1 if iso639.Language.match(languages[i]).part1 is not None and languages[i] in iso639.Language.match(languages[i]).part1 else
-                                 iso639.Language.match(languages[i]).part2b if iso639.Language.match(languages[i]).part2b is not None and languages[i] in iso639.Language.match(languages[i]).part2b else
-                                 iso639.Language.match(languages[i]).part2t if iso639.Language.match(languages[i]).part2t is not None and languages[i] in iso639.Language.match(languages[i]).part2t else
-                                 iso639.Language.match(languages[i]).part3 if languages[i] in iso639.Language.match(languages[i]).part3 else "" for i in range(len(languages))]
-                except iso639.language.LanguageNotFoundError:
-                    raise iso639.language.LanguageNotFoundError("config list: ", languages)
+                    languages = [languages[i] if Language.get(languages[i]).is_valid() else "" for i in range(len(languages))]
+                except LanguageTagError:
+                    raise
 
             for language in languages:
-                language = language.strip()
+                language = language.strip().lower()
                 try:
-                    stream_tag_language = iso639.Language.match(stream_tags.get('language', '').lower()).part1 if iso639.Language.match(stream_tags.get('language', '').lower()).part1 is not None and stream_tags.get('language', '').lower() in iso639.Language.match(stream_tags.get('language', '').lower()).part1 else \
-                                          iso639.Language.match(stream_tags.get('language', '').lower()).part2b if iso639.Language.match(stream_tags.get('language', '').lower()).part2b is not None and stream_tags.get('language', '').lower() in iso639.Language.match(stream_tags.get('language', '').lower()).part2b else \
-                                          iso639.Language.match(stream_tags.get('language', '').lower()).part2t if iso639.Language.match(stream_tags.get('language', '').lower()).part2t is not None and stream_tags.get('language', '').lower() in iso639.Language.match(stream_tags.get('language', '').lower()).part2t else \
-                                          iso639.Language.match(stream_tags.get('language', '').lower()).part3 if iso639.Language.match(stream_tags.get('language', '').lower()).part3 is not None and stream_tags.get('language', '').lower() in iso639.Language.match(stream_tags.get('language', '').lower()).part3 else ""
-                except iso639.language.LanguageNotFoundError:
-                    raise iso639.language.LanguageNotFoundError("stream tag language: ", stream_tags.get('language', '').lower())
-                if language and (language.lower() in stream_tag_language or language.lower() == '*'):
+                    stream_tag_language = stream_tags.get('language', '') if Language.get(stream_tags.get('language', '')).is_valid() else ""
+                except LanguageTagError:
+                    raise
+
+                if language and (standardize_tag(language) in [standardize_tag(stream_tag_language)] or language == '*'):
                     return True
+
         elif keep_undefined:
             logger.warning(
                 "Stream '{}' in file '{}' has no language tag, but keep_undefined is checked. add to queue".format(stream_id, self.input_file))
@@ -169,12 +174,11 @@ def streams_list(languages, streams, stream_type):
     if lcl == ['']: lcl = []
     if '*' not in lcl and lcl:
         try:
-            lcl = [iso639.Language.match(lcl[i]).part1 if iso639.Language.match(lcl[i]).part1 is not None and lcl[i] in iso639.Language.match(lcl[i]).part1 else
-                   iso639.Language.match(lcl[i]).part2b if iso639.Language.match(lcl[i]).part2b is not None and lcl[i] in iso639.Language.match(lcl[i]).part2b else
-                   iso639.Language.match(lcl[i]).part2t if iso639.Language.match(lcl[i]).part2t is not None and lcl[i] in iso639.Language.match(lcl[i]).part2t else
-                   iso639.Language.match(lcl[i]).part3 if lcl[i] in iso639.Language.match(lcl[i]).part3 else "" for i in range(len(lcl))]
-        except iso639.language.LanguageNotFoundError:
-            raise iso639.language.LanguageNotFoundError("config list: ", lcl)
+            lcl = [lcl[i] if Language.get(lcl[i]).is_valid() else "" for i in range(len(lcl))]
+        except LanguageTagError as e:
+            e.args += ("config list: " + str(lcl),)
+            raise
+
     try:
         streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == stream_type]
         streams_list.sort() 
@@ -183,12 +187,11 @@ def streams_list(languages, streams, stream_type):
         logger.info("no '{}' tags in file".format(stream_type))
     if streams_list:
         try:
-            streams_list = [iso639.Language.match(streams_list[i]).part1 if iso639.Language.match(streams_list[i]).part1 is not None and streams_list[i] in iso639.Language.match(streams_list[i]).part1 else
-                            iso639.Language.match(streams_list[i]).part2b if iso639.Language.match(streams_list[i]).part2b is not None and streams_list[i] in iso639.Language.match(streams_list[i]).part2b else
-                            iso639.Language.match(streams_list[i]).part2t if iso639.Language.match(streams_list[i]).part2t is not None and streams_list[i] in iso639.Language.match(streams_list[i]).part2t else
-                            iso639.Language.match(streams_list[i]).part3 if streams_list[i] in iso639.Language.match(streams_list[i]).part3 else "" for i in range(len(streams_list))]
-        except iso639.language.LanguageNotFoundError:
-            raise iso639.language.LanguageNotFoundError("streams list: ", streams_list)
+            streams_list = [streams_list[i] if Language.get(streams_list[i]).is_valid() else "" for i in range(len(streams_list))]
+        except LanguageTagError as e:
+            e.args += ("invalid stream language: " + str(streams_list[i]),)
+            raise
+
     return lcl,streams_list
 
 def kept_streams(settings):
@@ -303,23 +306,24 @@ def keep_languages(mapper, ct, language_list, streams, keep_undefined, keep_comm
     languages = [languages[i].lower().strip() for i in range(0,len(languages))]
     if '*' not in languages and languages:
         try:
-            languages = [iso639.Language.match(languages[i]).part1 if iso639.Language.match(languages[i]).part1 is not None and languages[i] in iso639.Language.match(languages[i]).part1 else
-                         iso639.Language.match(languages[i]).part2b if iso639.Language.match(languages[i]).part2b is not None and languages[i] in iso639.Language.match(languages[i]).part2b else
-                         iso639.Language.match(languages[i]).part2t if iso639.Language.match(languages[i]).part2t is not None and languages[i] in iso639.Language.match(languages[i]).part2t else
-                         iso639.Language.match(languages[i]).part3 if languages[i] in iso639.Language.match(languages[i]).part3 else "" for i in range(len(languages))]
+            languages = [languages[i] if Language.get(languages[i]).is_valid() else "" for i in range(len(languages))]
+        except LanguageTagError as e:
+            e.args += ("config list: " + str(languages),)
+            raise
 
-        except iso639.language.LanguageNotFoundError:
-            raise iso639.language.LanguageNotFoundError("config list: ", languages)
     streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == ct and "tags" in streams[i] and "language" in streams[i]["tags"] and
                     (codec_type == 's' or keep_commentary == True or (keep_commentary == False and ("codec_type" in streams[i] and streams[i]["codec_type"] == ct and "tags" in streams[i] and ("title" in streams[i]["tags"] and
                      "commentary" not in streams[i]["tags"]["title"].lower() or "title" not in streams[i]["tags"]))) or languages == ['*'])]
+
+    languages = [standardize_tag(l) if l != '*' else '*' for l in languages]
+
     try:
-        streams_list = [iso639.Language.match(streams_list[i]).part1 if iso639.Language.match(streams_list[i]).part1 is not None and streams_list[i] in iso639.Language.match(streams_list[i]).part1 else
-                        iso639.Language.match(streams_list[i]).part2b if iso639.Language.match(streams_list[i]).part2b is not None and streams_list[i] in iso639.Language.match(streams_list[i]).part2b else
-                        iso639.Language.match(streams_list[i]).part2t if iso639.Language.match(streams_list[i]).part2t is not None and streams_list[i] in iso639.Language.match(streams_list[i]).part2t else
-                        iso639.Language.match(streams_list[i]).part3 if streams_list[i] in iso639.Language.match(streams_list[i]).part3 else "" for i in range(len(streams_list))]
-    except iso639.language.LanguageNotFoundError:
-        raise iso639.language.LanguageNotFoundError("streams language list: ", streams_list)
+        streams_list = [streams_list[i] if Language.get(streams_list[i]).is_valid() else "" for i in range(len(streams_list))]
+    except LanguageTagError as e:
+        e.args += ("invalid stream language: " + str(streams_list[i]),)
+        raise
+
+    streams_list = [standardize_tag(l) if l != '*' else '*' for l in streams_list]
     if streams_list:
         for i, language in enumerate(streams_list):
             lang = language.lower().strip()

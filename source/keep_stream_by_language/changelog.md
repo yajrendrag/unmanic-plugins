@@ -1,4 +1,10 @@
 
+**<span style="color:#56adda">0.1.5</span>**
+- change language library from python-iso639 to langcodes
+- modify description.md to make it current with options and use of updated langcodes library
+- fix description in info.json
+- update requirements.txt to refer to langcodes instead of python-iso639
+
 **<span style="color:#56adda">0.1.4</span>**
 - add no_work_to_do test to worker process
 
