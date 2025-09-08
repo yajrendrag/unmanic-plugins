@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.0</span>**
+- update language code library to IETF langcodes from ISO639
+
 **<span style="color:#56adda">0.0.31</span>**
 - add option to force_cpu - useful if no nvidia GPU or if encountering issues of GPU memory not being released after plugin runs
 

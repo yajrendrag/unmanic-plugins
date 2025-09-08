@@ -29,7 +29,6 @@ import logging
 import hashlib
 import os
 import whisper
-import iso639
 from pathlib import Path
 import subprocess
 import random
@@ -38,6 +37,8 @@ import os
 import glob
 import torch
 import ffmpeg
+from langcodes import *
+from langcodes.tag_parser import LanguageTagError
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -50,6 +51,7 @@ class Settings(PluginSettings):
     settings = {
         "process_as_multilingual_audio_file": False,
         "force_cpu": False,
+        "tag_style": "2 letter",
     }
 
     def __init__(self, *args, **kwargs):
@@ -61,6 +63,20 @@ class Settings(PluginSettings):
             "force_cpu":    {
                 "label": "check this to only attempt processing with CPU.  This is helpful if you encounter issues using GPU such as GPU memory not being freed up after the plugin runs or if you do not have an nvidia GPU",
             },
+            "tag_style": {
+                "label":          "Choose Language Tag Style",
+                "description":    "Select '2 letter' or '3 letter' language tags",
+                "input_type":     "select",
+                "select_options": [
+                    {
+                        "value": "2",
+                        "label": "2 letter",
+                    },
+                    {   "value": "3",
+                        "label": "3 letter",
+                    }
+                ],
+            }
         }
 
 def get_audio_streams(probe_streams):
@@ -158,9 +174,18 @@ def tag_streams(astreams, vid_file, settings):
         else:
             logger.debug("temp video file to detect language in: '{}".format(output_file))
 
+        tag_style = settings.get_setting('tag_style')
         lang_tag = detect_language(output_file, tmp_dir, settings)
+        try:
+            is_valid = Language.get(lang_tag).is_valid()
+        except LanguageTagError:
+            lang_tag = ""
+
         if lang_tag:
-            lang_tag = iso639.Language.from_part1(lang_tag).part2b
+            if tag_style == '2':
+                lang_tag = standardize_tag(lang_tag)
+            else:
+                lang_tag = Language.get(standardize_tag(lang_tag)).to_alpha3()
             tag_args += ["-metadata:s:a:"+str(astream), 'language='+lang_tag]
         else:
             logger.error("Language not successfully identified for audio stream '{}' of file '{}', so skipping stream".format(astream, vid_file))
