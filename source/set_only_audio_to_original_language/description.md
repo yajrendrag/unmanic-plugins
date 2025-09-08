@@ -36,6 +36,9 @@ Enter your tmdb api_key.  This option is only visible if reorder original audio 
 #### <span style="color:blue">"tmdb_api_read_access_token</span>
 Enter your tmdb API Read access token (it's a really long string).  This option is only visible if reorder original audio is checked.
 
+#### <span style="color:blue">tag_style</span>
+Version 0.0.3 migrated to langcodes language code library which is based on IETF codes (subsumes ISO 639).  Select whether you prfer 2 letter or 3 letter language codes for your language code tag.
+
 ---
 ##### Notes:
 

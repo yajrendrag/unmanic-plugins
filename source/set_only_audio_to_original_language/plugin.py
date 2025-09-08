@@ -25,7 +25,8 @@ import PTN
 import requests
 import string
 import re
-import iso639
+from langcodes import *
+from langcodes.tag_parser import LanguageTagError
 
 yr = re.compile(r'\d\d\d\d')
 
@@ -41,6 +42,7 @@ class Settings(PluginSettings):
         "library_type":	"",
         "tmdb_api_key":    "",
         "tmdb_api_read_access_token":    "",
+        "tag_style":                     "2 letter",
     }
 
     def __init__(self, *args, **kwargs):
@@ -49,6 +51,7 @@ class Settings(PluginSettings):
             "library_type": self.__set_library_type_form_settings(),
             "tmdb_api_key": self.__set_tmdb_api_key_form_settings(),
             "tmdb_api_read_access_token": self.__set_tmdb_api_read_access_token_form_settings(),
+            "tag_style": self.__set_tag_style_form_settings(),
         }
 
     def __set_tmdb_api_read_access_token_form_settings(self):
@@ -79,6 +82,23 @@ class Settings(PluginSettings):
                     "value": "Movies",
                     "label": "Movies",
                 },
+            ],
+        }
+        return values
+
+    def __set_tag_style_form_settings(self):
+        values = {
+            "label":          "Choose Language Tag Style",
+            "description":    "Select '2 letter' or '3 letter' language tags",
+            "input_type":     "select",
+            "select_options": [
+                {
+                    "value": "2",
+                    "label": "2 letter",
+                },
+                {   "value": "3",
+                    "label": "3 letter",
+                }
             ],
         }
         return values
@@ -191,17 +211,21 @@ def get_original_language(video_file, streams, data):
         elif count_o == 1 and count != 1:
             matched_result = matched_result_o
 
+    tag_style = settings.get_setting("tag_style")
     try:
-        if len(vres[matched_result]["original_language"]) == 2:
-            lang = iso639.Language.from_part1(vres[matched_result]["original_language"])
-        elif len(vres[matched_result]["original_language"]) == 3:
-            lang = iso639.Language.from_part3(vres[matched_result]["original_language"])
-        original_language = [lang.part3]
-        logger.debug("original_language: '{}', file: '{}'".format(original_language, video_file))
-    except iso639.language.LanguageNotFoundError:
+        lang_tag = vres[matched_result]["original_language"]
+        is_valid = Language.get(lang_tag).is_valid()
+    except LanguageTagError:
+        lang_tag = ""
         logger.error("Error matching original language - Aborting, file: '{}'".format(video_file))
         return []
     else:
+        if tag_style == '2':
+            lang_tag = standardize_tag(lang_tag)
+        else:
+            lang_tag = Language.get(standardize_tag(lang_tag)).to_alpha3()
+        original_language = [lang_tag]
+        logger.debug("original_language: '{}', file: '{}'".format(original_language, video_file))
         astreams = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "tags" in streams[i] and "language" in streams[i]["tags"]]
         original_audio_position = [i for i in range(len(astreams)) if astreams[i] in original_language]
         if len(original_audio_position) > 1:
