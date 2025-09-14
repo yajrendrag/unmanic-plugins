@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.1</span>**
+- add langcodes to requirements.txt
+
 **<span style="color:#56adda">0.1.0</span>**
 - update language code library to IETF langcodes from ISO639
 

@@ -16,11 +16,3 @@ fi
 #else
 #    echo "**** moviepy already installed ****"
 #fi
-
-piso639=$(python3 -m pip list | grep python-iso639)
-if [ ! "$piso639" ]; then
-    echo "**** Installing python-iso639 ****"
-    python3 -m pip install -U python-iso639
-else
-    echo "**** python-iso639 already installed ****"
-fi
