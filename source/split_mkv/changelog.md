@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.46</span>**
+- add pillow library to requirements.txt
+
 **<span style="color:#56adda">0.0.45</span>**
 - add opencv-python-headless to init.d script so import cv2 doesn't fail
 
