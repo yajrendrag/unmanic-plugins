@@ -176,6 +176,7 @@ def tag_streams(astreams, vid_file, settings):
 
         tag_style = settings.get_setting('tag_style')
         lang_tag = detect_language(output_file, tmp_dir, settings)
+        logger.debug(f"astream: {astream}, lang_tag: {lang_tag}")
         try:
             is_valid = Language.get(lang_tag).is_valid()
         except LanguageTagError:
@@ -354,6 +355,7 @@ def on_worker_process(data):
 
     # Find audio streams that need language tags, if any, and add metadata to set the language tags
     streams_needing_tags = get_audio_streams(probe_streams)
+    logger.debug(f"streams_needing_tags: {streams_needing_tags}")
     if streams_needing_tags:
 
         tag_args = tag_streams(streams_needing_tags, abspath, settings)

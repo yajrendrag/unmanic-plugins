@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.2</span>**
+- added some debug output to trace where lang_code is being generated that causes an error that LanguageTagError isn't catching
+
 **<span style="color:#56adda">0.1.1</span>**
 - add langcodes to requirements.txt
 
