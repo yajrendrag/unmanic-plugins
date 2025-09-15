@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.3</span>**
+- read cache_path from unmanic config instead of hardcoding /tmp/unmanic
+
 **<span style="color:#56adda">0.1.2</span>**
 - added some debug output to trace where lang_code is being generated that causes an error that LanguageTagError isn't catching
 

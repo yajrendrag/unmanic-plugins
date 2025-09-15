@@ -44,6 +44,8 @@ from unmanic.libs.unplugins.settings import PluginSettings
 
 from detect_audio_language.lib.ffmpeg import Probe, Parser
 
+from unmanic import config
+
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.detect_audio_language")
 
@@ -143,9 +145,13 @@ def on_library_management_file_test(data):
     return data
 
 def tag_streams(astreams, vid_file, settings):
+    settings2 = config.Config()
+    cache_path = settings2.get_cache_path()
+
     # create temporary work space in cache
     src_file_hash = hashlib.md5(os.path.basename(vid_file).encode('utf8')).hexdigest()
-    tmp_dir = os.path.join('/tmp/unmanic/', '{}'.format(src_file_hash))
+    #tmp_dir = os.path.join('/tmp/unmanic/', '{}'.format(src_file_hash))
+    tmp_dir = os.path.join(cache_path, '{}'.format(src_file_hash))
     dir=Path(tmp_dir)
     dir.mkdir(parents=True, exist_ok=True)
 
