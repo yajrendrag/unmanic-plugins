@@ -1,4 +1,10 @@
 
+**<span style="color:#56adda">0.1.0</span>**
+- remove homegrown lang_codes list and migrate to langcodes library
+- if a subtitle file has a non-standard stream, it just skips those streams rather than aborting
+- only deletes subtitle streams if post processor detects that a subtitle stream exists in the file with that language
+- adds an option to allow the user to specify whether they prefer 2 letter codes or 3 letter codes to be written as the language tag
+
 **<span style="color:#56adda">0.0.15</span>**
 - change lang parser to just pick the first non blank characters after the first dot as the language - this allows forms of .lang.srt or .lang.other_code.srt
 
