@@ -1,4 +1,11 @@
 
+**<span style="color:#56adda">0.1.6</span>**
+- fix issue in if statement when combining test of standardize_tag where langauge could be '*' - separate clauses
+- add option to reorder audio streams based on first named langauge - sets first named langauge as default and makes it 1st audio stream
+- add option to prefer multichannel or 2 channel when file has multiple streams of first named language
+- fix option label description for fail safe to indicate it now only applies to audio streams
+- modify description.md to bring up to date with new options
+
 **<span style="color:#56adda">0.1.5</span>**
 - change language library from python-iso639 to langcodes
 - modify description.md to make it current with options and use of updated langcodes library

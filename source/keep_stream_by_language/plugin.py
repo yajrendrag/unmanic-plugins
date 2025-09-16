@@ -43,6 +43,9 @@ class Settings(PluginSettings):
         "keep_undefined":        True,
         "keep_commentary":       False,
         "fail_safe":             True,
+        "reorder_kept":          True,
+        "prefer_2_or_mc":        "2",
+
     }
 
 
@@ -62,9 +65,36 @@ class Settings(PluginSettings):
                 "label": "uncheck to discard commentary audio streams regardless of any language tags",
             },
             "fail_safe":   {
-                "label": "check to include fail safe check to prevent unintentional deletion of all audio &/or all subtitle streams",
-            }
+                "label": "check to include fail safe check to prevent unintentional deletion of all audio streams",
+            },
+            "reorder_kept":   {
+                "description": "if checked, this will reorder the kept audio streams by making the first stream(s) in the file, those streams that match the first audio language listed above; audio stream 0 will also have default disposition set",
+                "label": "reorder kept audio languages",
+            },
+            "prefer_2_or_mc": self.__set_audio_default_prefs_form_settings(),
         }
+
+    def __set_audio_default_prefs_form_settings(self):
+        values = {
+            "description": "If reordering kept audio streams, specify if you prefer 2 channel or multichannel to be the default audio when the file has more than one stream that matches the language tag listed first in the list of audio languages.",
+            "label":      "Enter Choice",
+            "input_type": "select",
+            "select_options": [
+                {
+                    "value": "2",
+                    "label": "Set 2 Channel as default",
+                },
+                {
+                    "value": "mc",
+                    "label": "Set Multichannel as default",
+                },
+            ],
+        }
+        if not self.get_setting('reorder_kept'):
+            values["display"] = 'hidden'
+        return values
+
+
 
 class PluginStreamMapper(StreamMapper):
     def __init__(self):
@@ -142,7 +172,9 @@ class PluginStreamMapper(StreamMapper):
                 except LanguageTagError:
                     raise
 
-                if language and (standardize_tag(language) in [standardize_tag(stream_tag_language)] or language == '*'):
+                if language == '*':
+                    return True
+                elif language and (standardize_tag(language) in [standardize_tag(stream_tag_language)]):
                     return True
 
         elif keep_undefined:
@@ -357,6 +389,47 @@ def mapadder(mapper, stream, codec):
     mapper.stream_mapping += ['-map', '0:{}:{}'.format(codec, stream)]
     #mapper.stream_encoding += ['-c:{}:{}'.format(codec, stream), 'copy']
 
+def reorder_audio_streams(stream_map, mapper, prefer_2_or_mc, ffmpeg_args, probe_streams, def_lang):
+    as_list=[]
+    for stream in range(len(stream_map)):
+        if stream_map[stream] == '-map' or stream_map[stream] == '0:v':
+            continue
+        elif stream_map[stream].split(':')[1] == 'a':
+            as_list.append(stream_map[stream].split(':')[2])
+    all_astreams=[probe_streams[i]['index'] for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio']
+    abs_streams = [all_astreams[i] for i, a in enumerate(all_astreams) if str(i) in as_list]
+    new_order = [i for i in abs_streams if 'tags' in probe_streams[i] and 'language' in probe_streams[i]['tags'] and probe_streams[i]['tags']['language'] == def_lang] + \
+                [i for i in abs_streams if 'tags' in probe_streams[i] and 'language' in probe_streams[i]['tags'] and probe_streams[i]['tags']['language'] != def_lang]
+
+    idx_map = [i for i, v in enumerate(abs_streams) if 'tags' in probe_streams[v] and 'language' in probe_streams[v]['tags'] and probe_streams[v]['tags']['language'] == def_lang] + \
+              [i for i, v in enumerate(abs_streams) if 'tags' in probe_streams[v] and 'language' in probe_streams[v]['tags'] and probe_streams[v]['tags']['language'] != def_lang]
+    new_map = [as_list[i] for i in idx_map]
+    langs = [probe_streams[i]['tags']['language'] for i in new_order]
+    matched_langs = [l for l in langs if l == def_lang]
+    if len(matched_langs) > 1:
+        channels = probe_streams[new_order[0]]['channels']
+        if (prefer_2_or_mc == '2' and channels != 2) or (prefer_2_or_mc == 'mc' and channels == 2):
+            for i in range(1, len(matched_langs)):
+                channels = probe_streams[new_order[i]]['channels']
+                if (prefer_2_or_mc == '2' and channels == 2) or (prefer_2_or_mc == 'mc' and channels > 2):
+                    # switch i & 0
+                    original_first_abs_stream = new_order[0]
+                    original_first_new_map = new_map[0]
+                    new_order[0] = new_order[i]
+                    new_map[0] = new_map[i]
+                    new_order[i] = original_first_abs_stream
+                    new_map[i] = original_first_new_map
+                    break
+    mapper.stream_mapping = ['-map', '0:v']
+    for i,astream in enumerate(new_map):
+        mapper.stream_mapping += ['-map', f"0:a:{astream}"]
+        if i == 0:
+            mapper.stream_mapping += ["-disposition:a:"+str(0), "default"]
+    logger.debug(f"mapper.stream_mapping: {mapper.stream_mapping}")
+    kwargs = {"-disposition:a": '-default'}
+    mapper.set_ffmpeg_advanced_options(**kwargs)
+    logger.debug(f"ffmpeg_args: {ffmpeg_args}")
+
 def on_worker_process(data):
     """
     Runner function - enables additional configured processing jobs during the worker stages of a task.
@@ -396,6 +469,9 @@ def on_worker_process(data):
 
     keep_undefined_lang_tags = settings.get_setting('keep_undefined')
     keep_commentary = settings.get_setting('keep_commentary')
+    reorder_kept = settings.get_setting('reorder_kept')
+    if reorder_kept:
+        prefer_2_or_mc = settings.get_setting('prefer_2_or_mc')
 
     if not file_streams_already_kept(settings, data.get('file_in')):
         # Get stream mapper
@@ -427,6 +503,15 @@ def on_worker_process(data):
 
             # keep specific language streams if present
             keep_languages(mapper, 'audio', settings.get_setting('audio_languages'), probe_streams, keep_undefined_lang_tags, keep_commentary)
+            def_lang = settings.get_setting('audio_languages')
+            if reorder_kept and def_lang != '*':
+                lcl = list(def_lang.split(','))
+                lcl = [lcl[i].strip() for i in range(0,len(lcl))]
+                if lcl: def_lang = lcl[0]
+                stream_map = mapper.stream_mapping
+                ffmpeg_args = mapper.get_ffmpeg_args()
+                reorder_audio_streams(stream_map, mapper, prefer_2_or_mc, ffmpeg_args, probe_streams, def_lang)
+
             if settings.get_setting('subtitle_languages') != '*':
                 keep_languages(mapper, 'subtitle', settings.get_setting('subtitle_languages'), probe_streams, keep_undefined_lang_tags, keep_commentary)
 
