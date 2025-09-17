@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.0</span>**
+- migrate to langcodes module from iso639 for langauge lookups
+
 **<span style="color:#56adda">0.0.20</span>**
 - fix path reference to file in worker process to reference the original file path and not the cache path
 

@@ -30,10 +30,11 @@ import os
 import re
 from pathlib import Path
 import whisper
-import iso639
 import shutil
 import ffmpeg
 import torch
+from langcodes.tag_parser import LanguageTagError
+from langcodes import *
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -172,25 +173,12 @@ def srt_already_created(settings, original_file_path, probe_streams):
     return False, audio_language_to_convert
 
 def lang_code_to_name(lang):
-    try:
-        lang_part = "part1" if iso639.Language.match(lang).part1 is not None and lang in iso639.Language.match(lang).part1 else \
-                    "part2b" if iso639.Language.match(lang).part2b is not None and lang in iso639.Language.match(lang).part2b else \
-                    "part2t" if iso639.Language.match(lang).part2t is not None and lang in iso639.Language.match(lang).part2t else \
-                    "part3" if lang in iso639.Language.match(lang).part3 else ""
-    except iso639.language.LanguageNotFoundError:
-        lang_part = ''
+    lang_name = Language.get(lang).display_name() if Language.get(lang).is_valid() else ""
 
-    if lang_part:
-        lang_func = {"part1": iso639.Language.from_part1,
-                     "part2t": iso639.Language.from_part2t,
-                     "part2b": iso639.Language.from_part2b,
-                     "part3": iso639.Language.from_part3}
-
-        lang_name=lang_func[lang_part](lang).name
-        if lang_name in langs:
-            return lang_name
-
-    return ""
+    if lang_name == "" or lang_name not in langs:
+        return ""
+    else:
+        return lang_name
 
 def on_library_management_file_test(data):
     """
