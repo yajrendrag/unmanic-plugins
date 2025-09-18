@@ -21,11 +21,12 @@
 """
 import logging
 import os
-import iso639
 import ffmpeg
 import mimetypes
 import re
 import difflib
+from langcodes import *
+from langcodes.tag_parser import LanguageTagError
 
 from unmanic.libs.unplugins.settings import PluginSettings
 from unmanic.libs.directoryinfo import UnmanicDirectoryInfo
@@ -93,8 +94,8 @@ def get_probe(f):
 def get_sub_language(settings, abspath):
     if os.path.splitext(os.path.splitext(abspath)[0])[1] == '.sdh':
         try:
-            isolookup = iso639.Language.match(os.path.splitext(os.path.splitext(os.path.splitext(abspath)[0])[0])[1].strip('.'))
-        except iso639.language.LanguageNotFoundError:
+            langcode = Language.get(os.path.splitext(os.path.splitext(os.path.splitext(abspath)[0])[0])[1].strip('.'))
+        except LanguageTagError:
             basefile = os.path.splitext(os.path.splitext(abspath)[0])[0]
         else:
             basefile = os.path.splitext(os.path.splitext(os.path.splitext(abspath)[0])[0])[0]
@@ -105,21 +106,21 @@ def get_sub_language(settings, abspath):
     sub_languages_to_sync = settings.get_setting("sub_languages_to_sync")
     sub_languages_to_sync = list(sub_languages_to_sync.split(','))
     sub_languages_to_sync = [sub_languages_to_sync[i].strip() for i in range(len(sub_languages_to_sync))]
-    sub_languages_to_sync_iso639 = [iso639.Language.match(j) for j in sub_languages_to_sync]
+    sub_languages_to_sync_langcode = [Language.get(j) for j in sub_languages_to_sync]
     logger.debug(f"Subtitle languages to sync: {sub_languages_to_sync}")
 
     lang_srt = [li for li in difflib.ndiff(basefile, abspath) if li[0] != ' ']
     if os.path.splitext(os.path.splitext(abspath)[0])[1] == '.sdh':
         try:
-            isolookup = iso639.Language.match(os.path.splitext(os.path.splitext(os.path.splitext(abspath)[0])[0])[1].strip('.'))
-        except iso639.language.LanguageNotFoundError:
+            langcode = Language.get(os.path.splitext(os.path.splitext(os.path.splitext(abspath)[0])[0])[1].strip('.'))
+        except LanguageTagError:
             lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
         else:
             lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.sdh','').replace('.','')
     else:
         lang = ''.join([i.replace('+ ','') for i in lang_srt]).replace('.srt','').replace('.','')
 
-    return lang, sub_languages_to_sync_iso639, sub_languages_to_sync, basefile
+    return lang, sub_languages_to_sync_langcode, sub_languages_to_sync, basefile
 
 def file_is_subtitle(probe):
     logger.debug(f"probe: {probe}")
@@ -134,7 +135,7 @@ def file_is_subtitle(probe):
     else:
         return False
 
-def matching_astream_in_video_file(lang, sub_languages_to_sync_iso639, abspath, basefile):
+def matching_astream_in_video_file(lang, sub_languages_to_sync_langcode, abspath, basefile):
     global duration
 
     mimetypes.add_type('video/mastroska', '.mkv')
@@ -144,7 +145,7 @@ def matching_astream_in_video_file(lang, sub_languages_to_sync_iso639, abspath, 
     video_file = ""
     astream_lang_index = []
     video_suffix_list = [k for k in mimetypes.types_map if 'video/' in mimetypes.types_map[k]]
-    if lang and iso639.Language.match(lang) in sub_languages_to_sync_iso639:
+    if lang and Language.get(lang) in sub_languages_to_sync_langcode:
         logger.info (f"Language code {lang} subtitle stream found in file {abspath}")
         sfx=[s for s in video_suffix_list if os.path.exists(basefile + s)]
         logger.debug(f"sfx: {sfx}, basefile: {basefile}")
@@ -155,7 +156,7 @@ def matching_astream_in_video_file(lang, sub_languages_to_sync_iso639, abspath, 
                 streams = ffmpeg.probe(video_file)['streams']
                 astreams = [i for i in range(len(streams)) if 'codec_type' in streams[i] and streams[i]['codec_type'] == 'audio']
                 astream_lang_index = [i for i,s in enumerate(astreams) if 'codec_type' in streams[s] and streams[s]['codec_type'] == 'audio' and 'tags' in streams[s] and
-                                     'language' in streams[s]['tags'] and iso639.Language.match(streams[s]['tags']['language']) == iso639.Language.match(lang)]
+                                     'language' in streams[s]['tags'] and Language.get(streams[s]['tags']['language']) == Language.get(lang)]
                 try:
                     duration = float(ffmpeg.probe(video_file)['format']['duration'])
                 except KeyError:
@@ -207,9 +208,9 @@ def on_library_management_file_test(data):
         return data
 
     # Extract subtitle language from file of the form: "/path/to/video/file.lang.srt" and find corresponding video files of form "/path/to/video/file.video_suffix"
-    lang, sub_languages_to_sync_iso639, sub_languages_to_sync, basefile = get_sub_language(settings, abspath)
+    lang, sub_languages_to_sync_langcode, sub_languages_to_sync, basefile = get_sub_language(settings, abspath)
 
-    astream, astreams, video_file = matching_astream_in_video_file(lang, sub_languages_to_sync_iso639, abspath, basefile)
+    astream, astreams, video_file = matching_astream_in_video_file(lang, sub_languages_to_sync_langcode, abspath, basefile)
     if astream and video_file:
         logger.info(f"Video file {video_file} exists with audio stream matching subtitle language - Adding file {abspath} to task queue for subtitle syncing")
         data['add_file_to_pending_tasks'] = True
@@ -282,9 +283,9 @@ def on_worker_process(data):
         return data
 
     # Extract subtitle language from file of the form: "/path/to/video/file.lang.srt" and find corresponding video files of form "/path/to/video/file.video_suffix"
-    lang, sub_languages_to_sync_iso639, sub_languages_to_sync, basefile = get_sub_language(settings, abspath)
+    lang, sub_languages_to_sync_langcode, sub_languages_to_sync, basefile = get_sub_language(settings, abspath)
 
-    astream, astreams, video_file = matching_astream_in_video_file(lang, sub_languages_to_sync_iso639, abspath, basefile)
+    astream, astreams, video_file = matching_astream_in_video_file(lang, sub_languages_to_sync_langcode, abspath, basefile)
     if astream and video_file:
         logger.info(f"Video file {video_file} exists with audio stream (astream: {astream}) matching language of subtitle file - sync the subtitle stream to the audio")
     else:

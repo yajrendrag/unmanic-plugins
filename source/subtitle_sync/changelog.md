@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.12</span>**
+- migrate to langcode library from python-iso639
+
 **<span style="color:#56adda">0.0.11</span>**
 - in file_is_subtitle function fix reference to "type" in if statement - should have been "ctype"
 
