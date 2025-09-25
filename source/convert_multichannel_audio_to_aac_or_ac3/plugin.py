@@ -37,6 +37,7 @@ class Settings(PluginSettings):
         "bit_rate": "640k",
         "stream_title":  "",
         "encoder":  "",
+        "mc_codecs": "eac3",
     }
 
     def __init__(self, *args, **kwargs):
@@ -49,6 +50,9 @@ class Settings(PluginSettings):
                 "label": "Enter a custom stream title for audio language.  Default is a string equal to the encoder used + '5.1 Surround'",
             },
             "encoder": self.__set_encoder_form_settings(),
+            "mc_codecs":  {
+                "label": "Enter a comma delimited list of multichannel audio codecs that this plugin should transcode to your specified encoder"<
+            }
         }
 
     def __set_encoder_form_settings(self):
@@ -73,9 +77,13 @@ class Settings(PluginSettings):
         }
         return values
 
-def s2_encode(probe_streams, abspath):
+def s2_encode(probe_streams, abspath, settings):
+    mc_codecs = settings.get_setting("mc_codecs")
+    mc_codecs = list(mc_codecs.split(','))
+    mc_codecs = [mc_codecs[i].strip() for i in range(0,len(mc_codecs))]
+
     try:
-        mc_streams_list = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and int(probe_streams[i]["channels"]) >= 6 and probe_streams[i]["codec_name"] in ["dts", "truehd", "eac3"]]
+        mc_streams_list = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio' and int(probe_streams[i]["channels"]) >= 6 and probe_streams[i]["codec_name"] in mc_codecs]
         # below returns the audio stream with the maximum number of audio channels > 5, it's audio stream #, and absolute stream # as a tuple, and final index selects key number 1 from the tuple (audio stream #)
         all_astreams = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio']
         return mc_streams_list, all_astreams
@@ -117,7 +125,7 @@ def on_library_management_file_test(data):
     else:
         settings = Settings()
 
-    stream_to_encode, all_astreams = s2_encode(probe_streams, abspath)
+    stream_to_encode, all_astreams = s2_encode(probe_streams, abspath, settings)
     logger.debug("stream_to_encode: '{}'".format(stream_to_encode))
     logger.debug("all_astreams: '{}'".format(all_astreams))
 
@@ -174,7 +182,7 @@ def on_worker_process(data):
     else:
         settings = Settings()
 
-    stream_to_encode, all_astreams = s2_encode(probe_streams, abspath)
+    stream_to_encode, all_astreams = s2_encode(probe_streams, abspath, settings)
     bit_rate = settings.get_setting('bit_rate')
     encoder = settings.get_setting('encoder')
     stream_title = settings.get_setting('stream_title')
