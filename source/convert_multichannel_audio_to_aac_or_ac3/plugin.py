@@ -51,7 +51,7 @@ class Settings(PluginSettings):
             },
             "encoder": self.__set_encoder_form_settings(),
             "mc_codecs":  {
-                "label": "Enter a comma delimited list of multichannel audio codecs that this plugin should transcode to your specified encoder"<
+                "label": "Enter a comma delimited list of multichannel audio codecs that this plugin should transcode to your specified encoder",
             }
         }
 
