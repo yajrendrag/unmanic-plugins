@@ -112,7 +112,7 @@ class PluginStreamMapper(StreamMapper):
         audio_streams_list = [standardize_tag(l) for l in audio_streams_list]
         if (any(l in audio_streams_list for l in alcl) or alcl == ['*'] or audio_streams_list == []): # and (any(l in subtitle_streams_list for l in slcl) or slcl == ['*'] or subtitle_streams_list == []):
             return True
-        logger.info("One of the lists of languages does not contain a language matching any streams in the file - the entire stream type would be removed if processed, aborting.\n alcl: '{}', audio streams in file: '{}';\n slcl: '{}', subtitle streams in file: '{}'".format(alcl, audio_streams_list, slcl, subtitle_streams_list))
+        logger.info("Audio streams list of languages does not contain a language matching any streams in the file - all audio streams would be removed if processed, aborting.\n alcl: '{}', audio streams in file: '{}'".format(alcl, audio_streams_list))
         return False
 
     def same_streams_or_no_work(self, streams, keep_undefined):

@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.7</span>**
+- fix null_streams function to remove defunct reference to slcl as null_streams only tests for null intersection of alcl and audio streams in file as of v0.1.6
+
 **<span style="color:#56adda">0.1.6</span>**
 - fix issue in if statement when combining test of standardize_tag where langauge could be '*' - separate clauses
 - add option to reorder audio streams based on first named langauge - sets first named langauge as default and makes it 1st audio stream
