@@ -17,3 +17,11 @@ if [ ! "$ffopcv" ]; then
 else
     echo "**** opencv-python-headless already installed ****"
 fi
+
+pil=$(python3 -m pip list | grep pillow)
+if [ ! "$pil" ]; then 
+    echo "**** Installing pillow ****"
+    python3 -m pip install pillow
+else
+    echo "**** pillow already installed ****"
+fi
