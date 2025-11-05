@@ -1,4 +1,9 @@
 
+**<span style="color:#56adda">0.1.8</span>**
+- fix streams_list function to ignore commentary streams when testing audio streams against config lists.
+- change behavior in worker to set a keep_all_audio flag if null test succeeds; then skip keep_audio_langs and just keep all languages; this allows subs to still process
+- keep_all_audio will only keep commentary streams if keep_commentary is selected
+
 **<span style="color:#56adda">0.1.7</span>**
 - fix null_streams function to remove defunct reference to slcl as null_streams only tests for null intersection of alcl and audio streams in file as of v0.1.6
 

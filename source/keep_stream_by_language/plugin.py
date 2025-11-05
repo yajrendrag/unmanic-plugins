@@ -112,7 +112,7 @@ class PluginStreamMapper(StreamMapper):
         audio_streams_list = [standardize_tag(l) for l in audio_streams_list]
         if (any(l in audio_streams_list for l in alcl) or alcl == ['*'] or audio_streams_list == []): # and (any(l in subtitle_streams_list for l in slcl) or slcl == ['*'] or subtitle_streams_list == []):
             return True
-        logger.info("Audio streams list of languages does not contain a language matching any streams in the file - all audio streams would be removed if processed, aborting.\n alcl: '{}', audio streams in file: '{}'".format(alcl, audio_streams_list))
+        logger.info("Audio streams list of languages does not contain a language matching any streams in the file - all audio streams would be removed if processed, fail-safe should prevent this from ocurring.\n alcl: '{}', audio streams in file: '{}'".format(alcl, audio_streams_list))
         return False
 
     def same_streams_or_no_work(self, streams, keep_undefined):
@@ -212,8 +212,9 @@ def streams_list(languages, streams, stream_type):
             raise
 
     try:
-        streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == stream_type]
-        streams_list.sort() 
+        streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == stream_type and "tags" in streams[i] and "language" in streams[i]["tags"] and
+                        ("title" in streams[i]["tags"] and "commentary" not in streams[i]["tags"]["title"].lower() or "title" not in streams[i]["tags"])]
+        streams_list.sort()
     except KeyError:
         streams_list = []
         logger.info("no '{}' tags in file".format(stream_type))
@@ -317,7 +318,7 @@ def on_library_management_file_test(data):
         logger.debug("File '{}' has not previously had streams kept by keep_streams_by_language plugin".format(abspath))
         if fail_safe:
             if not mapper.null_streams(probe_streams):
-                logger.debug("File '{}' does not contain streams matching any of the configured languages - if * was configured or the file has no streams of a given type, this check will not prevent the plugin from running for that strem type.".format(abspath))
+                logger.debug("File '{}' does not contain streams matching any of the configured languages - if * was configured or the file has no streams of a given type, this check will not prevent the plugin from running for that stream type.".format(abspath))
                 return data
         if mapper.same_streams_or_no_work(probe_streams, keep_undefined):
             logger.debug("File '{}' only has same streams as keep configuration specifies OR otherwise does not require any work to keep ony specified streams - so, does not contain streams that require processing.".format(abspath))
@@ -485,14 +486,18 @@ def on_worker_process(data):
         # Get fail-safe setting
         fail_safe = settings.get_setting('fail_safe')
 
+        # Get results of streams needing processing
+        streams_need_processing = mapper.streams_need_processing()
+
         # Test for null intersection of configured languages and actual languages
+        keep_all_audio = False
         if fail_safe:
             if not mapper.null_streams(probe_streams):
-                logger.info("File '{}' does not contain streams matching any of the configured languages - if * was configured or the file has no streams of a given type, this check will not prevent the plugin from running for that strem type.".format(abspath))
-                return data
+                logger.info("File '{}' does not contain audio streams matching any of the configured languages - keeping all audio streams.".format(abspath))
+                keep_all_audio = True
         if mapper.same_streams_or_no_work(probe_streams, keep_undefined_lang_tags):
             logger.debug("File '{}' only has same streams as keep configuration specifies OR otherwise does not require any work to keep ony specified streams - so, does not contain streams that require processing.".format(abspath))
-        elif mapper.streams_need_processing():
+        elif streams_need_processing or (keep_all_audio and not keep_commentary):
             logger.debug("File '{}' Proceeding with worker - probe found streams require processing.".format(abspath))
             # Set the output file
             mapper.set_output_file(data.get('file_out'))
@@ -502,15 +507,25 @@ def on_worker_process(data):
             mapper.stream_encoding = []
 
             # keep specific language streams if present
-            keep_languages(mapper, 'audio', settings.get_setting('audio_languages'), probe_streams, keep_undefined_lang_tags, keep_commentary)
-            def_lang = settings.get_setting('audio_languages')
-            if reorder_kept and def_lang != '*':
-                lcl = list(def_lang.split(','))
-                lcl = [lcl[i].strip() for i in range(0,len(lcl))]
-                if lcl: def_lang = lcl[0]
-                stream_map = mapper.stream_mapping
-                ffmpeg_args = mapper.get_ffmpeg_args()
-                reorder_audio_streams(stream_map, mapper, prefer_2_or_mc, ffmpeg_args, probe_streams, def_lang)
+            if not keep_all_audio:
+                keep_languages(mapper, 'audio', settings.get_setting('audio_languages'), probe_streams, keep_undefined_lang_tags, keep_commentary)
+                def_lang = settings.get_setting('audio_languages')
+                if reorder_kept and def_lang != '*':
+                    lcl = list(def_lang.split(','))
+                    lcl = [lcl[i].strip() for i in range(0,len(lcl))]
+                    if lcl: def_lang = lcl[0]
+                    stream_map = mapper.stream_mapping
+                    ffmpeg_args = mapper.get_ffmpeg_args()
+                    reorder_audio_streams(stream_map, mapper, prefer_2_or_mc, ffmpeg_args, probe_streams, def_lang)
+            else:
+                # Only map non commentary streams if keep commentary is False
+                if keep_commentary:
+                    mapper.stream_mapping += ['-map', '0:a?']
+                else:
+                    astreams = [probe_streams[i]["index"] for i in range(len(probe_streams)) if probe_streams[i]["codec_type"] == 'audio']
+                    audio_streams_to_map = [astreams[a] for a,i in enumerate(astreams) if "commentary" not in probe_streams[i]["tags"]["title"].lower()]
+                    for i in range(len(audio_streams_to_map)):
+                        mapper.stream_mapping += ['-map', f"0:a:{i}"]
 
             if settings.get_setting('subtitle_languages') != '*':
                 keep_languages(mapper, 'subtitle', settings.get_setting('subtitle_languages'), probe_streams, keep_undefined_lang_tags, keep_commentary)
