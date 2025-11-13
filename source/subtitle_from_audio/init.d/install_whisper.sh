@@ -8,3 +8,6 @@ if ! command -v whisper &> /dev/null; then
 else
     echo "**** whisper already installed ****"
 fi
+
+lc=$(pip3 list | grep langcodes)
+[[ ! $lc ]] && python3 -m pip install langcodes==3.5.0

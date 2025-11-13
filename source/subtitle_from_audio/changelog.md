@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.2</span>**
+- moved langcodes to be installed in init.d script
+
 **<span style="color:#56adda">0.1.1</span>**
 - add langcodes to requirements.txt
 
