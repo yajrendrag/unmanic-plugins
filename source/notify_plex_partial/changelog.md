@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.7</span>**
+- modified analyze to comment out the year filter with an explanatory note in case an example comes up where it's needed
+
 **<span style="color:#56adda">0.0.6</span>**
 - added debug output to inspect analyze function
 

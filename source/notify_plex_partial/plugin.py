@@ -67,7 +67,11 @@ def analyze_video(media_dir, plex_url, plex_token):
     headers = {'Accept': 'application/json'}
     plex = PlexServer(plex_url, plex_token)
     basename = os.path.splitext(os.path.basename(media_dir))[0]
-    basename = re.sub(r' \(\d\d\d\d\)','', basename)
+    # this doesn't appear to be necessary and in fact causes the title to be incorrect
+    # if there are extras after (year) as the title becomes the title string followed by the xtras string without the year
+    # so the plex search fails.  if an example is found where this is needed, add a corner case to handle it, but do not 
+    # make it exclusive.
+    # basename = re.sub(r' \(\d\d\d\d\)','', basename)
     parsed_info = PTN.parse(basename, standardise = False)
     try:
         video = parsed_info['episodeName']
