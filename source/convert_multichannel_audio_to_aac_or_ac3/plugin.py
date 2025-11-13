@@ -37,6 +37,7 @@ class Settings(PluginSettings):
         "bit_rate": "640k",
         "stream_title":  "",
         "encoder":  "",
+        "keep_mc_source": "False",
         "mc_codecs": "eac3",
     }
 
@@ -50,6 +51,9 @@ class Settings(PluginSettings):
                 "label": "Enter a custom stream title for audio language.  Default is a string equal to the encoder used + '5.1 Surround'",
             },
             "encoder": self.__set_encoder_form_settings(),
+            "keep_mc_source": {
+                "label": "Check this option to keep the original multichannel source streams - if left unchecked, they are removed",
+            },
             "mc_codecs":  {
                 "label": "Enter a comma delimited list of multichannel audio codecs that this plugin should transcode to your specified encoder",
             }
@@ -77,7 +81,7 @@ class Settings(PluginSettings):
         }
         return values
 
-def s2_encode(probe_streams, abspath, settings):
+def s2_encode(probe_streams, settings):
     mc_codecs = settings.get_setting("mc_codecs")
     mc_codecs = list(mc_codecs.split(','))
     mc_codecs = [mc_codecs[i].strip() for i in range(0,len(mc_codecs))]
@@ -88,7 +92,7 @@ def s2_encode(probe_streams, abspath, settings):
         all_astreams = [i for i in range(0, len(probe_streams)) if "codec_type" in probe_streams[i] and probe_streams[i]["codec_type"] == 'audio']
         return mc_streams_list, all_astreams
     except:
-        logger.info("No DTS audio streams found to encode")
+        logger.info("No multichannel audio streams found to encode")
         return [],[]
 
 def on_library_management_file_test(data):
@@ -125,7 +129,7 @@ def on_library_management_file_test(data):
     else:
         settings = Settings()
 
-    stream_to_encode, all_astreams = s2_encode(probe_streams, abspath, settings)
+    stream_to_encode, all_astreams = s2_encode(probe_streams, settings)
     logger.debug("stream_to_encode: '{}'".format(stream_to_encode))
     logger.debug("all_astreams: '{}'".format(all_astreams))
 
@@ -182,13 +186,21 @@ def on_worker_process(data):
     else:
         settings = Settings()
 
-    stream_to_encode, all_astreams = s2_encode(probe_streams, abspath, settings)
+    stream_to_encode, all_astreams = s2_encode(probe_streams, settings)
     bit_rate = settings.get_setting('bit_rate')
     encoder = settings.get_setting('encoder')
     stream_title = settings.get_setting('stream_title')
-    logger.debug("stream_title: '{}'".format(stream_title))
+    keep_mc_source = settings.get_setting('keep_mc_source')
+    astream_offset = 0
+    if keep_mc_source:
+        astream_offset = len(all_astreams)
+
+    logger.debug("stream_to_encode: '{}'".format(stream_to_encode))
+    logger.debug("all_astreams: '{}'".format(all_astreams))
+
     if stream_title == "":
         stream_title = str(encoder) + " 5.1 Surround"
+    logger.debug("stream_title: '{}'".format(stream_title))
 
     if stream_to_encode:
 
@@ -197,11 +209,24 @@ def on_worker_process(data):
 
         # set stream maps
         stream_map = ['-map', '0:v', '-c:v', 'copy']
-        for i in range(len(all_astreams)):
-            if all_astreams[i] in stream_to_encode:
-                stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac', '6', '-b:a:'+str(i), bit_rate, '-metadata:s:a:'+str(i), 'title="'+stream_title+'"']
-            else:
+        if not keep_mc_source:
+            # not keeping matching multichannel source streams
+            for i in range(len(all_astreams)):
+                if all_astreams[i] in stream_to_encode:
+                    stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac:a:'+str(i), '6', '-b:a:'+str(i), bit_rate, '-metadata:s:a:'+str(i), 'title="'+stream_title+'"']
+                else:
+                    stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), 'copy']
+        else:
+            # keeping matching multichannel source streams
+            for i in range(len(all_astreams)):
                 stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), 'copy']
+            for i in range(len(all_astreams)):
+                if all_astreams[i] in stream_to_encode:
+                    stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i + astream_offset), encoder, '-ac:a:'+str(i + astream_offset), '6', '-b:a:'+str(i + astream_offset), bit_rate, '-metadata:s:a:'+str(i + astream_offset), 'title="'+stream_title+'"']
+
+        logger.debug(f"astream_offset: {astream_offset}")
+        logger.debug(f"stream_map (before subs, data, att): {stream_map}")
+
         stream_map += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy']
         ffmpeg_args += stream_map
 
