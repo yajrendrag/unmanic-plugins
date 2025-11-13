@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.6</span>**
+- added debug output to inspect analyze function
+
 **<span style="color:#56adda">0.0.5</span>**
 - rewrote analyze function
 

@@ -73,7 +73,12 @@ def analyze_video(media_dir, plex_url, plex_token):
         video = parsed_info['episodeName']
     except KeyError:
         video = parsed_info['title']
+
+    logger.debug(f"basename: {basename}, parsed_info: {parsed_info}, video: {video}")
+
     item = plex.library.search(title=video)
+    logger.debug(f"item: {item}")
+
     for i in item:
         i.analyze()
         if i.type == 'episode':
