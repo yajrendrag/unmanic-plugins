@@ -21,6 +21,7 @@
 """
 
 import logging
+from pathlib import Path
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -31,6 +32,10 @@ class Settings(PluginSettings):
         "target_library": "Select",
         "reprocess_based_on_task_status": True,
         "status_that_adds_file_to_queue": "Failed",
+        "change_suffix": True,
+        "new_suffix": "",
+        "modify_path": True,
+        "path_map": "",
     }
 
     def __init__(self, *args, **kwargs):
@@ -41,6 +46,14 @@ class Settings(PluginSettings):
                 "label": "Check this option to only add the file back to the queue if it's completion status matches your configured result.  Otherwise the file is always added back to the task queue",
             },
             "status_that_adds_file_to_queue": self.__set_status_that_adds_file_to_queue_form_settings(),
+            "change_suffix":  {
+                "label": "Check this option to process a file with the same name, but a different suffix - after checking this you'll be able to enter a new suffix",
+            },
+            "new_suffix": self.__set_new_suffix_form_settings(),
+            "modify_path":  {
+                "label": "Check this option to replace a component in the file path - after checking this you'll enter a mapping of old leading path:new leading path",
+            },
+            "path_map": self.__set_path_map_form_settings(),
         }
 
     def __set_target_library_form_settings(self):
@@ -69,6 +82,26 @@ class Settings(PluginSettings):
             ],
         }
         if not self.get_setting('reprocess_based_on_task_status'):
+            values["display"] = 'hidden'
+        return values
+
+    def __set_new_suffix_form_settings(self):
+        values = {
+            "label": "Specify a new suffix for the file that is to be reprocessed",
+            "description": "multi-suffix formats ok, e.g., .language.srt",
+            "input_type": "textarea",
+        }
+        if not self.get_setting('change_suffix'):
+            values["display"] = 'hidden'
+        return values
+
+    def __set_path_map_form_settings(self):
+        values = {
+            "label": "Specify a path map translation to be made",
+            "description": "for example, if you want to map /library/TVShows in a path like /library/TVShows/Showname/Season X/Showname - SXEY - Episode Title.mp4 to /Moved Shows, enter the map as /library/TVShows:/Moved Shows here",
+            "input_type": "textarea",
+        }
+        if not self.get_setting('modify_path'):
             values["display"] = 'hidden'
         return values
 
@@ -108,7 +141,7 @@ def on_postprocessor_task_results(data):
     :return:
     """
 
-    from unmanic.libs import task
+    from unmanic.libs.task import Task
 
     # Configure settings object (maintain compatibility with v1 plugins)
     if data.get('library_id'):
@@ -116,25 +149,44 @@ def on_postprocessor_task_results(data):
     else:
         settings = Settings()
 
-    # Get reprocessing settings
-    reprocess_all = settings.get_setting("reprocess_based_on_task_status")
+    reprocess_all = not settings.get_setting("reprocess_based_on_task_status")
+    change_suffix = settings.get_setting("change_suffix")
+    if change_suffix:
+        new_suffix = settings.get_setting("new_suffix")
+
+    modify_path = settings.get_setting("modify_path")
+    if modify_path:
+        path_map = settings.get_setting("path_map")
+
+    logger.debug(f"reprocess_all: {reprocess_all}")
+
     if not reprocess_all:
         reprocess_which = settings.get_setting("status_that_adds_file_to_queue")
 
     if reprocess_all or (reprocess_which == "failed" and not data.get("task_processing_success")) or (reprocess_which == "success" and data.get("task_processing_success")):
 
         # Get library
-        target_library_id = settings.get('target_library')
+        target_library_id = settings.get_setting('target_library')
 
         # Get the original source file
-        abspath = data.get('source_data').get('abspath')
+        abspath = Path(data.get('source_data').get('abspath'))
+        if change_suffix:
+            abspath = abspath.with_suffix(new_suffix)
 
-        if target_library_id and source_file:
+        if modify_path:
+            abspath_parts_list = list(abspath.parts)
+            old_path_parts = list(Path(path_map.split(':')[0]).parts)
+            new_path_parts = list(Path(path_map.split(':')[1]).parts)
+            new_parts_list = new_path_parts + abspath_parts_list[len(old_path_parts):]
+            abspath = Path(*new_parts_list)
+
+        logger.debug(f"abspath: {abspath}")
+
+        if target_library_id and abspath:
 
             # Add source file to the target library's queue
             task = Task()
             task.create_task_by_absolute_path(abspath, task_type='local', library_id=int(target_library_id))
-
             logger.info(f"Adding task for file {abspath} in library {target_library_id}")
 
         else:
