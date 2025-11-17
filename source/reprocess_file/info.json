@@ -1,0 +1,15 @@
+{
+    "author": "yajrendrag",
+    "compatibility": [
+        2
+    ],
+    "description": "adds a file back to the task queue of a selected library",
+    "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/reprocess_file/icon.png",
+    "id": "reprocess_file",
+    "name": "Reprocess File",
+    "priorities": {
+        "on_postprocessor_task_results": 0
+    },
+    "tags": "task, queue",
+    "version": "0.0.1"
+}
