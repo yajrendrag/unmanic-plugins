@@ -9,5 +9,5 @@ else
     echo "**** whisper already installed ****"
 fi
 
-lc=$(pip3 list | grep langcodes)
-[[ ! $lc ]] && python3 -m pip install langcodes==3.5.0
+lc=$(python3 -c "import langcodes" 2>&1 || true)
+[[ "$lc" ]] && python3 -m pip install langcodes==3.5.0

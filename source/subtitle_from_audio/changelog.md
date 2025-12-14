@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.3</span>**
+- fix langcodes installer to work in ubuntu 24
+
 **<span style="color:#56adda">0.1.2</span>**
 - moved langcodes to be installed in init.d script
 
