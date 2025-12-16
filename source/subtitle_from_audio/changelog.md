@@ -1,4 +1,7 @@
 
+*<span style="color:#56adda">0.1.4</span>**
+- fix init.d installer to reference python3 venv
+
 **<span style="color:#56adda">0.1.3</span>**
 - fix langcodes installer to work in ubuntu 24
 
