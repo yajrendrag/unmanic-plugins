@@ -1,4 +1,7 @@
 
+*<span style="color:#56adda">0.1.5</span>**
+- had to change the init.d install logic - old version wasn't working
+
 *<span style="color:#56adda">0.1.4</span>**
 - fix init.d installer to reference python3 venv
 

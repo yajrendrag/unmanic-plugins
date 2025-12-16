@@ -9,5 +9,7 @@ else
     echo "**** whisper already installed ****"
 fi
 
-lc=$(/opt/venv/bin/python3 -c "import langcodes" 2>&1 || true)
-[[ "$lc" ]] && /opt/venv/bin/python3 -m pip install langcodes==3.5.0
+if ! /opt/venv/bin/python3 -c "import langcodes" > /dev/null 2>&1; then
+    echo "langcodes module not found. Installing..."
+    /opt/venv/bin/python3 -m pip install langcodes==3.5.0
+fi
