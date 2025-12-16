@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.6</span>**
+- use a python_command variable to make init.d script work on venv and non-venv systems
+
 **<span style="color:#56adda">0.0.5</span>**
 - set paho-mqtt version to < 2.0 in requirements.txt
 
