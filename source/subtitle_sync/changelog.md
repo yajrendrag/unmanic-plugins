@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.13</span>**
+- use a python_command variable to make init.d script work on venv and non-venv systems
+
 **<span style="color:#56adda">0.0.12</span>**
 - migrate to langcode library from python-iso639
 
