@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.8</span>**
+- use a python_command variable to make init.d script work on venv and non-venv systems
+
 **<span style="color:#56adda">0.0.7</span>**
 - remove requirements.txt content
 - change to init.d based plugin installation
