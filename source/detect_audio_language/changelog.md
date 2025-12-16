@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.4</span>**
+- add python_command variable to make installer script universal
+
 **<span style="color:#56adda">0.1.3</span>**
 - read cache_path from unmanic config instead of hardcoding /tmp/unmanic
 
