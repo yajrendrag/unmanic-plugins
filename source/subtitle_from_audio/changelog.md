@@ -1,4 +1,7 @@
 
+*<span style="color:#56adda">0.1.6</span>**
+- use a python_command variable to make init.d script work on venv and non-venv systems
+
 *<span style="color:#56adda">0.1.5</span>**
 - had to change the init.d install logic - old version wasn't working
 
