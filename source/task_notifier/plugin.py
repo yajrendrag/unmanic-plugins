@@ -49,6 +49,22 @@ class Settings(PluginSettings):
 def my_wrapper(body, title, notify_type, *args, **kwargs):
     subprocess.check_call(["bash", "/config/unmanic_notifier.sh", body], shell=False)
 
+def format_seconds(seconds):
+    seconds = int(round(seconds))
+
+    h, rem = divmod(seconds, 3600)
+    m, s = divmod(rem, 60)
+
+    parts = []
+    if h:
+        parts.append(f"{h}h")
+    if m:
+        parts.append(f"{m}m")
+    if s or not parts:
+        parts.append(f"{s}s")
+
+    return " ".join(parts)
+
 def on_postprocessor_task_results(data):
     """
     Runner function - provides a means for additional postprocessor functions based on the task success.
@@ -71,6 +87,9 @@ def on_postprocessor_task_results(data):
     else:
         settings = Settings()
 
+    start_time = data.get('start_time')
+    end_time = data.get('finish_time')
+    processing_time = format_seconds(end_time - start_time)
     status = data.get('task_processing_success')
     if status:
         task_status = "successfully processed"
@@ -88,7 +107,7 @@ def on_postprocessor_task_results(data):
     if not result:
         logger.error("Error adding configuration data to apprise notification object: '{}'".format(result))
         return data
-    result = notify.notify(body='Unmanic ' + str(task_status) + str('\n') + str(source), title = 'Unmanic Task Status')
+    result = notify.notify(body='Unmanic ' + str(task_status) + str('\n') + str(source) + str('\n') + 'Total Processing Time: ' + processing_time, title = 'Unmanic Task Status')
     if not result:
         logger.error("Error sending apprise notification: '{}'".format(result))
     return data
