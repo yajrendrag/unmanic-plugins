@@ -1,5 +1,5 @@
 
-**<span style="color:#56adda">0.0.6</span>**
+**<span style="color:#56adda">0.0.7</span>**
 - added total processing time to notification message
 
 **<span style="color:#56adda">0.0.6</span>**
