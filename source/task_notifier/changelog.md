@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.7</span>**
+- added total processing time to notification message
+
 **<span style="color:#56adda">0.0.6</span>**
 - use a python_command variable to make init.d script work on venv and non-venv systems
 
