@@ -37,7 +37,7 @@ class Settings(PluginSettings):
         "bit_rate": "640k",
         "stream_title":  "",
         "encoder":  "",
-        "keep_mc_source": "False",
+        "keep_mc_source": False,
         "mc_codecs": "eac3",
     }
 
@@ -195,6 +195,7 @@ def on_worker_process(data):
     if keep_mc_source:
         astream_offset = len(all_astreams)
 
+    logger.debug(f"astream offset: {astream_offset}, 0=replace stream, non-zero=append stream")
     logger.debug("stream_to_encode: '{}'".format(stream_to_encode))
     logger.debug("all_astreams: '{}'".format(all_astreams))
 

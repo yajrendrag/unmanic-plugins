@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- fix option to keep original multichannel - it should be a boolean, not text
+
 **<span style="color:#56adda">0.0.4</span>**
 - add option to keep original multichannel sources
 - fix error message text to simply refer to multichannel streams instead of DTS streams if no streams are found to encode (consistent with 0.0.2 fix)
