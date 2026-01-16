@@ -1,4 +1,12 @@
 
+**<span style="color:#56adda">0.0.24</span>**
+- allow a prioritized list of language codes to be specified for marking the default audio stream
+- finds the 2 channel stream that has a language matching the highest priority (assumes list is sorted from highest to lowest priority) language from the list of default audio languages
+- languages can be speciified using 2 or letter codes - Python's langcodes module is used to match language codes so either code format will match whatever is in the file
+- fixed broken match logic
+- if no 2 channel stream language matches any of the list of supplied default languages, no stream is marked as the default audio stream.  ffmpeg's behavior should use audio stream 0 as
+  the default audio stream 0 in this case
+
 **<span style="color:#56adda">0.0.23</span>**
 - streams_to_stereo_encode should return streams as a number
 

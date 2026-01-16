@@ -4,11 +4,11 @@
 """
     plugins.__init__.py
 
-    Written by:               Josh.5 <jsunnex@gmail.com>
-    Date:                     23 Aug 2021, (20:38 PM)
+    Written by:               yajrendrag <yajdude@gmail.com>
+    Date:                     06 June 2023
 
     Copyright:
-        Copyright (C) 2021 Josh Sunnex
+        Copyright (C) 2023, 2024 Jay Gardner
 
         This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
         Public License as published by the Free Software Foundation, version 3.
@@ -23,6 +23,8 @@
 """
 import logging
 import os
+from langcodes.tag_parser import LanguageTagError
+from langcodes import *
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
@@ -71,7 +73,7 @@ class Settings(PluginSettings):
 
     def __set_default_lang_form_settings(self):
         values = {
-            "label":          "A single language of an existing stream to use as default audio stream per above - it's probably 3 letters",
+            "label":          "A list of languages in your prioritized order to select from that will be set as the default audio stream if such language stream exists in the file",
             "input_type":     "textarea",
         }
         if not self.get_setting('set_2ch_stream_as_default'):
@@ -123,6 +125,7 @@ class Settings(PluginSettings):
 def streams_to_stereo_encode(probe_streams):
     audio_stream = -1
     streams = []
+    langs = []
     stereo_streams = [probe_streams[i]['tags']['language'] for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and
                       'tags' in probe_streams[i] and 'language' in probe_streams[i]['tags'] and probe_streams[i]['channels'] == 2 and
                       (("title" in probe_streams[i]['tags'] and "commentary" not in probe_streams[i]["tags"]["title"].lower()) or ("title" not in probe_streams[i]['tags']))]
@@ -131,8 +134,10 @@ def streams_to_stereo_encode(probe_streams):
             audio_stream += 1
             if  int(probe_streams[i]["channels"]) > 4 and 'tags' in probe_streams[i] and 'language' in probe_streams[i]['tags'] and probe_streams[i]['tags']['language'] not in stereo_streams:
                 streams.append(audio_stream)
+                langs.append(probe_streams[i]['tags']['language'])
 
-    return streams
+    langs.append(stereo_streams)
+    return streams, langs
 
 def streams_to_aac_encode(probe_streams, streams, keep_mc):
 
@@ -176,7 +181,7 @@ def on_library_management_file_test(data):
     else:
         settings = Settings()
 
-    streams = streams_to_stereo_encode(probe_streams)
+    streams, langs = streams_to_stereo_encode(probe_streams)
     encode_all_2_aac = settings.get_setting('encode_all_2_aac')
     keep_mc = settings.get_setting('keep_mc')
     streams_2_aac_encode = []
@@ -198,6 +203,35 @@ def audio_filtergraph(settings):
     tp = settings.get_setting('TP')
 
     return 'loudnorm=I={}:LRA={}:TP={}'.format(i, lra, tp)
+
+def find_def_lang_stream(def_langs, langs):
+    try:
+        langs = [Language.get(langs[i]).to_tag() for i in range(len(langs))]
+        def_langs = [Language.get(def_langs[i]).to_tag() for i in range(len(def_langs))]
+    except LanguageTagError:
+        logger.info(f"unable to match default language - lookup error.  not setting default language")
+        return ""
+    def_langs_set = set(def_langs)
+    if def_langs_set.isdisjoint(langs):
+        logger.info(f"None of the default language choices are present in the file - not setting a default language")
+        return ""
+    def_langs_index = {item: i for i, item in enumerate(def_langs)}
+    in_def_langs = []
+    not_in_def_langs = []
+    for item in langs:
+        if item in def_langs_set:
+            in_def_langs.append(item)
+        else:
+            not_in_def_langs.append(item)
+    intersect = [j for j in def_langs for i in langs if j==i]
+    if len(intersect) > 0:
+        logger.info(f"default language: {intersect[0]}")
+        return str(intersect[0])
+    else:
+        logger.debug(f"None of the default language choices are present in the file - not setting a default language.  Note this point should not have been reached as it was checked above")
+        logger.debug(f"def_langs: {def_langs}")
+        logger.debug(f"langs: {langs}")
+        return ""
 
 def on_worker_process(data):
     """
@@ -242,10 +276,13 @@ def on_worker_process(data):
     keep_mc = settings.get_setting('keep_mc')
     defaudio2ch = settings.get_setting('set_2ch_stream_as_default')
     def2chlang = settings.get_setting('default_lang')
+    def_langs = list(def2chlang.split(','))
+    def_langs = [def_langs[i].strip() for i in range(0,len(def_langs))]
     encode_all_2_aac = settings.get_setting('encode_all_2_aac')
     normalize_2_channel_stream = settings.get_setting('normalize_2_channel_stream')
 
-    streams = streams_to_stereo_encode(probe_streams)
+    streams, langs = streams_to_stereo_encode(probe_streams)
+    def_lang = find_default_lang_stream(def_langs, langs)
     encode_all_2_aac = settings.get_setting('encode_all_2_aac')
     streams_2_aac_encode = []
     if encode_all_2_aac: streams_2_aac_encode = streams_to_aac_encode(probe_streams, streams, keep_mc)
@@ -292,7 +329,7 @@ def on_worker_process(data):
                     if not defaudio2ch:
                         ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate] + filter + ['-metadata:s:a:'+str(stream), 'title='+"AAC Stereo"]
                     else:
-                        if "tags" in probe_streams[abs_stream] and "language" in probe_streams[abs_stream]["tags"] and probe_streams[abs_stream]["tags"] == def2chlang:
+                        if (tags := probe_streams[abs_stream].get("tags")) and isinstance(tags, dict) and Language.get(tags.get("language")).to_tag() == def_lang:
                             ffmpeg_args += ['-map', '0:a:'+str(stream), '-c:a:'+str(stream), encoder, '-ac:a:'+str(stream), '2', '-b:a:'+str(stream), rate] + filter + ['-metadata:s:a:'+str(stream), 'title='+"AAC Stereo", '-disposition:a:'+str(stream), 'default']
                         else:
                             logger.info("cant set default audio stream to new 2 channel stream - language didn't match or stream not tagged")
@@ -368,7 +405,7 @@ def on_worker_process(data):
             if not defaudio2ch:
                 ffmpeg_args += ['-map', '0:a:'+str(i), '-c:a:'+str(i), copy_enc] + filter
             else:
-                if "tags" in probe_streams[stream] and "language" in probe_streams[stream]["tags"] and probe_streams[stream]["tags"] == def2chlang:
+                if (tags := probe_streams[stream].get("tags")) and isinstance(tags, dict) and Language.get(tags.get("language")).to_tag() == def_lang:
                     ffmpeg_args += ['-map', '0:a:'+str(i), '-c:a:'+str(i), copy_enc] + filter + ['-disposition:a:'+str(i), 'default']
                 else:
                     logger.info("cant set default audio stream to designated stream - language didn't match or stream not tagged")
