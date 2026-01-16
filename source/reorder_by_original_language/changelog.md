@@ -1,4 +1,12 @@
 
+**<span style="color:#56adda">0.2.0</span>**
+- Replace hardcoded lang_codes list with langcodes Python package
+- Support both 2-letter (ISO 639-1) and 3-letter (ISO 639-2/3) language codes for additional languages configuration
+- Properly match language codes regardless of format (e.g., "en" matches "eng", "de" matches "deu"/"ger")
+- Handle bibliographic/terminological code alternates (e.g., ger/deu, fre/fra, chi/zho)
+- Correctly detect if user-entered additional language matches original language regardless of code format
+- assisted by Claude to migrate the hardcoded lang_code list to the use of the Python langcodes module
+
 **<span style="color:#56adda">0.1.1</span>**
 - fix logger line to reference new name of plugin
 

@@ -4,9 +4,9 @@
 """
     Written by:               yajrendrag <yajdude@gmail.com>
     Date:                     5 Oct 2023, (11:40 AM)
- 
+
     Copyright:
-        Copyright (C) 2023 Jay Gardner
+        Copyright (C) 2023, 2026 Jay Gardner
 
         This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
         Public License as published by the Free Software Foundation, version 3.
@@ -25,6 +25,7 @@ import PTN
 import requests
 import string
 import re
+import langcodes
 
 yr = re.compile(r'\d\d\d\d')
 
@@ -35,17 +36,136 @@ from reorder_by_original_language.lib.ffmpeg import Probe, Parser
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.reorder_by_original_language")
 
-lang_codes = [('aa', 'aar'), ('ab', 'abk'), ('af', 'afr'), ('ak', 'aka'), ('am', 'amh'), ('ar', 'ara'), ('an', 'arg'), ('as', 'asm'), ('av', 'ava'), ('ae', 'ave'), ('ay', 'aym'), ('az', 'aze'), ('ba', 'bak'), ('bm', 'bam'), ('be', 'bel'), ('bn', 'ben'), ('bi', 'bis'), ('bo', 'bod / tib*'),
-              ('bs', 'bos'), ('br', 'bre'), ('bg', 'bul'), ('ca', 'cat'), ('cs', 'ces / cze*'), ('ch', 'cha'), ('ce', 'che'), ('cn', 'zho / chi*'), ('cu', 'chu'), ('cv', 'chv'), ('kw', 'cor'), ('co', 'cos'), ('cr', 'cre'), ('cy', 'cym / wel*'), ('da', 'dan'), ('de', 'deu / ger*'), ('dv', 'div'), ('dz', 'dzo'),
-              ('el', 'ell / gre*'), ('en', 'eng'), ('eo', 'epo'), ('et', 'est'), ('eu', 'eus / baq*'), ('ee', 'ewe'), ('fo', 'fao'), ('fa', 'fas / per*'), ('fj', 'fij'), ('fi', 'fin'), ('fr', 'fra / fre*'), ('fy', 'fry'), ('ff', 'ful'), ('gd', 'gla'), ('ga', 'gle'), ('gl', 'glg'), ('gv', 'glv'),
-              ('gn', 'grn'), ('gu', 'guj'), ('ht', 'hat'), ('ha', 'hau'), ('he', 'heb'), ('hz', 'her'), ('hi', 'hin'), ('ho', 'hmo'), ('hr', 'hrv'), ('hu', 'hun'), ('hy', 'hye / arm*'), ('ig', 'ibo'), ('io', 'ido'), ('ii', 'iii'), ('iu', 'iku'), ('ie', 'ile'), ('ia', 'ina'), ('id', 'ind'),
-              ('ik', 'ipk'), ('is', 'isl / ice*'), ('it', 'ita'), ('jv', 'jav'), ('ja', 'jpn'), ('kl', 'kal'), ('kn', 'kan'), ('ks', 'kas'), ('ka', 'kat / geo*'), ('kr', 'kau'), ('kk', 'kaz'), ('km', 'khm'), ('ki', 'kik'), ('rw', 'kin'), ('ky', 'kir'), ('kv', 'kom'), ('kg', 'kon'), ('ko', 'kor'),
-              ('kj', 'kua'), ('ku', 'kur'), ('lo', 'lao'), ('la', 'lat'), ('lv', 'lav'), ('li', 'lim'), ('ln', 'lin'), ('lt', 'lit'), ('lb', 'ltz'), ('lu', 'lub'), ('lg', 'lug'), ('mh', 'mah'), ('ml', 'mal'), ('mr', 'mar'), ('mk', 'mkd / mac*'), ('mg', 'mlg'), ('mt', 'mlt'), ('mn', 'mon'),
-              ('mi', 'mri / mao*'), ('ms', 'msa / may*'), ('my', 'mya / bur*'), ('na', 'nau'), ('nv', 'nav'), ('nr', 'nbl'), ('nd', 'nde'), ('ng', 'ndo'), ('ne', 'nep'), ('nl', 'nld / dut*'), ('nn', 'nno'), ('nb', 'nob'), ('no', 'nor / nob / nno'), ('ny', 'nya'), ('oc', 'oci'), ('oj', 'oji'), ('or', 'ori'),
-              ('om', 'orm'), ('os', 'oss'), ('pa', 'pan'), ('pi', 'pli'), ('pl', 'pol'), ('pt', 'por'), ('ps', 'pus'), ('qu', 'que'), ('rm', 'roh'), ('ro', 'ron / rum*'), ('rn', 'run'), ('ru', 'rus'), ('sg', 'sag'), ('sa', 'san'), ('si', 'sin'), ('sk', 'slk / slo*'), ('sl', 'slv'), ('se', 'sme'),
-              ('sm', 'smo'), ('sn', 'sna'), ('sd', 'snd'), ('so', 'som'), ('st', 'sot'), ('es', 'spa'), ('sq', 'sqi / alb*'), ('sc', 'srd'), ('sr', 'srp'), ('ss', 'ssw'), ('su', 'sun'), ('sw', 'swa'), ('sv', 'swe'), ('ty', 'tah'), ('ta', 'tam'), ('tt', 'tat'), ('te', 'tel'), ('tg', 'tgk'),
-              ('tl', 'tgl'), ('th', 'tha'), ('ti', 'tir'), ('to', 'ton'), ('tn', 'tsn'), ('ts', 'tso'), ('tk', 'tuk'), ('tr', 'tur'), ('tw', 'twi'), ('ug', 'uig'), ('uk', 'ukr'), ('ur', 'urd'), ('uz', 'uzb'), ('ve', 'ven'), ('vi', 'vie'), ('vo', 'vol'), ('wa', 'wln'), ('wo', 'wol'), ('xh', 'xho'),
-              ('yi', 'yid'), ('yo', 'yor'), ('za', 'zha'), ('zh', 'zho / chi*'), ('zu', 'zul')]
+
+def normalize_language_code(code):
+    """
+    Normalize a language code to its 3-letter (ISO 639-2/3) form for comparison.
+    Returns a list of possible 3-letter codes (some languages have multiple valid codes).
+
+    :param code: A language code (2-letter or 3-letter)
+    :return: List of normalized 3-letter codes, or empty list if invalid
+    """
+    if not code:
+        return []
+
+    code = code.strip().lower()
+
+    try:
+        lang = langcodes.Language.get(code)
+        codes = []
+
+        # Get the primary 3-letter code
+        try:
+            alpha3 = lang.to_alpha3()
+            if alpha3:
+                codes.append(alpha3.lower())
+        except (LookupError, AttributeError):
+            pass
+
+        # Some languages have both bibliographic (e.g., 'ger') and terminological (e.g., 'deu') codes
+        # langcodes typically returns one, but we should handle known alternates
+        # Common alternates mapping
+        alternates = {
+            'deu': ['ger'],
+            'ger': ['deu'],
+            'fra': ['fre'],
+            'fre': ['fra'],
+            'ces': ['cze'],
+            'cze': ['ces'],
+            'zho': ['chi'],
+            'chi': ['zho'],
+            'nld': ['dut'],
+            'dut': ['nld'],
+            'ell': ['gre'],
+            'gre': ['ell'],
+            'eus': ['baq'],
+            'baq': ['eus'],
+            'fas': ['per'],
+            'per': ['fas'],
+            'hye': ['arm'],
+            'arm': ['hye'],
+            'isl': ['ice'],
+            'ice': ['isl'],
+            'kat': ['geo'],
+            'geo': ['kat'],
+            'mkd': ['mac'],
+            'mac': ['mkd'],
+            'mri': ['mao'],
+            'mao': ['mri'],
+            'msa': ['may'],
+            'may': ['msa'],
+            'mya': ['bur'],
+            'bur': ['mya'],
+            'ron': ['rum'],
+            'rum': ['ron'],
+            'slk': ['slo'],
+            'slo': ['slk'],
+            'sqi': ['alb'],
+            'alb': ['sqi'],
+            'cym': ['wel'],
+            'wel': ['cym'],
+            'bod': ['tib'],
+            'tib': ['bod'],
+        }
+
+        for c in list(codes):
+            if c in alternates:
+                for alt in alternates[c]:
+                    if alt not in codes:
+                        codes.append(alt)
+
+        return codes if codes else []
+
+    except (LookupError, ValueError):
+        # If langcodes can't parse it, return the original if it looks like a 3-letter code
+        if len(code) == 3:
+            return [code]
+        return []
+
+
+def get_alpha3_from_alpha2(alpha2_code):
+    """
+    Convert a 2-letter ISO 639-1 code to 3-letter ISO 639-2/3 codes.
+    Returns a list of possible 3-letter codes.
+
+    :param alpha2_code: A 2-letter language code
+    :return: List of 3-letter codes, or empty list if conversion fails
+    """
+    return normalize_language_code(alpha2_code)
+
+
+def codes_match(code1, code2):
+    """
+    Check if two language codes refer to the same language, regardless of whether
+    they are 2-letter or 3-letter codes.
+
+    :param code1: First language code
+    :param code2: Second language code
+    :return: True if they match, False otherwise
+    """
+    if not code1 or not code2:
+        return False
+
+    code1 = code1.strip().lower()
+    code2 = code2.strip().lower()
+
+    # Direct match
+    if code1 == code2:
+        return True
+
+    # Normalize both and check for overlap
+    normalized1 = normalize_language_code(code1)
+    normalized2 = normalize_language_code(code2)
+
+    # Also add the original codes to their lists if they're 3-letter
+    if len(code1) == 3:
+        normalized1.append(code1)
+    if len(code2) == 3:
+        normalized2.append(code2)
+
+    # Check for any overlap
+    return bool(set(normalized1) & set(normalized2))
+
 
 class Settings(PluginSettings):
     settings = {
@@ -123,6 +243,7 @@ class Settings(PluginSettings):
             values["display"] = 'hidden'
         return values
 
+
 def unique_title_test(vres, video_file, title_field, title):
     matched_result = 0
     count = 0
@@ -130,7 +251,7 @@ def unique_title_test(vres, video_file, title_field, title):
     if len(vres) > 1:
         logger.info("More than one result was found - trying to narrow to one by exact match on title: '{}', file: '{}'".format(title, video_file))
         for i in range(len(vres)):
-            if title_field in vres[i]: logger.debug("i: '{}', video.json()[results][i]'{}': '{}', title: '{}'".format(i, title_field, vres[i][title_field], title)) 
+            if title_field in vres[i]: logger.debug("i: '{}', video.json()[results][i]'{}': '{}', title: '{}'".format(i, title_field, vres[i][title_field], title))
             if title_field in vres[i] and vres[i][title_field].translate(str.maketrans('', '', string.punctuation)) == title.translate(str.maketrans('', '', string.punctuation)):
                 count += 1
                 matched_result = i
@@ -138,6 +259,7 @@ def unique_title_test(vres, video_file, title_field, title):
     if all(i == same_langs[0] for i in same_langs):
         count = 1
     return count, matched_result
+
 
 def get_original_language(video_file, streams, data):
     basename = os.path.basename(video_file)
@@ -232,28 +354,31 @@ def get_original_language(video_file, streams, data):
             matched_result = matched_result_o
 
     try:
-        original_language = [lang_codes[i][1] for i in range(len(lang_codes)) if vres[matched_result]["original_language"] == lang_codes[i][0]]
-        logger.debug("original_language: '{}', file: '{}'".format(original_language, video_file))
-        if original_language:
-            oi = original_language[0].replace("*","").split('/')
-            oi = [i.strip() for i in oi]
-            original_language=oi
-#        for i in range(len(original_language)):
-#            if '/' in original_language[i]:
-#                original_language.append(original_language[0].split(' / ')[1].replace("*",""))
-#                original_language[i] = original_language[i].split(' / ')[0]
-        logger.debug("original_language: '{}', file: '{}'".format(original_language, video_file))
-    except:
-        logger.error("Error matching original language - Aborting, file: '{}'".format(video_file))
+        # Use langcodes to convert the 2-letter code from TMDB to 3-letter codes
+        tmdb_lang_code = vres[matched_result]["original_language"]
+        original_language = get_alpha3_from_alpha2(tmdb_lang_code)
+
+        logger.debug("TMDB original_language (2-letter): '{}', converted to 3-letter: '{}', file: '{}'".format(
+            tmdb_lang_code, original_language, video_file))
+
+        if not original_language:
+            logger.warning("Could not convert language code '{}' using langcodes, file: '{}'".format(
+                tmdb_lang_code, video_file))
+            return []
+
+    except Exception as e:
+        logger.error("Error matching original language - Aborting, file: '{}', error: '{}'".format(video_file, str(e)))
         return []
     else:
         astreams = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "tags" in streams[i] and "language" in streams[i]["tags"]]
-        original_audio_position = [i for i in range(len(astreams)) if astreams[i] in original_language]
+        # Use codes_match to find original audio streams (handles both 2-letter and 3-letter codes)
+        original_audio_position = [i for i in range(len(astreams)) if any(codes_match(astreams[i], ol) for ol in original_language)]
         if len(original_audio_position) > 1:
             logger.info("Video file '{}' contains '{}' original language streams in '{}'".format(video_file, len(original_audio_position), original_language))
 
     original_language = [*set(original_language)]
     return original_language
+
 
 def get_old_and_new_order(streams, reorder_original_language, original_language, settings):
     remove_other_languages = settings.get_setting('remove_other_languages')
@@ -263,8 +388,9 @@ def get_old_and_new_order(streams, reorder_original_language, original_language,
         altr = list(additional_langauges_to_reorder.split(','))
         altr = [altr[i].strip() for i in range(len(altr))]
         # if altr contains the original_language, remove it since the original_language will appear first anyway
+        # Use codes_match to properly compare regardless of 2-letter or 3-letter format
         if reorder_original_language:
-            altr = [altr[i] for i in range(len(altr)) if altr[i] not in original_language]
+            altr = [lang for lang in altr if not any(codes_match(lang, ol) for ol in original_language)]
 
     original_audio_position = []
     new_audio_position = []
@@ -274,11 +400,18 @@ def get_old_and_new_order(streams, reorder_original_language, original_language,
     logger.debug("astreams: '{}', astream_order: '{}".format(astreams, astream_order))
     original_astream_order = astream_order[:]
     if original_language:
-        original_audio_position = [i for i in range(len(astreams)) if astreams[i] in original_language]
+        # Use codes_match to find streams matching original language (handles both 2-letter and 3-letter codes)
+        original_audio_position = [i for i in range(len(astreams)) if any(codes_match(astreams[i], ol) for ol in original_language)]
         new_audio_position = original_audio_position[:]
     if reorder_additional_audio_streams:
-        additional_audio_position = [i for i in range(len(astreams)) for j in range(len(altr)) if astreams[i] == altr[j]]
-        new_audio_position += additional_audio_position[:]
+        # Use codes_match to find streams matching additional languages (handles both 2-letter and 3-letter codes)
+        additional_audio_position = [i for i in range(len(astreams)) for lang in altr if codes_match(astreams[i], lang)]
+        # Remove duplicates while preserving order
+        seen = set(new_audio_position)
+        for pos in additional_audio_position:
+            if pos not in seen:
+                new_audio_position.append(pos)
+                seen.add(pos)
     logger.debug("new audio position: '{}'".format(new_audio_position))
     try:
         [astream_order.remove(new_audio_position[i]) for i in range(len(new_audio_position))]
@@ -290,6 +423,22 @@ def get_old_and_new_order(streams, reorder_original_language, original_language,
         new_audio_position += astream_order
     logger.debug("new audio position: '{}'; original_astream_order: '{}'".format(new_audio_position, original_astream_order))
     return new_audio_position, original_astream_order
+
+
+def stream_has_original_language(astreams, original_language):
+    """
+    Check if any audio stream matches the original language using proper code comparison.
+
+    :param astreams: List of stream language codes
+    :param original_language: List of original language codes
+    :return: True if any stream matches original language
+    """
+    for stream_lang in astreams:
+        for orig_lang in original_language:
+            if codes_match(stream_lang, orig_lang):
+                return True
+    return False
+
 
 def on_library_management_file_test(data):
     """
@@ -330,18 +479,15 @@ def on_library_management_file_test(data):
     astreams = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'audio' and "tags" in streams[i] and "language" in streams[i]["tags"]]
     new_audio_position, original_astream_order = get_old_and_new_order(streams, reorder_original_language, original_language, settings)
     if new_audio_position == [] and original_astream_order == []:
-#        data['add_file_to_pending_tasks'] = False
         logger.error("Task not added to queue - error processing stream positions - see above error re: attempting to remove list items from astreams")
         return data
     elif new_audio_position == [] and original_astream_order != []:
-#        data['add_file_to_pending_tasks'] = False
         logger.error("Task not added to queue - resulting file would have no audio streams")
         return data
     if (reorder_original_language and (original_language == [] or all(i=="" for i in original_language))) and not reorder_additional_audio_streams:
         logger.error("Task not added to queue - original language not identified for file: '{}'".format(abspath))
-#        data['add_file_to_pending_tasks'] = False
         return data
-    elif ((reorder_original_language and (any(x in original_language for x in astreams) or (not any(x in original_language for x in astreams) and reorder_additional_audio_streams))) or (not reorder_original_language and reorder_additional_audio_streams)) and new_audio_position != original_astream_order:
+    elif ((reorder_original_language and (stream_has_original_language(astreams, original_language) or (not stream_has_original_language(astreams, original_language) and reorder_additional_audio_streams))) or (not reorder_original_language and reorder_additional_audio_streams)) and new_audio_position != original_astream_order:
         if reorder_original_language:
             logger.info("File '{}' added to task queue - original language identified and is in file or reordering additional streams.".format(abspath))
         else:
@@ -349,7 +495,6 @@ def on_library_management_file_test(data):
         data['add_file_to_pending_tasks'] = True
     else:
         logger.error("Task not added to queue - original language not in audio streams of file '{}' or not reordering additional streams or original language or streams do not require reordering".format(abspath))
-#        data['add_file_to_pending_tasks'] = False
         return data
     return data
 
@@ -406,16 +551,12 @@ def on_worker_process(data):
         return data
     if new_audio_position != original_astream_order:
         # stream order changed, remap audio streams
-        # ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-strict', '-2', '-map', '0:v', '-c:v', 'copy', '-disposition:a', '-default']
         ffmpeg_args = ['-hide_banner', '-loglevel', 'info', '-i', str(abspath), '-max_muxing_queue_size', '9999', '-strict', '-2', '-map', '0:v', '-disposition:a', '-default']
         for i in range(len(new_audio_position)):
             if i == 0:
-                # ffmpeg_args += ['-map', '0:a:'+str(new_audio_position[i]), '-c:a:'+str(new_audio_position[i]), 'copy', '-disposition:a:0', 'default']
                 ffmpeg_args += ['-map', '0:a:'+str(new_audio_position[i]), '-disposition:a:0', 'default']
             else:
-                # ffmpeg_args += ['-map', '0:a:'+str(new_audio_position[i]), '-c:a:'+str(new_audio_position[i]), 'copy']
                 ffmpeg_args += ['-map', '0:a:'+str(new_audio_position[i])]
-        # ffmpeg_args += ['-map', '0:s?', '-c:s', 'copy', '-map', '0:d?', '-c:d', 'copy', '-map', '0:t?', '-c:t', 'copy', '-y', str(outfile)]
         ffmpeg_args += ['-map', '0:s?', '-map', '0:d?', '-map', '0:t?', '-c', 'copy', '-y', str(outfile)]
 
         logger.debug("ffmpeg_args: '{}'".format(ffmpeg_args))
