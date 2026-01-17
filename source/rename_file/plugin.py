@@ -25,8 +25,10 @@ import logging
 import os
 import PTN
 import glob
+from pathlib import Path
 
 from unmanic.libs.unplugins.settings import PluginSettings
+from unmanic.libs.directoryinfo import UnmanicDirectoryInfo
 
 from rename_file.lib.ffmpeg import Probe, Parser
 
@@ -47,6 +49,7 @@ class Settings(PluginSettings):
         "modify_name_fields":           True,
         "get_rez_from_height":          False,
         "repl_no_codec":                "",
+        "case":                         "",
         "append_video_resolution":      "",
         "append_audio_codec":           "",
         "append_audio_channel_layout":  "",
@@ -63,6 +66,7 @@ class Settings(PluginSettings):
                  "label": "check this if you want the resolution named only from the height dimension, e.g., 854x480 (a non standard) would be named 480i or 480p depending on field_order param",
             },
             "repl_no_codec":                 self.__set_repl_no_codec_form_settings(),
+            "case":         self.__set_case_form_settings(),
             "append_video_resolution":       self.__set_append_video_resolution_form_settings(),
             "append_audio_codec":            self.__set_append_audio_codec_form_settings(),
             "append_audio_channel_layout":   self.__set_append_audio_channel_layout_form_settings(),
@@ -76,6 +80,27 @@ class Settings(PluginSettings):
         }
         if not self.get_setting('modify_name_fields'):
             values["display"] = 'hidden'
+        return values
+
+    def __set_case_form_settings(self):
+        values = {
+            "label":      "Choose case setting for added/replaced file name components",
+            "input_type": "select",
+            "select_options": [
+                {
+                    "value": "upper",
+                    "label": "uppercase",
+                },
+                {
+                    "value": "lower",
+                    "label": "lowercase",
+                },
+                {
+                    "value": "match",
+                    "label": "match case",
+                },
+            ],
+        }
         return values
 
     def __set_append_video_resolution_form_settings(self):
@@ -118,7 +143,6 @@ def rename_related(abspath, newpath):
     basefile = os.path.splitext(abspath)[0]
     basefile_new = os.path.splitext(newpath)[0]
     related_files = glob.glob(glob.escape(basefile) + '.*')
-#    related_files = [file for file in related_files if file != abspath]
     logger.debug("related_files: '{}'".format(related_files))
     related_files = [file for file in related_files if os.path.splitext(file)[1] != os.path.splitext(abspath)[1]]
     logger.debug("related_files: '{}'".format(related_files))
@@ -126,7 +150,14 @@ def rename_related(abspath, newpath):
         sfx = os.path.splitext(file)[1]
         os.rename(basefile + sfx, basefile_new + sfx)
 
+def set_case(item, case):
+    if case == 'upper':
+        return item.upper()
+    elif case == 'lower':
+        return item.lower()
+
 def append(data, settings, abspath, streams):
+    case = settings.get_setting('case')
     append_video_resolution = settings.get_setting('append_video_resolution')
     append_audio_codec = settings.get_setting('append_audio_codec')
     append_audio_channel_layout = settings.get_setting('append_audio_channel_layout')
@@ -142,7 +173,7 @@ def append(data, settings, abspath, streams):
         vcodec = vcodec[0]
     except IndexError:
          logger.error("Aborting rename - could not find video stream in file: '{}'".format(abspath))
-         return data
+         return ""
 
     if append_video_resolution:
         vrezw = [streams[i]["width"] for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'video']
@@ -222,9 +253,14 @@ def append(data, settings, abspath, streams):
         channel_layout = ''
         audio_language = ''
 
+    case_func = {
+        "upper": str.upper,
+        "lower": str.lower
+    }
+
     name_extension = ""
     for i in vcodec, vrez, acodec, channel_layout, audio_language:
-        if i: name_extension +=  "." + i
+        if i: name_extension +=  "." + case_func[case](i)
 
     basefile = os.path.splitext(abspath)[0]
     suffix = os.path.splitext(abspath)[1]
@@ -234,10 +270,13 @@ def append(data, settings, abspath, streams):
         os.rename (abspath, newpath)
         logger.debug("abspath: '{}', newpath: '{}'".format(abspath, newpath))
         rename_related(abspath, newpath)
+        return newpath
     else:
         logger.info("Newpath = existing path - nothing to rename")
+        return ""
 
 def replace(data, settings, abspath, streams):
+    case = settings.get_setting('case')
     basename = os.path.basename(abspath)
     dirname = os.path.dirname(abspath)
     parsed_info = PTN.parse(basename, standardise=False)
@@ -315,28 +354,35 @@ def replace(data, settings, abspath, streams):
             acodec = audio_codec.upper() + ' ' + audio if audio_codec.upper() not in audio else audio
     logger.debug("acodec: '{}'".format(acodec))
 
+    case_func = {
+        "upper": str.upper,
+        "lower": str.lower
+    }
+
     if basename.find(codec) > 0:
-        basename = basename.replace(codec, video_codec)
-    elif basename.find(codec) < 0 and settings.get_setting('repl_no_codec') and vcodec != "":
+        basename = basename.replace(codec, case_func[case](video_codec))
+    elif basename.find(codec) < 0 and settings.get_setting('repl_no_codec') and video_codec != "":
         basename_no_sfx = os.path.splitext(basename)[0]
         sfx = os.path.splitext(basename)[1]
-        basename = basename_no_sfx + '.' + vcodec + sfx
+        basename = basename_no_sfx + '.' + case_func[case](video_codec) + sfx
 
     logger.debug("rez: '{}', vrez: '{}'".format(rez, vrez))
     if basename.find(rez) > 0:
-        basename = basename.replace(rez, vrez)
+        basename = basename.replace(rez, case_func[case](vrez))
 
     logger.debug("find_audio: '{}'".format(basename.find(audio)))
     if basename.find(audio) > 0:
-        basename = basename.replace(audio, acodec)
+        basename = basename.replace(audio, case_func[case](acodec))
 
     newpath = dirname + '/' + basename
     logger.debug("basefile: '{}', suffix: '{}', newpath: '{}'".format(os.path.splitext(abspath)[0], os.path.splitext(abspath)[1], newpath))
     if newpath != abspath:
         os.rename (abspath, newpath)
         rename_related(abspath, newpath)
+        return newpath
     else:
         logger.info("Newpath = existing path - nothing to rename")
+        return ""
 
 def on_postprocessor_task_results(data):
     """
@@ -372,6 +418,7 @@ def on_postprocessor_task_results(data):
         destfile = data.get('destination_files')[0]
         logger.debug("destfile: '{}'".format(destfile))
 
+        orig_basename = abspath
         # correct for remuxed or moved files
         if not os.path.isfile(abspath) and os.path.isfile(destfile):
             abspath = destfile
@@ -384,10 +431,15 @@ def on_postprocessor_task_results(data):
         else:
             streams = probe.get_probe()["streams"]
 
+        newpath=""
         if not append_or_replace:
-            append(data, settings, abspath, streams)
+            newpath = append(data, settings, abspath, streams)
         else:
-            replace(data, settings, abspath, streams)
+            newpath = replace(data, settings, abspath, streams)
+
+        if newpath:
+            directory_info = UnmanicDirectoryInfo(os.path.dirname(orig_basename))
+            path = Path(os.path.join(directory_info, '.unmanic'))
+            path.write_text(path.read_text().replace(os.path.basename(orig_basename.lower()), os.path.basename(newpath.lower())))
 
     return data
-

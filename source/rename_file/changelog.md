@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.15</span>**
+- add option for setting case for appended or replaced pathname elements
+- edit relevant .unmanic file and replace old name with new name so file is not reprocessed
+
 **<span style="color:#56adda">0.0.14</span>**
 - add option to add codec name in replace mode even when source file has no codec name in the file name
 
