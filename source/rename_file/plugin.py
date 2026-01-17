@@ -50,6 +50,8 @@ class Settings(PluginSettings):
         "get_rez_from_height":          False,
         "repl_no_codec":                "",
         "case":                         "",
+        "map_hevc":                     "",
+        "mapped_hevc_name":             "",
         "append_video_resolution":      "",
         "append_audio_codec":           "",
         "append_audio_channel_layout":  "",
@@ -67,6 +69,10 @@ class Settings(PluginSettings):
             },
             "repl_no_codec":                 self.__set_repl_no_codec_form_settings(),
             "case":         self.__set_case_form_settings(),
+            "map_hevc": {
+                 "label": "Check this option if you want map 'hevc' in the output to h.265/x.265 - choice made below if this option is enabled",
+            },
+            "mapped_hevc_name":              self.__set_mapped_hevc_name_form_settings(),
             "append_video_resolution":       self.__set_append_video_resolution_form_settings(),
             "append_audio_codec":            self.__set_append_audio_codec_form_settings(),
             "append_audio_channel_layout":   self.__set_append_audio_channel_layout_form_settings(),
@@ -95,12 +101,27 @@ class Settings(PluginSettings):
                     "value": "lower",
                     "label": "lowercase",
                 },
+            ],
+        }
+        return values
+
+    def __set_mapped_hevc_name_form_settings(self):
+        values = {
+            "label":      "Choose name to map 'hevc' string to in renamed files",
+            "input_type": "select",
+            "select_options": [
                 {
-                    "value": "match",
-                    "label": "match case",
+                    "value": "x265",
+                    "label": "x265",
+                },
+                {
+                    "value": "h265",
+                    "label": "h265",
                 },
             ],
         }
+        if not self.get_setting('map_hevc'):
+            values["display"] = 'hidden'
         return values
 
     def __set_append_video_resolution_form_settings(self):
@@ -150,12 +171,6 @@ def rename_related(abspath, newpath):
         sfx = os.path.splitext(file)[1]
         os.rename(basefile + sfx, basefile_new + sfx)
 
-def set_case(item, case):
-    if case == 'upper':
-        return item.upper()
-    elif case == 'lower':
-        return item.lower()
-
 def append(data, settings, abspath, streams):
     case = settings.get_setting('case')
     append_video_resolution = settings.get_setting('append_video_resolution')
@@ -163,10 +178,16 @@ def append(data, settings, abspath, streams):
     append_audio_channel_layout = settings.get_setting('append_audio_channel_layout')
     append_audio_language = settings.get_setting('append_audio_language')
     non_std_rez = settings.get_setting('get_rez_from_height')
+    map_hevc = settings.get_setting('map_hevc')
+    if map_hevc:
+        mapped_hevc_name = settings.get_setting('mapped_hevc_name')
 
     logger.debug("abspath: '{}', append_video_resolution: '{}', append_audio_codec: '{}', append_audio_channel_layout: '{}', append_audio_language: '{}'".format(abspath, append_video_resolution, append_audio_codec, append_audio_channel_layout, append_audio_language))
 
     vcodec = [streams[i]["codec_name"] for i in range(len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == 'video']
+    if map_hevc and (vcodec.lower() == 'hevc' or vcodec.lower() == 'hev1'):
+        vcodec = mapped_hevc_name
+        logger.debug(f"map_hevc is true and mapped name is {mapped_hevc_name} - this ocurrs for both 'hevc' and 'hev1'")
     logger.debug("vcodec: '{}'".format(vcodec))
 
     try:
@@ -282,6 +303,9 @@ def replace(data, settings, abspath, streams):
     parsed_info = PTN.parse(basename, standardise=False)
     logger.debug("Parsed info: '{}'".format(parsed_info))
     non_std_rez = settings.get_setting('get_rez_from_height')
+    map_hevc = settings.get_setting('map_hevc')
+    if map_hevc:
+        mapped_hevc_name = settings.get_setting('mapped_hevc_name')
 
     try:
         codec = parsed_info["codec"]
@@ -307,6 +331,10 @@ def replace(data, settings, abspath, streams):
     except:
         video_codec = ""
         logger.info("Error extracting video codec from file: '{}'".format(abspath))
+    finally:
+        if map_hevc and (vcodec.lower() == 'hevc' or vcodec.lower() == 'hev1'):
+            vcodec = mapped_hevc_name
+            logger.debug(f"map_hevc is true and mapped name is {mapped_hevc_name} - this ocurrs for both 'hevc' and 'hev1'")
 
     try:
         vrez_height = streams[video_stream[0]]["height"]
