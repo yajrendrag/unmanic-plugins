@@ -1,7 +1,0 @@
-**/__pycache__
-*.py[cod]
-**/site-packages
-settings.json
-*.old
-*.new
-*.testing
