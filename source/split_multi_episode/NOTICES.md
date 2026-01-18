@@ -1,0 +1,31 @@
+# Third-Party Notices
+
+This software includes or makes use of the following third-party components:
+
+## Chromaprint
+*   **License:** LGPL v2.1
+*   **Source:** https://acoustid.org/chromaprint
+*   **Note:** Installed automatically by apt-get at the time of plugin installation
+
+## Parse-Torrent-Title (PTN)
+*   **Copyright:** (c) 2015-2017 Divij Bindlish `<dvjbndlsh93@gmail.com>` (divijbindlish.com), (c) 2020 Giorgio Momigliano
+*   **License:** MIT
+*   **Source:** https://github.com/platelminto/parse-torrent-title
+*   **Note:** It is installed automatically by pip at the time of plugin installation
+
+## ImageHash
+*   **Copyright:** (c) 2013-2022, Johannes Buchner
+*   **License:** BSD 2-Clause
+*   **Source:** https://github.com/JohannesBuchner/imagehash
+*   **Note:** It is installed automatically by pip at the time of plugin installation
+
+## Pillow (Python Imaging Library Fork)
+*   **Copyright:** © 1997-2011 Secret Labs AB, © 1995-2011 Fredrik Lundh, © 2010 Jeffrey A. Clark
+*   **License:** HPND (Historic Permission Notice and Disclaimer)
+*   **Source:** https://github.com/python-pillow/Pillow
+*   **Note:** It is installed automatically by pip at the time of plugin installation
+
+## Ollama (API Integration)
+*   **License:** MIT
+*   **Source:** [https://github.com/ollama/ollama](https://github.com/ollama/ollama)
+*   **Note:** This plugin interfaces with Ollama but does not distribute it. Users are responsible for installing Ollama (see [ollama.com](https://ollama.com)) and any LLMs themselves.

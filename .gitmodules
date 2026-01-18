@@ -76,3 +76,6 @@
 [submodule "source/reorder_by_original_language/lib/ffmpeg"]
 	path = source/reorder_by_original_language/lib/ffmpeg
 	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/split_multi_episode/lib/ffmpeg"]
+	path = source/split_multi_episode/lib/ffmpeg
+	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
