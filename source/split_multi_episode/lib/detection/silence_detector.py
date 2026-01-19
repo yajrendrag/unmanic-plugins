@@ -84,6 +84,9 @@ class SilenceDetector:
         self.max_episode_length = max_episode_length
         self.expected_runtimes = expected_runtimes
         self.runtime_tolerance = runtime_tolerance
+        # Cache for silence regions to avoid re-running FFmpeg
+        self._cached_file_path: Optional[str] = None
+        self._cached_silence_regions: Optional[List[SilenceRegion]] = None
 
     def detect(
         self,
@@ -129,12 +132,19 @@ class SilenceDetector:
         """
         Run FFmpeg silencedetect filter on the file.
 
+        Results are cached per file path to avoid re-running FFmpeg.
+
         Args:
             file_path: Path to the video file
 
         Returns:
             List of SilenceRegion objects
         """
+        # Return cached results if available for this file
+        if self._cached_file_path == file_path and self._cached_silence_regions is not None:
+            logger.debug(f"Using cached silence regions for: {file_path}")
+            return self._cached_silence_regions
+
         cmd = [
             'ffmpeg',
             '-i', file_path,
@@ -160,7 +170,13 @@ class SilenceDetector:
             return []
 
         # Parse the output (silencedetect outputs to stderr)
-        return self._parse_silence_output(result.stderr)
+        regions = self._parse_silence_output(result.stderr)
+
+        # Cache the results
+        self._cached_file_path = file_path
+        self._cached_silence_regions = regions
+
+        return regions
 
     def _parse_silence_output(self, output: str) -> List[SilenceRegion]:
         """

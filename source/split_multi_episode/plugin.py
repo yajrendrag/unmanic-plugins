@@ -2,22 +2,17 @@
 # -*- coding: utf-8 -*-
 
 """
-    Written by:               yajrendrag <yajdude@gmail.com>
-    Date:                     18 January 2026, (0:34 AM)
+Split Multi-Episode Files
 
-    Copyright:
-        Copyright (C) 2026 Jay Gardner
-
-        This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
-        Public License as published by the Free Software Foundation, version 3.
-
-        This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
-        implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
-        for more details.
-
-        You should have received a copy of the GNU General Public License along with this program.
-        If not, see <https://www.gnu.org/licenses/>.
-
+This plugin detects and splits multi-episode MKV files into individual
+episode files using a multi-technique detection pipeline including:
+- Chapter markers
+- Silence detection
+- Black frame detection
+- Perceptual image hashing
+- Audio fingerprinting
+- LLM vision analysis (via Ollama)
+- TMDB runtime validation
 """
 
 import json
@@ -571,11 +566,8 @@ def _run_splitting_phase(data, settings, file_in, original_file_path, worker_log
         worker_log.append(f"All {total_episodes} episodes extracted successfully!")
         worker_log.append(f"Output files: {extracted_files}")
 
-        # Mark as processed
+        # Mark as processed (used by postprocessor to detect successful splits)
         mark_file_processed(original_file_path, total_episodes)
-
-        # Store extracted files for postprocessor
-        TaskDataStore.set_task_state('split_episode_files', extracted_files)
 
         # Delete source file if enabled
         if settings.get_setting('delete_source_after_split'):
@@ -697,29 +689,45 @@ def _run_splitting_phase(data, settings, file_in, original_file_path, worker_log
 
 def on_postprocessor_file_movement(data):
     """
-    Runner function - handles movement of split episode files.
+    Runner function - configures postprocessor file movements.
 
-    Moves all extracted episode files to the destination.
+    Note: This plugin writes split episode files directly to their final
+    destination (source directory or season subdirectory) during the worker
+    phase, so the standard Unmanic file movement is not needed for the split
+    files. We prevent Unmanic from overwriting the source file by setting
+    run_default_file_copy to False when we've successfully split the file.
+
+    The 'data' object argument includes:
+        library_id              - Integer, the library that the current task is associated with.
+        source_data             - Dictionary, data pertaining to the original source file.
+        remove_source_file      - Boolean, should Unmanic remove the original source file after all copy operations are complete.
+        copy_file               - Boolean, should Unmanic run a copy operation with the returned data variables.
+        file_in                 - String, the converted cache file to be copied by the postprocessor.
+        file_out                - String, the destination file that the file will be copied to.
+        run_default_file_copy   - Boolean, should Unmanic run the default post-process file movement.
     """
-    from unmanic.libs.task import TaskDataStore
+    # Check if this task was a successful split operation
+    # The source file path will be in the data
+    source_file = data.get('source_data', {}).get('abspath', '')
 
-    # Get list of extracted files
-    extracted_files = TaskDataStore.get_task_state('split_episode_files')
-
-    if not extracted_files:
+    if not source_file:
         return data
 
-    # Add all extracted files to the destination list
-    destination_files = data.get('destination_files', [])
+    # Check if this file was processed by our plugin (via directory info)
+    try:
+        directory_info = UnmanicDirectoryInfo(os.path.dirname(source_file))
+        result = directory_info.get('split_multi_episode', os.path.basename(source_file))
+        if result and result.startswith('split_'):
+            # File was successfully split - prevent Unmanic from running the default
+            # file copy which would overwrite the source file location
+            logger.info(f"Split operation completed for {source_file}, disabling default file copy")
+            data['run_default_file_copy'] = False
+            # Don't remove the source file here - that's handled by the worker phase
+            # if delete_source_after_split is enabled
+            data['remove_source_file'] = False
+    except Exception as e:
+        logger.debug(f"Error checking split status in postprocessor: {e}")
 
-    for file_path in extracted_files:
-        if os.path.exists(file_path):
-            # The file movement logic is typically handled by Unmanic core
-            # We just need to make sure the files are tracked
-            if file_path not in destination_files:
-                destination_files.append(file_path)
-
-    data['destination_files'] = destination_files
     return data
 
 
