@@ -2,17 +2,22 @@
 # -*- coding: utf-8 -*-
 
 """
-Split Multi-Episode Files
+    Written by:               yajrendrag <yajdude@gmail.com>
+    Date:                     18 January 2026, (00:38 AM)
 
-This plugin detects and splits multi-episode MKV files into individual
-episode files using a multi-technique detection pipeline including:
-- Chapter markers
-- Silence detection
-- Black frame detection
-- Perceptual image hashing
-- Audio fingerprinting
-- LLM vision analysis (via Ollama)
-- TMDB runtime validation
+    Copyright:
+        Copyright (C) 2026 Jay Gardner
+
+        This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
+        Public License as published by the Free Software Foundation, version 3.
+
+        This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+        implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+        for more details.
+
+        You should have received a copy of the GNU General Public License along with this program.
+        If not, see <https://www.gnu.org/licenses/>.
+
 """
 
 import json
@@ -32,10 +37,15 @@ from split_multi_episode.lib.detection import (
     AudioFingerprintDetector,
     LLMDetector,
     BoundaryMerger,
+    SearchWindowDeterminer,
+    SceneChangeDetector,
+    SpeechDetector,
 )
 from split_multi_episode.lib.validation import TMDBValidator
 from split_multi_episode.lib.splitter import EpisodeSplitter
 from split_multi_episode.lib.naming import EpisodeNamer
+from split_multi_episode.lib.progress import ProgressTracker, run_detection_in_child_process
+from split_multi_episode.lib.detection_runner import run_phase2_detection
 
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.split_multi_episode")
@@ -43,19 +53,44 @@ logger = logging.getLogger("Unmanic.Plugin.split_multi_episode")
 
 class Settings(PluginSettings):
     settings = {
-        # Detection Methods
-        "enable_chapter_detection": True,
-        "enable_silence_detection": True,
-        "enable_black_frame_detection": True,
-        "enable_image_hash_detection": False,
-        "enable_audio_fingerprint_detection": False,
-        "enable_llm_detection": False,
-        "enable_tmdb_validation": False,
+        # Detection Methods - grouped with their sub-options
 
-        # LLM Settings
+        # Chapter Detection
+        "enable_chapter_detection": True,
+
+        # Silence Detection + options
+        "enable_silence_detection": True,
+        "silence_threshold_db": -30,
+        "silence_min_duration": 2.0,
+
+        # Black Frame Detection + options
+        "enable_black_frame_detection": True,
+        "black_min_duration": 1.0,
+
+        # Scene Change Detection + options
+        "enable_scene_change_detection": False,
+        "scene_change_threshold": 0.3,
+
+        # Image Hash Detection
+        "enable_image_hash_detection": False,
+
+        # Audio Fingerprint Detection
+        "enable_audio_fingerprint_detection": False,
+
+        # LLM Vision Detection + options
+        "enable_llm_detection": False,
         "llm_ollama_host": "http://localhost:11434",
         "llm_model": "llava:7b-v1.6-mistral-q4_K_M",
         "llm_frames_per_boundary": 5,
+
+        # Speech Detection + options
+        "enable_speech_detection": False,
+        "speech_model_size": "base",
+
+        # TMDB Validation + options
+        "enable_tmdb_validation": False,
+        "tmdb_api_key": "",
+        "tmdb_api_read_access_token": "",
 
         # Duration Constraints
         "min_episode_length_minutes": 15,
@@ -63,11 +98,7 @@ class Settings(PluginSettings):
         "min_file_duration_minutes": 30,
 
         # Detection Parameters
-        "silence_threshold_db": -30,
-        "silence_min_duration": 2.0,
-        "black_min_duration": 1.0,
         "confidence_threshold": 0.7,
-        "require_multiple_detectors": True,
 
         # Output Settings
         "output_naming_pattern": "S{season:02d}E{episode:02d} - {basename}",
@@ -75,45 +106,67 @@ class Settings(PluginSettings):
         "create_season_directory": False,
         "season_directory_pattern": "Season {season:02d}",
         "delete_source_after_split": False,
-        "tmdb_api_key": "",
-        "tmdb_api_read_access_token": "",
     }
 
     def __init__(self, *args, **kwargs):
         super(Settings, self).__init__(*args, **kwargs)
 
         self.form_settings = {
-            # Detection Methods
+            # Detection Methods - grouped with their sub-options
+
+            # Chapter Detection
             "enable_chapter_detection": {
                 "label": "Enable Chapter Detection",
                 "description": "Use chapter markers to detect episode boundaries (highest reliability)",
             },
+
+            # Silence Detection + options
             "enable_silence_detection": {
                 "label": "Enable Silence Detection",
                 "description": "Detect silence gaps between episodes",
             },
+            "silence_threshold_db": self._silence_threshold_setting(),
+            "silence_min_duration": self._detection_setting(
+                "enable_silence_detection",
+                "Minimum Silence Duration (seconds)",
+                "Minimum silence duration to detect"
+            ),
+
+            # Black Frame Detection + options
             "enable_black_frame_detection": {
                 "label": "Enable Black Frame Detection",
                 "description": "Detect black frames that may indicate episode breaks",
             },
+            "black_min_duration": self._detection_setting(
+                "enable_black_frame_detection",
+                "Minimum Black Duration (seconds)",
+                "Minimum black frame duration to detect"
+            ),
+
+            # Scene Change Detection + options
+            "enable_scene_change_detection": {
+                "label": "Enable Scene Change Detection",
+                "description": "Detect dramatic visual transitions between episodes using FFmpeg scene detection",
+            },
+            "scene_change_threshold": self._scene_threshold_setting(),
+
+            # Image Hash Detection
             "enable_image_hash_detection": {
                 "label": "Enable Image Hash Detection",
                 "description": "Use perceptual hashing to find recurring intro/outro sequences (CPU intensive)",
             },
+
+            # Audio Fingerprint Detection
             "enable_audio_fingerprint_detection": {
                 "label": "Enable Audio Fingerprint Detection",
                 "description": "Detect recurring intro music patterns",
             },
+
+            # LLM Vision Detection + options
             "enable_llm_detection": {
                 "label": "Enable LLM Vision Detection",
                 "description": "Use Ollama vision model to detect credits, title cards (requires Ollama)",
             },
-            "enable_tmdb_validation": {
-                "label": "Enable TMDB Validation",
-                "description": "Validate detected runtimes against TMDB episode data",
-            },
-
-            # LLM Settings
             "llm_ollama_host": self._llm_setting("Ollama Host", "URL of Ollama API endpoint"),
             "llm_model": self._llm_setting("LLM Model", "Vision model to use (e.g., llava:7b)"),
             "llm_frames_per_boundary": self._llm_setting(
@@ -121,6 +174,24 @@ class Settings(PluginSettings):
                 "Number of frames to analyze at each potential boundary",
                 "slider",
                 {"min": 1, "max": 10, "step": 1}
+            ),
+
+            # Speech Detection + options
+            "enable_speech_detection": {
+                "label": "Enable Speech Detection",
+                "description": "Use Whisper to detect 'Stay tuned' and other preview phrases (requires faster-whisper)",
+            },
+            "speech_model_size": self._speech_setting(),
+
+            # TMDB Validation + options
+            "enable_tmdb_validation": {
+                "label": "Enable TMDB Validation",
+                "description": "Validate detected runtimes against TMDB episode data",
+            },
+            "tmdb_api_key": self._tmdb_setting("TMDB API Key", "API key for TMDB validation"),
+            "tmdb_api_read_access_token": self._tmdb_setting(
+                "TMDB API Read Access Token",
+                "API read access token for TMDB (v4 auth)"
             ),
 
             # Duration Constraints
@@ -144,31 +215,11 @@ class Settings(PluginSettings):
             },
 
             # Detection Parameters
-            "silence_threshold_db": {
-                "label": "Silence Threshold (dB)",
-                "description": "Audio level threshold for silence detection",
-                "input_type": "slider",
-                "slider_options": {"min": -60, "max": -10, "step": 5},
-            },
-            "silence_min_duration": self._detection_setting(
-                "enable_silence_detection",
-                "Minimum Silence Duration (seconds)",
-                "Minimum silence duration to detect"
-            ),
-            "black_min_duration": self._detection_setting(
-                "enable_black_frame_detection",
-                "Minimum Black Duration (seconds)",
-                "Minimum black frame duration to detect"
-            ),
             "confidence_threshold": {
                 "label": "Confidence Threshold",
                 "description": "Minimum confidence score to split at a boundary (0.0-1.0)",
                 "input_type": "slider",
                 "slider_options": {"min": 0.5, "max": 0.95, "step": 0.05},
-            },
-            "require_multiple_detectors": {
-                "label": "Require Multiple Detectors",
-                "description": "Require at least 2 detection methods to agree before splitting",
             },
 
             # Output Settings
@@ -192,17 +243,25 @@ class Settings(PluginSettings):
                 "label": "Delete Source After Split",
                 "description": "Delete the multi-episode source file after successfully splitting into individual episodes. WARNING: This is destructive and cannot be undone!",
             },
-            "tmdb_api_key": self._tmdb_setting("TMDB API Key", "API key for TMDB validation"),
-            "tmdb_api_read_access_token": self._tmdb_setting(
-                "TMDB API Read Access Token",
-                "API read access token for TMDB (v4 auth)"
-            ),
         }
+
+    def _silence_threshold_setting(self):
+        setting = {
+            "label": "Silence Threshold (dB)",
+            "description": "Audio level threshold for silence detection",
+            "input_type": "slider",
+            "slider_options": {"min": -60, "max": -10, "step": 5},
+            "sub_setting": True,
+        }
+        if not self.get_setting('enable_silence_detection'):
+            setting["display"] = "hidden"
+        return setting
 
     def _llm_setting(self, label, description, input_type="text", extra=None):
         setting = {
             "label": label,
             "description": description,
+            "sub_setting": True,
         }
         if input_type != "text":
             setting["input_type"] = input_type
@@ -217,6 +276,7 @@ class Settings(PluginSettings):
             "label": label,
             "description": description,
             "input_type": "textarea",
+            "sub_setting": True,
         }
         if not self.get_setting('enable_tmdb_validation'):
             setting["display"] = "hidden"
@@ -226,8 +286,39 @@ class Settings(PluginSettings):
         setting = {
             "label": label,
             "description": description,
+            "sub_setting": True,
         }
         if not self.get_setting(parent_setting):
+            setting["display"] = "hidden"
+        return setting
+
+    def _scene_threshold_setting(self):
+        setting = {
+            "label": "Scene Change Threshold",
+            "description": "Minimum scene change score to detect (0.1-0.5, lower = more sensitive)",
+            "input_type": "slider",
+            "slider_options": {"min": 0.1, "max": 0.5, "step": 0.05},
+            "sub_setting": True,
+        }
+        if not self.get_setting('enable_scene_change_detection'):
+            setting["display"] = "hidden"
+        return setting
+
+    def _speech_setting(self):
+        setting = {
+            "label": "Whisper Model Size",
+            "description": "Model size for speech detection (tiny=fastest, large-v2=most accurate)",
+            "input_type": "select",
+            "select_options": [
+                {"value": "tiny", "label": "Tiny (fastest, least accurate)"},
+                {"value": "base", "label": "Base (balanced)"},
+                {"value": "small", "label": "Small (better accuracy)"},
+                {"value": "medium", "label": "Medium (good accuracy)"},
+                {"value": "large-v2", "label": "Large-v2 (best accuracy, slowest)"},
+            ],
+            "sub_setting": True,
+        }
+        if not self.get_setting('enable_speech_detection'):
             setting["display"] = "hidden"
         return setting
 
@@ -372,10 +463,20 @@ def on_worker_process(data):
 
 
 def _run_analysis_phase(data, settings, file_in, worker_log):
-    """Run the detection pipeline and store results."""
+    """
+    Run the two-phase detection pipeline and store results.
+
+    Phase 1: Determine search windows
+    - Use chapter info, TMDB runtimes, filename episode count, total duration
+    - Create narrow search windows for each expected boundary
+
+    Phase 2: Find exact boundaries within windows
+    - Run silence, black frame, etc. detectors within those windows
+    - Combine results per window to find the best boundary
+    """
     from unmanic.libs.task import TaskDataStore
 
-    worker_log.append("Starting multi-episode detection analysis...")
+    worker_log.append("Starting multi-episode detection analysis (two-phase)...")
 
     # Probe the file
     probe = Probe(logger, allowed_mimetypes=['video'])
@@ -391,114 +492,401 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
     min_ep_length = settings.get_setting('min_episode_length_minutes') * 60
     max_ep_length = settings.get_setting('max_episode_length_minutes') * 60
     confidence_threshold = settings.get_setting('confidence_threshold')
-    require_multiple = settings.get_setting('require_multiple_detectors')
 
-    # Run enabled detectors
-    all_boundaries = []
+    # Extract expected episode count from filename (e.g., "S2E5-8" = 4 episodes)
+    namer = EpisodeNamer()
+    start_ep, end_ep = namer.detect_episode_range(file_in)
+    expected_episode_count = None
+    if start_ep is not None and end_ep is not None:
+        expected_episode_count = end_ep - start_ep + 1
+        worker_log.append(f"Filename indicates {expected_episode_count} episodes (E{start_ep}-E{end_ep})")
+    else:
+        worker_log.append("Could not determine episode count from filename")
+        data['worker_log'] = worker_log
+        return data
 
-    # Chapter detection
+    # ========== PHASE 1: Determine Search Windows ==========
+    worker_log.append("Phase 1: Determining search windows...")
+
+    # Get TMDB runtimes if enabled
+    expected_runtimes = None
+    if settings.get_setting('enable_tmdb_validation'):
+        tmdb_validator = TMDBValidator(
+            api_key=settings.get_setting('tmdb_api_key'),
+            api_read_access_token=settings.get_setting('tmdb_api_read_access_token')
+        )
+        if tmdb_validator.is_available():
+            parsed_info = namer.parse_filename(file_in)
+            if parsed_info.title:
+                runtimes = tmdb_validator.get_series_episode_runtimes(
+                    parsed_info.title,
+                    parsed_info.season or 1,
+                    num_episodes=expected_episode_count or 10
+                )
+                if runtimes:
+                    ep_offset = (start_ep - 1) if start_ep else 0
+                    if ep_offset < len(runtimes):
+                        expected_runtimes = runtimes[ep_offset:ep_offset + expected_episode_count]
+                        worker_log.append(f"  TMDB runtimes: {expected_runtimes} minutes")
+
+    # Get chapter information if enabled
+    chapter_boundaries = None
+    chapter_info = {}
     if settings.get_setting('enable_chapter_detection'):
-        worker_log.append("Running chapter detection...")
+        worker_log.append("  Analyzing chapters...")
         chapter_detector = ChapterDetector(
             min_episode_length=min_ep_length,
             max_episode_length=max_ep_length
         )
         boundaries = chapter_detector.detect(probe_data)
         if boundaries:
-            worker_log.append(f"  Found {len(boundaries)} boundaries from chapters")
-            all_boundaries.append(boundaries)
+            if boundaries[0].source == 'chapter_commercial':
+                # Commercial markers - extract timing info for window refinement
+                chapter_info['commercial_1_times'] = [b.end_time for b in boundaries[:-1]]
+                chapter_boundaries = [(b.start_time, b.end_time) for b in boundaries]
+                worker_log.append(f"    Found commercial markers for {len(boundaries)} episode regions")
+            else:
+                # True episode chapters - use directly as boundaries
+                chapter_boundaries = [(b.start_time, b.end_time) for b in boundaries]
+                worker_log.append(f"    Found true episode chapters: {len(boundaries)} episodes")
 
-    # Silence detection
-    silence_regions = []
-    if settings.get_setting('enable_silence_detection'):
-        worker_log.append("Running silence detection...")
-        silence_detector = SilenceDetector(
-            silence_threshold_db=settings.get_setting('silence_threshold_db'),
-            min_silence_duration=settings.get_setting('silence_min_duration'),
-            min_episode_length=min_ep_length,
-            max_episode_length=max_ep_length
+    # Create search window determiner
+    window_determiner = SearchWindowDeterminer(
+        total_duration=total_duration,
+        expected_episode_count=expected_episode_count,
+        min_episode_length=min_ep_length,
+        max_episode_length=max_ep_length,
+        window_size=300,  # 5 minutes on each side
+    )
+
+    # Determine search windows
+    search_windows = window_determiner.determine_windows(
+        chapter_boundaries=chapter_boundaries,
+        tmdb_runtimes=expected_runtimes,
+    )
+
+    # Refine windows with commercial chapter info if available
+    if chapter_info.get('commercial_1_times'):
+        search_windows = window_determiner.refine_windows_with_chapters(
+            search_windows, chapter_info
         )
-        boundaries = silence_detector.detect(file_in, total_duration)
-        if boundaries:
-            worker_log.append(f"  Found {len(boundaries)} boundaries from silence")
-            all_boundaries.append(boundaries)
-        silence_regions = silence_detector.get_raw_silence_regions(file_in)
 
-    # Black frame detection
-    if settings.get_setting('enable_black_frame_detection'):
-        worker_log.append("Running black frame detection...")
-        black_detector = BlackFrameDetector(
-            min_black_duration=settings.get_setting('black_min_duration'),
-            min_episode_length=min_ep_length,
-            max_episode_length=max_ep_length
-        )
-        boundaries = black_detector.detect(file_in, total_duration)
-        if boundaries:
-            # Enhance with silence data if available
-            if silence_regions:
-                boundaries = black_detector.enhance_with_silence(boundaries, silence_regions)
-            worker_log.append(f"  Found {len(boundaries)} boundaries from black frames")
-            all_boundaries.append(boundaries)
-
-    # Image hash detection
-    if settings.get_setting('enable_image_hash_detection'):
-        worker_log.append("Running image hash detection...")
-        hash_detector = ImageHashDetector(
-            min_episode_length=min_ep_length,
-            max_episode_length=max_ep_length
-        )
-        if hash_detector.is_available():
-            boundaries = hash_detector.detect(file_in, total_duration)
-            if boundaries:
-                worker_log.append(f"  Found {len(boundaries)} boundaries from image hashing")
-                all_boundaries.append(boundaries)
-        else:
-            worker_log.append("  Image hash detection unavailable (missing dependencies)")
-
-    # Audio fingerprint detection
-    if settings.get_setting('enable_audio_fingerprint_detection'):
-        worker_log.append("Running audio fingerprint detection...")
-        audio_detector = AudioFingerprintDetector(
-            min_episode_length=min_ep_length,
-            max_episode_length=max_ep_length
-        )
-        boundaries = audio_detector.detect(file_in, total_duration)
-        if boundaries:
-            worker_log.append(f"  Found {len(boundaries)} boundaries from audio fingerprinting")
-            all_boundaries.append(boundaries)
-
-    # LLM vision detection
-    if settings.get_setting('enable_llm_detection'):
-        worker_log.append("Running LLM vision detection...")
-        llm_detector = LLMDetector(
-            ollama_host=settings.get_setting('llm_ollama_host'),
-            model=settings.get_setting('llm_model'),
-            frames_per_boundary=settings.get_setting('llm_frames_per_boundary'),
-            min_episode_length=min_ep_length,
-            max_episode_length=max_ep_length
-        )
-        if llm_detector.is_available():
-            boundaries = llm_detector.detect(file_in, total_duration)
-            if boundaries:
-                worker_log.append(f"  Found {len(boundaries)} boundaries from LLM analysis")
-                all_boundaries.append(boundaries)
-        else:
-            worker_log.append("  LLM detection unavailable (Ollama not running)")
-
-    # Merge boundaries
-    if not all_boundaries:
-        worker_log.append("No episode boundaries detected")
+    if not search_windows:
+        worker_log.append("Could not determine search windows")
         data['worker_log'] = worker_log
         return data
 
-    worker_log.append("Merging detection results...")
-    merger = BoundaryMerger(
-        confidence_threshold=confidence_threshold,
-        require_multiple_detectors=require_multiple,
-        min_episode_length=min_ep_length,
-        max_episode_length=max_ep_length
+    worker_log.append(f"  Created {len(search_windows)} search windows:")
+    for i, w in enumerate(search_windows):
+        worker_log.append(
+            f"    Window {i+1}: {w.start_time/60:.1f}-{w.end_time/60:.1f}m "
+            f"(center: {w.center_time/60:.1f}m, source: {w.source})"
+        )
+
+    # ========== PHASE 2: Find Exact Boundaries Within Windows ==========
+    worker_log.append("Phase 2: Finding boundaries within windows...")
+
+    # Prepare args for detection runner (must be JSON-serializable)
+    detection_args = {
+        'file_path': file_in,
+        'total_duration': total_duration,
+        'search_windows': [
+            {
+                'start_time': w.start_time,
+                'end_time': w.end_time,
+                'center_time': w.center_time,
+                'confidence': w.confidence,
+                'source': w.source,
+                'episode_before': w.episode_before,
+                'episode_after': w.episode_after,
+                'metadata': w.metadata,
+            }
+            for w in search_windows
+        ],
+        'settings': {
+            'enable_silence_detection': settings.get_setting('enable_silence_detection'),
+            'enable_black_frame_detection': settings.get_setting('enable_black_frame_detection'),
+            'enable_scene_change_detection': settings.get_setting('enable_scene_change_detection'),
+            'enable_image_hash_detection': settings.get_setting('enable_image_hash_detection'),
+            'enable_audio_fingerprint_detection': settings.get_setting('enable_audio_fingerprint_detection'),
+            'enable_llm_detection': settings.get_setting('enable_llm_detection'),
+            'enable_speech_detection': settings.get_setting('enable_speech_detection'),
+            'silence_threshold_db': settings.get_setting('silence_threshold_db'),
+            'silence_min_duration': settings.get_setting('silence_min_duration'),
+            'black_min_duration': settings.get_setting('black_min_duration'),
+            'scene_change_threshold': settings.get_setting('scene_change_threshold'),
+            'llm_ollama_host': settings.get_setting('llm_ollama_host'),
+            'llm_model': settings.get_setting('llm_model'),
+            'speech_model_size': settings.get_setting('speech_model_size'),
+            'min_episode_length': min_ep_length,
+            'max_episode_length': max_ep_length,
+        },
+    }
+
+    # Run detection in child process with GUI progress reporting
+    detection_result = run_detection_in_child_process(
+        data=data,
+        detection_func=run_phase2_detection,
+        detection_args=detection_args,
     )
-    merged_boundaries = merger.merge(all_boundaries, total_duration)
+
+    if detection_result is None:
+        worker_log.append("Detection failed - falling back to window centers")
+        window_results = {i: [] for i in range(len(search_windows))}
+        episode_end_markers = {i: None for i in range(len(search_windows))}
+    else:
+        # Unpack results (convert string keys back to int)
+        window_results = {
+            int(k): [tuple(r) for r in v]
+            for k, v in detection_result.get('window_results', {}).items()
+        }
+        episode_end_markers = {
+            int(k): v
+            for k, v in detection_result.get('episode_end_markers', {}).items()
+        }
+
+    # ========== Combine Results Per Window ==========
+    worker_log.append("Combining results per window...")
+
+    final_boundaries = []
+    prev_end = 0.0
+
+    for i, window in enumerate(search_windows):
+        results = window_results[i]
+
+        if not results:
+            # No detections - use window center
+            boundary_time = window.center_time
+            confidence = 0.3
+            worker_log.append(f"  Window {i+1}: no detections, using center {boundary_time/60:.1f}m")
+        else:
+            # Find clusters of agreeing detectors first, then pick the best cluster
+            # This prevents a single high-proximity result from overriding agreement
+
+            # Build clusters: group detectors within 60 seconds of each other
+            clusters = []
+            used = set()
+
+            # Sort by time to make clustering easier
+            sorted_results = sorted(results, key=lambda x: x[0])
+
+            for idx, (r_time, r_conf, r_meta) in enumerate(sorted_results):
+                if idx in used:
+                    continue
+
+                # Start a new cluster with this result
+                cluster = [(r_time, r_conf, r_meta)]
+                used.add(idx)
+
+                # Find all other results within 60 seconds
+                for idx2, (r2_time, r2_conf, r2_meta) in enumerate(sorted_results):
+                    if idx2 in used:
+                        continue
+                    if abs(r2_time - r_time) < 60:
+                        cluster.append((r2_time, r2_conf, r2_meta))
+                        used.add(idx2)
+
+                clusters.append(cluster)
+
+            # Score each cluster: detectors agreeing + confidence + proximity to center
+            # Black frame is a strong indicator of episode boundaries - prefer clusters with it
+            window_half = (window.end_time - window.start_time) / 2
+
+            def cluster_has_black_frame(cluster):
+                return any(c[2].get('source') == 'black_frame' for c in cluster)
+
+            def score_cluster(cluster):
+                num_detectors = len(cluster)
+                # Boost black_frame confidence by 0.15 when calculating avg
+                boosted_confs = []
+                for c in cluster:
+                    conf = c[1]
+                    if c[2].get('source') == 'black_frame':
+                        conf = min(0.95, conf + 0.15)  # Boost black_frame
+                    boosted_confs.append(conf)
+                avg_conf = sum(boosted_confs) / num_detectors
+                avg_time = sum(c[0] for c in cluster) / num_detectors
+
+                # Calculate proximity to window center (0-1 scale)
+                distance_from_center = abs(avg_time - window.center_time)
+                proximity = 1.0 - (distance_from_center / window_half) if window_half > 0 else 0.5
+                proximity = max(0, proximity)  # Clamp to 0 if outside window
+
+                # Weighted score: 30% detector count, 30% confidence, 40% proximity
+                return (num_detectors * 0.3) + (avg_conf * 0.3) + (proximity * 0.4)
+
+            # Prefer clusters that contain black_frame detection
+            clusters_with_black = [c for c in clusters if cluster_has_black_frame(c)]
+            clusters_to_consider = clusters_with_black if clusters_with_black else clusters
+
+            if clusters_with_black:
+                worker_log.append(f"    Found {len(clusters_with_black)} cluster(s) with black_frame")
+
+            best_cluster = None
+            best_cluster_score = -1
+
+            for cluster in clusters_to_consider:
+                cluster_score = score_cluster(cluster)
+
+                if cluster_score > best_cluster_score:
+                    best_cluster_score = cluster_score
+                    best_cluster = cluster
+
+            # Use the winning cluster
+            if best_cluster and len(best_cluster) > 1:
+                # Multiple detectors agree
+                # If black_frame is in cluster, use its time (most precise for cut point)
+                # Otherwise use average time
+                black_frame_result = None
+                for c in best_cluster:
+                    if c[2].get('source') == 'black_frame':
+                        black_frame_result = c
+                        break
+
+                if black_frame_result:
+                    # Use black_frame time - it marks the exact transition point
+                    boundary_time = black_frame_result[0]
+                    avg_conf = sum(c[1] for c in best_cluster) / len(best_cluster)
+                    confidence = min(0.95, avg_conf * 1.1)  # Boost for agreement
+                    sources = [c[2].get('source', 'unknown') for c in best_cluster]
+                    worker_log.append(
+                        f"  Window {i+1}: {len(best_cluster)} detectors agree, using black_frame at {boundary_time/60:.1f}m "
+                        f"(conf={confidence:.2f}, sources={sources})"
+                    )
+                else:
+                    # No black_frame - use average time
+                    avg_time = sum(c[0] for c in best_cluster) / len(best_cluster)
+                    avg_conf = sum(c[1] for c in best_cluster) / len(best_cluster)
+                    boundary_time = avg_time
+                    confidence = min(0.95, avg_conf * 1.1)  # Boost for agreement
+                    sources = [c[2].get('source', 'unknown') for c in best_cluster]
+                    worker_log.append(
+                        f"  Window {i+1}: {len(best_cluster)} detectors agree at {boundary_time/60:.1f}m "
+                        f"(conf={confidence:.2f}, sources={sources})"
+                    )
+            else:
+                # Single detector or no cluster
+                # Prefer black_frame over other detectors (strong boundary signal)
+                black_frame_results = [r for r in results if r[2].get('source') == 'black_frame']
+                if black_frame_results:
+                    # Use black_frame even if other detectors have higher confidence
+                    best_result = black_frame_results[0]
+                    worker_log.append(
+                        f"  Window {i+1}: using black_frame at {best_result[0]/60:.1f}m "
+                        f"(conf={best_result[1]:.2f}, preferred over higher-confidence singles)"
+                    )
+                else:
+                    # No black_frame - pick highest confidence
+                    best_result = max(results, key=lambda x: x[1])
+                    worker_log.append(
+                        f"  Window {i+1}: best single at {best_result[0]/60:.1f}m "
+                        f"(conf={best_result[1]:.2f}, source={best_result[2].get('source', 'unknown')})"
+                    )
+                boundary_time = best_result[0]
+                confidence = best_result[1]
+
+        # Apply episode-end marker constraint from speech detection
+        # If we detected "Stay tuned" etc., boundary should be AFTER that phrase,
+        # ideally at a black/silent scene within 30 seconds of the phrase end
+        if episode_end_markers.get(i) is not None:
+            phrase_end_time = episode_end_markers[i]
+
+            if boundary_time < phrase_end_time:
+                # Boundary is BEFORE the episode-end phrase - need to adjust
+                # Look for black_frame or silence AFTER the phrase, preferring within 30 seconds
+                later_results = [r for r in results if r[0] >= phrase_end_time]
+
+                if later_results:
+                    # Score results: prefer black_frame, prefer within 30 seconds
+                    def score_result(r):
+                        time_after_phrase = r[0] - phrase_end_time
+                        is_black = r[2].get('source') == 'black_frame'
+                        is_silence = r[2].get('source') == 'silence'
+
+                        # Base score from confidence
+                        score = r[1]
+
+                        # Prefer black_frame and silence (strong boundary signals)
+                        if is_black:
+                            score += 0.3
+                        elif is_silence:
+                            score += 0.2
+
+                        # Prefer results within 30 seconds (ideal range)
+                        if time_after_phrase <= 30:
+                            score += 0.2 * (1 - time_after_phrase / 30)  # Max bonus at phrase end
+                        else:
+                            # Penalize results beyond 30 seconds (might be cutting into next episode)
+                            penalty = min(0.3, (time_after_phrase - 30) / 60 * 0.3)
+                            score -= penalty
+
+                        return score
+
+                    # Find best result AFTER phrase
+                    best_later = max(later_results, key=score_result)
+                    time_after = best_later[0] - phrase_end_time
+
+                    old_time = boundary_time
+                    boundary_time = best_later[0]
+                    worker_log.append(
+                        f"  Window {i+1}: Adjusted from {old_time/60:.1f}m to {boundary_time/60:.1f}m "
+                        f"({time_after:.0f}s after episode-end phrase, "
+                        f"source={best_later[2].get('source', 'unknown')})"
+                    )
+                else:
+                    # No results after phrase - use 5 seconds after phrase end
+                    old_time = boundary_time
+                    boundary_time = phrase_end_time + 5.0
+                    worker_log.append(
+                        f"  Window {i+1}: Adjusted from {old_time/60:.1f}m to {boundary_time/60:.1f}m "
+                        f"(5s after episode-end phrase at {phrase_end_time/60:.1f}m)"
+                    )
+            elif boundary_time > phrase_end_time + 60:
+                # Boundary is more than 60 seconds after phrase - might be too late
+                # Look for something closer to the phrase
+                closer_results = [r for r in results
+                                  if phrase_end_time <= r[0] <= phrase_end_time + 60]
+                if closer_results:
+                    # Prefer black_frame/silence within 30 seconds
+                    black_close = [r for r in closer_results
+                                   if r[2].get('source') == 'black_frame' and r[0] <= phrase_end_time + 30]
+                    if black_close:
+                        best_close = black_close[0]
+                    else:
+                        best_close = min(closer_results, key=lambda x: x[0] - phrase_end_time)
+
+                    old_time = boundary_time
+                    boundary_time = best_close[0]
+                    worker_log.append(
+                        f"  Window {i+1}: Adjusted from {old_time/60:.1f}m to {boundary_time/60:.1f}m "
+                        f"(closer to episode-end phrase at {phrase_end_time/60:.1f}m)"
+                    )
+
+        # Create episode boundary
+        from split_multi_episode.lib.detection.boundary_merger import MergedBoundary
+        final_boundaries.append(MergedBoundary(
+            start_time=prev_end,
+            end_time=boundary_time,
+            confidence=confidence,
+            sources=[r[2].get('source', 'unknown') for r in results] if results else ['fallback'],
+            source_boundaries=[],
+            metadata={'window_index': i, 'window_source': window.source}
+        ))
+        prev_end = boundary_time
+
+    # Add final episode
+    if total_duration - prev_end >= min_ep_length * 0.5:
+        final_boundaries.append(MergedBoundary(
+            start_time=prev_end,
+            end_time=total_duration,
+            confidence=final_boundaries[-1].confidence if final_boundaries else 0.5,
+            sources=['final'],
+            source_boundaries=[],
+            metadata={'final_episode': True}
+        ))
+
+    merged_boundaries = final_boundaries
+    worker_log.append(f"Detected {len(merged_boundaries)} episodes")
 
     if len(merged_boundaries) < 2:
         worker_log.append("Not enough episodes detected for splitting")
@@ -522,7 +910,8 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
         else:
             worker_log.append("  TMDB validation unavailable (no API key)")
 
-    # Convert to split points
+    # Convert to split points using BoundaryMerger helper methods
+    merger = BoundaryMerger()
     split_points = merger.get_split_points(merged_boundaries)
     episode_list = merger.to_episode_list(merged_boundaries)
 

@@ -44,17 +44,34 @@ class BoundaryMerger:
     Combines boundaries that overlap or are close together,
     weights confidence based on detector reliability, and
     filters results based on configurable thresholds.
+
+    Standalone capability is automatic based on detection type:
+    - 'chapter' (true episode chapters): standalone - always reliable
+    - 'silence_guided' (episode count from filename): standalone - uses known count
+    - 'chapter_commercial': NOT standalone - commercial markers need confirmation
+    - 'silence' (estimation-based): NOT standalone - guessing episode count
+    - 'black_frame': NOT standalone - needs confirmation
+    - Other methods: NOT standalone
     """
 
     # Default confidence weights for different detection methods
     DEFAULT_WEIGHTS = {
         'chapter': 1.0,          # Chapters are highly reliable
+        'chapter_commercial': 0.7,  # Commercial markers less reliable
         'silence': 0.7,          # Silence is moderately reliable
+        'silence_guided': 0.9,   # Guided silence is highly reliable
         'black_frame': 0.6,      # Black frames are less reliable alone
         'black_frame+silence': 0.85,  # Combined is more reliable
         'image_hash': 0.8,       # Image patterns are fairly reliable
         'audio_fingerprint': 0.8,
         'llm_vision': 0.9,       # LLM analysis is highly reliable
+    }
+
+    # Standalone sources - can establish boundaries without confirmation
+    # These are inherent properties of the detection type, not configurable
+    STANDALONE_SOURCES = {
+        'chapter',         # True episode chapters are always reliable
+        'silence_guided',  # Uses episode count from filename - reliable
     }
 
     def __init__(
@@ -72,7 +89,7 @@ class BoundaryMerger:
         Args:
             merge_threshold: Maximum time difference (seconds) to merge boundaries
             confidence_threshold: Minimum confidence to keep a boundary
-            require_multiple_detectors: Require 2+ methods to agree
+            require_multiple_detectors: Require 2+ methods to agree (unless standalone)
             min_episode_length: Minimum episode duration in seconds
             max_episode_length: Maximum episode duration in seconds
             weights: Optional custom confidence weights by source
@@ -145,7 +162,9 @@ class BoundaryMerger:
         all_boundaries: List[List[EpisodeBoundary]]
     ) -> Optional[List[EpisodeBoundary]]:
         """
-        Check if there's a high-confidence primary source (like chapters).
+        Check if there's a standalone source that can establish boundaries alone.
+
+        Standalone methods are checked in order of their weight (highest first).
 
         Args:
             all_boundaries: List of boundary lists from each detector
@@ -153,18 +172,57 @@ class BoundaryMerger:
         Returns:
             Primary source boundaries if found, else None
         """
+        # Find all standalone sources and sort by weight
+        standalone_candidates = []
+
         for boundaries in all_boundaries:
             if not boundaries:
                 continue
 
-            # Check if this source is chapter-based (high confidence)
             source = boundaries[0].source
-            if 'chapter' in source.lower():
+            # Check if this source (or its base name) is in standalone methods
+            is_standalone = self._is_standalone_source(source)
+
+            if is_standalone:
                 avg_confidence = sum(b.confidence for b in boundaries) / len(boundaries)
-                if avg_confidence >= 0.8:
-                    return boundaries
+                weight = self.weights.get(source, 0.5)
+                standalone_candidates.append((boundaries, weight * avg_confidence, source))
+
+        if standalone_candidates:
+            # Sort by weighted confidence (highest first)
+            standalone_candidates.sort(key=lambda x: x[1], reverse=True)
+            best = standalone_candidates[0]
+            logger.debug(f"Using '{best[2]}' as primary source (standalone, score: {best[1]:.2f})")
+            return best[0]
 
         return None
+
+    def _is_standalone_source(self, source: str) -> bool:
+        """
+        Check if a source is standalone (can establish boundaries alone).
+
+        Standalone capability is inherent to the detection type:
+        - 'chapter': True episode chapters are always reliable
+        - 'silence_guided': Uses known episode count from filename
+
+        Args:
+            source: The source name to check
+
+        Returns:
+            True if the source can work standalone
+        """
+        source_lower = source.lower()
+
+        # Check exact match against standalone sources
+        if source_lower in self.STANDALONE_SOURCES:
+            return True
+
+        # Check if source starts with any standalone source name
+        for standalone in self.STANDALONE_SOURCES:
+            if source_lower.startswith(standalone):
+                return True
+
+        return False
 
     def _merge_with_primary(
         self,
@@ -287,8 +345,9 @@ class BoundaryMerger:
 
         # Check multi-detector requirement
         if self.require_multiple_detectors and len(sources) < 2:
-            # Exception: chapter-based detection is reliable enough alone
-            if 'chapter' not in sources:
+            # Exception: standalone methods are reliable enough alone
+            has_standalone = any(self._is_standalone_source(s) for s in sources)
+            if not has_standalone:
                 logger.debug(f"Skipping boundary at {group[0].end_time:.1f}s: only one detector")
                 return None
 

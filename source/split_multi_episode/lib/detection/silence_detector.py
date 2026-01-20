@@ -92,7 +92,8 @@ class SilenceDetector:
         self,
         file_path: str,
         total_duration: float,
-        expected_runtimes: Optional[List[int]] = None
+        expected_runtimes: Optional[List[int]] = None,
+        expected_episode_count: Optional[int] = None
     ) -> List[EpisodeBoundary]:
         """
         Detect episode boundaries from silence regions.
@@ -101,6 +102,8 @@ class SilenceDetector:
             file_path: Path to the video file
             total_duration: Total duration of the file in seconds
             expected_runtimes: Optional list of expected episode runtimes in minutes
+                              (NOTE: these are content-only runtimes, not including commercials)
+            expected_episode_count: Optional expected number of episodes (from filename parsing)
 
         Returns:
             List of EpisodeBoundary objects representing detected episodes
@@ -118,9 +121,14 @@ class SilenceDetector:
         logger.info(f"Found {len(silence_regions)} silence regions")
 
         # Choose detection strategy based on available information
-        if runtimes and len(runtimes) > 1:
-            logger.info(f"Using runtime-guided detection with {len(runtimes)} expected episodes")
-            boundaries = self._detect_with_runtimes(silence_regions, total_duration, runtimes)
+        # Prefer episode count over runtimes since runtimes don't include commercials
+        if expected_episode_count and expected_episode_count >= 2:
+            logger.info(f"Using episode-count-guided detection for {expected_episode_count} episodes")
+            boundaries = self._detect_with_episode_count(silence_regions, total_duration, expected_episode_count)
+        elif runtimes and len(runtimes) > 1:
+            # Use episode count from runtimes length
+            logger.info(f"Using runtime-count-guided detection with {len(runtimes)} expected episodes")
+            boundaries = self._detect_with_episode_count(silence_regions, total_duration, len(runtimes))
         else:
             logger.info("Using estimation-based detection")
             boundaries = self._detect_with_estimation(silence_regions, total_duration)
@@ -177,6 +185,67 @@ class SilenceDetector:
         self._cached_silence_regions = regions
 
         return regions
+
+    def _detect_silence_in_window(
+        self,
+        file_path: str,
+        window_start: float,
+        window_duration: float,
+    ) -> List[SilenceRegion]:
+        """
+        Detect silence regions within a specific time window only.
+
+        Uses FFmpeg -ss (before -i for fast seeking) and -t for duration
+        to scan only the specified portion of the file.
+
+        Args:
+            file_path: Path to the video file
+            window_start: Start time in seconds
+            window_duration: Duration to scan in seconds
+
+        Returns:
+            List of SilenceRegion objects with timestamps in full-file coordinates
+        """
+        cmd = [
+            'ffmpeg',
+            '-ss', str(window_start),  # Seek before input for fast seeking
+            '-i', file_path,
+            '-t', str(window_duration),  # Limit duration
+            '-af', f'silencedetect=noise={self.silence_threshold_db}dB:duration={self.min_silence_duration}',
+            '-f', 'null',
+            '-'
+        ]
+
+        logger.debug(f"Running silence detection for window {window_start/60:.1f}-{(window_start+window_duration)/60:.1f}m")
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120  # 2 minute timeout per window (should be fast)
+            )
+        except subprocess.TimeoutExpired:
+            logger.error(f"Silence detection timed out for window at {window_start/60:.1f}m")
+            return []
+        except Exception as e:
+            logger.error(f"Silence detection error for window at {window_start/60:.1f}m: {e}")
+            return []
+
+        # Parse the output
+        regions = self._parse_silence_output(result.stderr)
+
+        # Adjust timestamps back to full-file coordinates
+        adjusted_regions = []
+        for region in regions:
+            adjusted_regions.append(SilenceRegion(
+                start_time=region.start_time + window_start,
+                end_time=region.end_time + window_start,
+                duration=region.duration
+            ))
+
+        logger.debug(f"Found {len(adjusted_regions)} silence regions in window")
+        return adjusted_regions
 
     def _parse_silence_output(self, output: str) -> List[SilenceRegion]:
         """
@@ -290,6 +359,43 @@ class SilenceDetector:
 
         # Convert to boundaries
         return self._breaks_to_boundaries(selected_breaks, total_duration, guided=True)
+
+    def _detect_with_episode_count(
+        self,
+        silence_regions: List[SilenceRegion],
+        total_duration: float,
+        episode_count: int
+    ) -> List[EpisodeBoundary]:
+        """
+        Detect boundaries using a known episode count.
+
+        Uses the expected episode count from filename parsing to find
+        exactly N-1 split points for N episodes.
+
+        Args:
+            silence_regions: List of detected silence regions
+            total_duration: Total file duration in seconds
+            episode_count: Expected number of episodes
+
+        Returns:
+            List of EpisodeBoundary objects
+        """
+        logger.debug(f"Finding {episode_count - 1} breaks for {episode_count} episodes "
+                     f"in {total_duration/60:.1f}m file")
+
+        # Score all silence regions
+        scored_silences = self._score_silence_regions(silence_regions)
+
+        # Find the best breaks for this episode count
+        breaks, alignment_score = self._try_episode_count(
+            scored_silences, total_duration, episode_count
+        )
+
+        logger.info(f"Found {len(breaks)} breaks for {episode_count} episodes "
+                    f"(alignment score: {alignment_score:.3f})")
+
+        # Convert to boundaries with guided=True since we had episode count info
+        return self._breaks_to_boundaries(breaks, total_duration, guided=True)
 
     def _detect_with_estimation(
         self,
@@ -505,20 +611,22 @@ class SilenceDetector:
             # Calculate confidence
             if guided:
                 confidence = min(self.MAX_CONFIDENCE, self.RUNTIME_GUIDED_CONFIDENCE + score * 0.1)
+                source = 'silence_guided'
             else:
                 confidence = min(self.MAX_CONFIDENCE, self.BASE_CONFIDENCE + score * 0.2)
+                source = 'silence'
 
             boundaries.append(EpisodeBoundary(
                 start_time=prev_end,
                 end_time=split_point,
                 confidence=confidence,
-                source='silence',
+                source=source,
                 metadata={
                     'silence_start': region.start_time,
                     'silence_end': region.end_time,
                     'silence_duration': region.duration,
                     'score': score,
-                    'runtime_guided': guided,
+                    'guided': guided,
                 }
             ))
             prev_end = split_point
@@ -529,8 +637,8 @@ class SilenceDetector:
                 start_time=prev_end,
                 end_time=total_duration,
                 confidence=self.BASE_CONFIDENCE if not guided else self.RUNTIME_GUIDED_CONFIDENCE,
-                source='silence',
-                metadata={'final_episode': True, 'runtime_guided': guided}
+                source='silence_guided' if guided else 'silence',
+                metadata={'final_episode': True, 'guided': guided}
             ))
 
         return boundaries
@@ -674,3 +782,119 @@ class SilenceDetector:
             List of all detected SilenceRegion objects
         """
         return self._detect_silence_regions(file_path)
+
+    def detect_in_windows(
+        self,
+        file_path: str,
+        search_windows: List,  # List of SearchWindow objects
+        total_duration: float,
+    ) -> List[Tuple[float, float, dict]]:
+        """
+        Find the best silence-based boundary within each search window.
+
+        This is the Phase 2 detection method - it searches only within
+        the narrow windows defined by Phase 1. Uses FFmpeg seeking to
+        scan only the specific time ranges for efficiency.
+
+        Args:
+            file_path: Path to the video file
+            search_windows: List of SearchWindow objects defining where to search
+            total_duration: Total file duration
+
+        Returns:
+            List of (boundary_time, confidence, metadata) tuples, one per window
+        """
+        results = []
+
+        for window in search_windows:
+            # Scan only this window using FFmpeg seeking
+            window_duration = window.end_time - window.start_time
+            window_silences = self._detect_silence_in_window(
+                file_path, window.start_time, window_duration
+            )
+
+            if not window_silences:
+                # No silence in window - use center as fallback
+                logger.debug(
+                    f"No silence in window {window.start_time/60:.1f}-{window.end_time/60:.1f}m, "
+                    f"using center {window.center_time/60:.1f}m"
+                )
+                results.append((window.center_time, 0.3, {
+                    'source': 'silence_fallback',
+                    'window_source': window.source,
+                    'fallback': True,
+                }))
+                continue
+
+            # Score silences and find the best one
+            best_silence = None
+            best_score = -1
+
+            for silence in window_silences:
+                # Score factors:
+                # 1. Duration - longer silences are better (episode breaks are longer)
+                # 2. Proximity to window center - closer is better
+                # 3. Position in window - prefer middle over edges
+
+                duration_score = min(1.0, silence.duration / 5.0)  # Max score at 5+ seconds
+
+                distance_from_center = abs(silence.midpoint - window.center_time)
+                window_half = (window.end_time - window.start_time) / 2
+                proximity_score = 1.0 - (distance_from_center / window_half) if window_half > 0 else 0.5
+
+                # Combined score
+                score = (duration_score * 0.6) + (proximity_score * 0.4)
+
+                if score > best_score:
+                    best_score = score
+                    best_silence = silence
+
+            if best_silence:
+                # Calculate confidence based on score and silence quality
+                confidence = min(0.9, 0.5 + (best_score * 0.4))
+
+                logger.debug(
+                    f"Window {window.start_time/60:.1f}-{window.end_time/60:.1f}m: "
+                    f"best silence at {best_silence.midpoint/60:.1f}m "
+                    f"(dur={best_silence.duration:.1f}s, score={best_score:.2f})"
+                )
+
+                results.append((best_silence.midpoint, confidence, {
+                    'source': 'silence',
+                    'window_source': window.source,
+                    'silence_start': best_silence.start_time,
+                    'silence_end': best_silence.end_time,
+                    'silence_duration': best_silence.duration,
+                    'score': best_score,
+                }))
+            else:
+                results.append((window.center_time, 0.3, {
+                    'source': 'silence_fallback',
+                    'window_source': window.source,
+                    'fallback': True,
+                }))
+
+        return results
+
+    def get_silences_in_window(
+        self,
+        file_path: str,
+        window_start: float,
+        window_end: float,
+    ) -> List[SilenceRegion]:
+        """
+        Get all silence regions within a specific time window.
+
+        Args:
+            file_path: Path to the video file
+            window_start: Window start time in seconds
+            window_end: Window end time in seconds
+
+        Returns:
+            List of SilenceRegion objects within the window
+        """
+        all_silences = self._detect_silence_regions(file_path)
+        return [
+            r for r in all_silences
+            if r.start_time >= window_start and r.end_time <= window_end
+        ]

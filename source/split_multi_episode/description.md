@@ -4,7 +4,7 @@ Automatically detects and splits multi-episode video files (e.g., "S01E01-E03.mk
 
 ## Features
 
-- **Multi-technique detection pipeline** - Uses chapters, silence, black frames, image hashing, audio fingerprinting, and LLM vision analysis
+- **Multi-technique detection pipeline** - Uses chapters, silence, black frames, image hashing, audio fingerprinting, scene changes, speech detection and LLM vision analysis
 - **TMDB validation** - Validates detected episode durations against The Movie Database
 - **Lossless splitting** - Uses FFmpeg stream copy for fast, quality-preserving extraction
 - **Smart naming** - Automatically parses source filenames and generates proper episode names
@@ -16,7 +16,9 @@ Automatically detects and splits multi-episode video files (e.g., "S01E01-E03.mk
 |--------|-------------|-------------|
 | Chapter Detection | Uses chapter markers (e.g., "Episode 1", "Commercial 1") | Highest |
 | Silence Detection | Finds silence gaps between episodes | High |
-| Black Frame Detection | Detects black frames at episode boundaries | Medium |
+| Black Frame Detection | Detects black frames at episode boundaries | High |
+| Scene Change Detection | Detects dramatic visual transitions using FFmpeg scene filter | Medium |
+| Speech Detection | Uses Whisper to detect "Stay tuned", "Next time on" phrases | Medium |
 | Audio Fingerprinting | Finds recurring theme music using Chromaprint | Medium |
 | Image Hash Detection | Finds recurring intro sequences using perceptual hashing | Medium |
 | LLM Vision | Uses Ollama to detect credits, title cards, recaps | Medium |
@@ -30,6 +32,7 @@ Dependencies are automatically installed via `init.d/install-deps.sh`:
 - **imagehash** / **Pillow** - Perceptual image hashing
 - **requests** - HTTP client for TMDB API
 - **parse-torrent-title** - Filename parsing
+- **faster-whisper** (optional) - Speech detection for episode-end phrases
 - **ollama** (optional) - LLM vision detection client
 
 ## Configuration
@@ -41,9 +44,11 @@ Dependencies are automatically installed via `init.d/install-deps.sh`:
 | Enable Chapter Detection | On | Use chapter markers to detect episode boundaries (highest reliability) |
 | Enable Silence Detection | On | Detect silence gaps between episodes |
 | Enable Black Frame Detection | On | Detect black frames that may indicate episode breaks |
+| Enable Scene Change Detection | Off | Detect dramatic visual transitions between episodes using FFmpeg |
 | Enable Image Hash Detection | Off | Use perceptual hashing to find recurring intro/outro sequences (CPU intensive) |
 | Enable Audio Fingerprint Detection | Off | Detect recurring intro music patterns using Chromaprint |
 | Enable LLM Vision Detection | Off | Use Ollama vision model to detect credits, title cards (requires Ollama) |
+| Enable Speech Detection | Off | Use Whisper to detect "Stay tuned" and preview phrases (requires faster-whisper) |
 | Enable TMDB Validation | Off | Validate detected runtimes against TMDB episode data |
 
 ### LLM Settings (when enabled)
@@ -69,8 +74,33 @@ Dependencies are automatically installed via `init.d/install-deps.sh`:
 | Silence Threshold | -30 dB | Audio level threshold for silence detection |
 | Minimum Silence Duration | 2.0 sec | Minimum silence duration to detect |
 | Minimum Black Duration | 1.0 sec | Minimum black frame duration to detect |
+| Scene Change Threshold | 0.3 | Scene change sensitivity (0.1-0.5, lower = more sensitive) |
 | Confidence Threshold | 0.7 | Minimum confidence score to split at a boundary (0.0-1.0) |
-| Require Multiple Detectors | On | Require at least 2 detection methods to agree before splitting |
+
+#### Confidence Threshold
+
+The confidence threshold determines the minimum score required before the plugin will split at a detected boundary. Each detection method assigns a confidence score (0.0-1.0) based on how strongly the evidence supports an episode boundary at that location.
+
+The default value of **0.7** is a good starting point because:
+- It filters out weak or ambiguous detections while accepting reasonably confident boundaries
+- Multiple agreeing detectors boost confidence, so boundaries found by 2+ methods typically exceed 0.7
+- It's high enough to avoid false positives but low enough that strong single-detector results (like black frames in a search window) can pass
+
+If you're getting **too many false splits**, increase the threshold toward 0.85-0.9. If **valid boundaries are being missed**, try lowering it to 0.6-0.65.
+
+### Speech Detection Settings (when enabled)
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Whisper Model Size | base | Model size for speech detection (tiny=fastest, large-v2=most accurate) |
+
+Speech detection listens for episode-end phrases like "Stay tuned", "Next time on", or "Coming up next" which indicate the episode content has ended. The split point is placed AFTER these phrases, at the next black frame or silence gap.
+
+### Scene Change Settings (when enabled)
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Scene Change Threshold | 0.3 | Sensitivity for scene detection (0.1=very sensitive, 0.5=only major changes) |
 
 ### Output Settings
 
@@ -111,7 +141,6 @@ To get TMDB API credentials, create an account at [themoviedb.org](https://www.t
 
 **Wrong number of episodes detected:**
 - Adjust confidence threshold
-- Enable "Require Multiple Detectors" for more accuracy
 - Enable TMDB validation to verify against known episode counts
 
 **Splits at wrong positions:**
@@ -123,3 +152,12 @@ To get TMDB API credentials, create an account at [themoviedb.org](https://www.t
 - Ensure Ollama is running and accessible at the configured host
 - Pull the required model: `ollama pull llava:7b-v1.6-mistral-q4_K_M`
 - Check network connectivity if using a remote Ollama server
+- GPU can become stuck in P8 state.  to avoid this you need to perform some steps on the system where Ollama server is running:
+  - ensure you have no zombie ollama processes running (if not sure, restart your host running ollama server)
+  - sudo nvidia-smi -lmc 7000,7501
+  - # Replace 7501 with your max memory clock (check nvidia-smi -q -d CLOCK)
+  - # (Note: 7501 is arbitrary high upper bound; 7000 is the floor to keep memory speed maxed).
+  - sudo nvidia-smi -lgc 1500,2100
+  - # undo the locks so your GPU doesn't run hot indefinitely - this will allow it to again reach state P8
+  - sudo nvidia-smi -rmc
+  - sudo nvidia-smi -rgc

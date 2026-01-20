@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 *.pyo
 site-packages/
+*.old
+*.new
+*.testing

@@ -116,6 +116,137 @@ class AudioFingerprintDetector:
             logger.info(f"Detected {len(boundaries)} episode boundaries from audio patterns")
             return boundaries
 
+    def detect_in_windows(
+        self,
+        file_path: str,
+        search_windows: List,  # List of SearchWindow objects
+        total_duration: float,
+    ) -> List[Tuple[float, float, dict]]:
+        """
+        Find episode boundaries within search windows using audio fingerprinting.
+
+        Extracts a reference audio segment from the start of the file (intro music),
+        then searches within each window for audio that matches the intro pattern.
+
+        Args:
+            file_path: Path to the video file
+            search_windows: List of SearchWindow objects defining where to search
+            total_duration: Total file duration
+
+        Returns:
+            List of (boundary_time, confidence, metadata) tuples, one per window
+        """
+        from typing import Tuple
+
+        results = []
+        sample_interval = 10  # Sample every 10 seconds within windows
+
+        with tempfile.TemporaryDirectory(prefix='split_audio_win_') as temp_dir:
+            # Extract reference audio from the start of the file (intro music)
+            # Use first 30 seconds as the intro reference
+            ref_path = os.path.join(temp_dir, 'reference.wav')
+            ref_segment = self._extract_single_segment(file_path, 0.0, ref_path)
+
+            if not ref_segment:
+                logger.warning("Failed to extract reference audio segment")
+                return [(w.center_time, 0.3, {'fallback': True, 'source': 'audio_fallback'})
+                        for w in search_windows]
+
+            ref_profile = self._compute_energy_profile(ref_path)
+            if not ref_profile:
+                logger.warning("Failed to compute reference audio profile")
+                return [(w.center_time, 0.3, {'fallback': True, 'source': 'audio_fallback'})
+                        for w in search_windows]
+
+            for window in search_windows:
+                best_time = window.center_time
+                best_similarity = 0.0
+
+                # Sample densely within the window
+                current = window.start_time
+                while current < window.end_time - self.segment_duration:
+                    sample_path = os.path.join(temp_dir, f'sample_{current:.0f}.wav')
+
+                    if self._extract_single_segment(file_path, current, sample_path):
+                        sample_profile = self._compute_energy_profile(sample_path)
+
+                        if sample_profile:
+                            similarity = self._compare_profiles(ref_profile, sample_profile)
+
+                            if similarity > best_similarity:
+                                best_similarity = similarity
+                                best_time = current
+
+                        # Clean up sample file
+                        try:
+                            os.remove(sample_path)
+                        except:
+                            pass
+
+                    current += sample_interval
+
+                # Calculate confidence based on similarity
+                if best_similarity > 0.5:
+                    confidence = min(0.85, 0.4 + (best_similarity * 0.5))
+                    logger.debug(
+                        f"Window {window.start_time/60:.1f}-{window.end_time/60:.1f}m: "
+                        f"best audio match at {best_time/60:.1f}m (similarity={best_similarity:.2f})"
+                    )
+                    results.append((best_time, confidence, {
+                        'source': 'audio_fingerprint',
+                        'window_source': window.source,
+                        'similarity': best_similarity,
+                    }))
+                else:
+                    # No good match found - use window center as fallback
+                    logger.debug(
+                        f"Window {window.start_time/60:.1f}-{window.end_time/60:.1f}m: "
+                        f"no good audio match (best similarity={best_similarity:.2f})"
+                    )
+                    results.append((window.center_time, 0.3, {
+                        'source': 'audio_fallback',
+                        'window_source': window.source,
+                        'fallback': True,
+                    }))
+
+        return results
+
+    def _extract_single_segment(
+        self,
+        file_path: str,
+        timestamp: float,
+        output_path: str,
+    ) -> bool:
+        """
+        Extract a single audio segment at the given timestamp.
+
+        Args:
+            file_path: Path to the video file
+            timestamp: Start time in seconds
+            output_path: Path for output WAV file
+
+        Returns:
+            True if successful, False otherwise
+        """
+        cmd = [
+            'ffmpeg',
+            '-ss', str(timestamp),
+            '-i', file_path,
+            '-t', str(self.segment_duration),
+            '-vn',  # No video
+            '-ac', '1',  # Mono
+            '-ar', str(self.sample_rate),
+            '-y',
+            output_path
+        ]
+
+        try:
+            subprocess.run(cmd, capture_output=True, timeout=30)
+            return os.path.exists(output_path) and os.path.getsize(output_path) > 0
+        except Exception as e:
+            logger.debug(f"Failed to extract audio at {timestamp}s: {e}")
+            return False
+
     def _extract_audio_segments(
         self,
         file_path: str,
@@ -375,6 +506,10 @@ class AudioFingerprintDetector:
         """
         Convert audio matches to episode boundaries.
 
+        Uses actual timestamps from matches rather than dividing into
+        equal intervals. Matching audio segments indicate recurring
+        intro/outro music, so those timestamps are episode starts.
+
         Args:
             matches: List of AudioMatch objects
             total_duration: Total file duration
@@ -385,49 +520,80 @@ class AudioFingerprintDetector:
         if not matches:
             return []
 
-        # Group by interval
-        interval_counts: Dict[int, List[AudioMatch]] = {}
+        # Collect all timestamps where similar audio was found
+        # These are potential episode start points (intro music locations)
+        timestamp_scores: Dict[float, List[float]] = {}  # timestamp -> list of similarities
 
         for match in matches:
-            interval = int(match.timestamp2 - match.timestamp1)
-            interval_bucket = (interval // 60) * 60  # Round to minute
+            # Both timestamps in a match are potential episode starts
+            for ts in [match.timestamp1, match.timestamp2]:
+                if ts not in timestamp_scores:
+                    timestamp_scores[ts] = []
+                timestamp_scores[ts].append(match.similarity)
 
-            if interval_bucket not in interval_counts:
-                interval_counts[interval_bucket] = []
-            interval_counts[interval_bucket].append(match)
-
-        if not interval_counts:
+        if not timestamp_scores:
             return []
 
-        # Find most common interval
-        best_interval = max(interval_counts.keys(), key=lambda k: len(interval_counts[k]))
-        best_matches = interval_counts[best_interval]
+        # Sort timestamps and filter to those with good support
+        sorted_timestamps = sorted(timestamp_scores.keys())
 
-        if not (self.min_episode_length <= best_interval <= self.max_episode_length):
-            return []
+        # Filter: keep timestamps that appear in multiple matches or have high similarity
+        good_timestamps = []
+        for ts in sorted_timestamps:
+            scores = timestamp_scores[ts]
+            avg_score = sum(scores) / len(scores)
+            # Keep if appears in multiple matches OR has high average similarity
+            if len(scores) >= 2 or avg_score >= 0.8:
+                good_timestamps.append((ts, avg_score, len(scores)))
 
-        # Create boundaries
+        if not good_timestamps:
+            # Fall back to all timestamps if filtering removed everything
+            good_timestamps = [(ts, sum(s)/len(s), len(s))
+                              for ts, s in timestamp_scores.items()]
+            good_timestamps.sort(key=lambda x: x[0])
+
+        # Create boundaries from consecutive timestamps
         boundaries = []
-        episode_count = int(total_duration / best_interval)
+        prev_end = 0.0
 
-        for i in range(episode_count):
-            start = i * best_interval
-            end = min((i + 1) * best_interval, total_duration)
+        for ts, avg_sim, match_count in good_timestamps:
+            # Skip if too close to previous boundary
+            if ts - prev_end < self.min_episode_length * 0.5:
+                continue
 
-            if end - start >= self.min_episode_length * 0.8:
-                avg_similarity = sum(m.similarity for m in best_matches) / len(best_matches)
-                confidence = self.CONFIDENCE * avg_similarity
+            # Skip timestamps too close to the start (likely the first episode's intro)
+            if ts < self.min_episode_length * 0.5:
+                continue
+
+            duration = ts - prev_end
+            if self.min_episode_length <= duration <= self.max_episode_length:
+                confidence = self.CONFIDENCE * avg_sim * min(1.0, match_count / 3.0)
 
                 boundaries.append(EpisodeBoundary(
-                    start_time=start,
-                    end_time=end,
+                    start_time=prev_end,
+                    end_time=ts,
                     confidence=confidence,
                     source='audio_fingerprint',
                     metadata={
-                        'detected_interval': best_interval,
-                        'match_count': len(best_matches),
-                        'avg_similarity': avg_similarity,
+                        'match_timestamp': ts,
+                        'match_count': match_count,
+                        'avg_similarity': avg_sim,
                     }
                 ))
+                prev_end = ts
+
+        # Add final episode if there's remaining duration
+        if total_duration - prev_end >= self.min_episode_length:
+            boundaries.append(EpisodeBoundary(
+                start_time=prev_end,
+                end_time=total_duration,
+                confidence=self.CONFIDENCE * 0.7,  # Lower confidence for final segment
+                source='audio_fingerprint',
+                metadata={
+                    'final_episode': True,
+                }
+            ))
+
+        logger.debug(f"Audio fingerprint found boundaries at: {[f'{b.end_time/60:.1f}m' for b in boundaries]}")
 
         return boundaries

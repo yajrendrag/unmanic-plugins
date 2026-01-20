@@ -415,6 +415,103 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
         return boundaries
 
+    def detect_in_windows(
+        self,
+        file_path: str,
+        search_windows: List,  # List of SearchWindow objects
+        total_duration: float,
+    ) -> List[Tuple[float, float, dict]]:
+        """
+        Find credits/outros within each search window.
+
+        Samples frames within each window and uses LLM to identify
+        credits, outros, title cards that indicate episode boundaries.
+
+        Args:
+            file_path: Path to the video file
+            search_windows: List of SearchWindow objects defining where to search
+            total_duration: Total file duration
+
+        Returns:
+            List of (boundary_time, confidence, metadata) tuples, one per window
+        """
+        from typing import Tuple
+
+        if not self.is_available():
+            logger.warning("LLM detection not available")
+            return [(w.center_time, 0.3, {'source': 'llm_fallback', 'fallback': True})
+                    for w in search_windows]
+
+        results = []
+
+        with tempfile.TemporaryDirectory(prefix='split_llm_win_') as temp_dir:
+            for window in search_windows:
+                # TODO: Make sample_interval configurable via settings
+                # Sample every 10 seconds within the window for precision with quick credits
+                sample_interval = 10
+                timestamps = []
+                current = window.start_time
+                while current <= window.end_time:
+                    timestamps.append(current)
+                    current += sample_interval
+
+                logger.debug(
+                    f"Analyzing {len(timestamps)} frames in window "
+                    f"{window.start_time/60:.1f}-{window.end_time/60:.1f}m"
+                )
+
+                # Analyze frames at each timestamp
+                credit_detections = []
+                for ts in timestamps:
+                    analysis = self._analyze_timestamp(file_path, ts, temp_dir)
+                    if analysis:
+                        # Track frames that show credits or outros
+                        if analysis.is_credits or analysis.is_outro:
+                            credit_detections.append((ts, analysis.confidence, analysis))
+                            logger.debug(
+                                f"  Found credits/outro at {ts/60:.1f}m "
+                                f"(credits={analysis.is_credits}, outro={analysis.is_outro})"
+                            )
+
+                if not credit_detections:
+                    # No credits found - use window center as fallback
+                    logger.debug(f"No credits detected in window {window.start_time/60:.1f}-{window.end_time/60:.1f}m")
+                    results.append((window.center_time, 0.3, {
+                        'source': 'llm_fallback',
+                        'window_source': window.source,
+                        'fallback': True,
+                    }))
+                    continue
+
+                # Find the LAST credit detection in the window (end of credits = boundary)
+                # Sort by timestamp and take the last one
+                credit_detections.sort(key=lambda x: x[0])
+                last_credit_ts, last_credit_conf, last_analysis = credit_detections[-1]
+
+                # The boundary is at or just after the last credit frame
+                # Add half the sample interval to get past the credits
+                boundary_time = last_credit_ts + sample_interval / 2
+
+                # Clamp to window
+                boundary_time = min(boundary_time, window.end_time)
+
+                confidence = min(0.90, last_credit_conf * 0.9)
+
+                logger.debug(
+                    f"Window {window.start_time/60:.1f}-{window.end_time/60:.1f}m: "
+                    f"credits end at {last_credit_ts/60:.1f}m, boundary at {boundary_time/60:.1f}m"
+                )
+
+                results.append((boundary_time, confidence, {
+                    'source': 'llm_vision',
+                    'window_source': window.source,
+                    'credits_detected_at': last_credit_ts,
+                    'is_credits': last_analysis.is_credits,
+                    'is_outro': last_analysis.is_outro,
+                }))
+
+        return results
+
     def validate_boundaries(
         self,
         file_path: str,

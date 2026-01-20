@@ -9,6 +9,9 @@ from .audio_fingerprint import AudioFingerprintDetector
 from .llm_detector import LLMDetector
 from .intro_detector import IntroDetector
 from .boundary_merger import BoundaryMerger
+from .search_window import SearchWindowDeterminer, SearchWindow
+from .scene_change_detector import SceneChangeDetector
+from .speech_detector import SpeechDetector
 
 __all__ = [
     'ChapterDetector',
@@ -19,4 +22,8 @@ __all__ = [
     'LLMDetector',
     'IntroDetector',
     'BoundaryMerger',
+    'SearchWindowDeterminer',
+    'SearchWindow',
+    'SceneChangeDetector',
+    'SpeechDetector',
 ]

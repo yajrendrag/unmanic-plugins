@@ -2,7 +2,7 @@
     "author": "yajrendrag",
     "compatibility": [2],
     "description": "Detects and splits multi-episode MKV files into individual episode files using a multi-technique detection pipeline including chapter markers, silence/black frame detection, perceptual hashing, audio fingerprinting, and optional LLM vision analysis",
-    "icon": "",
+    "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/split_multi_episode/icon.png",
     "id": "split_multi_episode",
     "name": "Split Multi-Episode Files",
     "priorities": {
@@ -12,5 +12,5 @@
         "on_postprocessor_task_results": 0
     },
     "tags": "video,mkv,split,episode,ffmpeg,chapters,silence,detection",
-    "version": "0.0.2"
+    "version": "0.0.12"
 }

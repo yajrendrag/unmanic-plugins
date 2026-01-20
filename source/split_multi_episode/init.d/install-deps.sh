@@ -47,6 +47,10 @@ $PIP install --quiet "ollama>=0.1.0"
 # Parse-torrent-title for filename parsing
 $PIP install --quiet "parse-torrent-title>=2.8.0"
 
+# faster-whisper for speech detection (optional but recommended)
+echo "split_multi_episode: Installing faster-whisper for speech detection..."
+$PIP install --quiet "faster-whisper>=1.0.0"
+
 echo "split_multi_episode: Python dependencies installed"
 
 # Optional: Install Ollama for LLM detection (user must do this manually on the host)

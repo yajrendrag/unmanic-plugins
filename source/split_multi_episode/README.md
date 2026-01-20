@@ -17,6 +17,7 @@ Plugin for [Unmanic](https://github.com/Unmanic)
 - [TMDB API](https://developer.themoviedb.org/docs)
 - [Ollama](https://ollama.ai/)
 - [parse-torrent-title](https://github.com/platelmern/parse-torrent-title)
+- [faster-whisper](https://github.com/SYSTRAN/faster-whisper)
 
 ## License
 This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
