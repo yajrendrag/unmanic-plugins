@@ -86,14 +86,18 @@ class EpisodeNamer:
                 episode = parsed.get('episode')
                 if isinstance(episode, list):
                     episode = episode[0] if episode else None
+                # PTN field mapping:
+                # - PTN 'resolution' (480p, 1080p, etc.) -> our 'quality'
+                # - PTN 'quality' (WEBRip, BluRay, etc.) -> our 'source'
+                # - PTN 'codec' (H.265, x264, etc.) -> our 'codec'
                 return ParsedFilename(
                     title=parsed.get('title', name),
                     season=parsed.get('season'),
                     episode=episode,
                     year=parsed.get('year'),
-                    quality=parsed.get('resolution') or parsed.get('quality'),
+                    quality=parsed.get('resolution'),
                     codec=parsed.get('codec'),
-                    source=parsed.get('source'),
+                    source=parsed.get('quality'),  # PTN's 'quality' is WEBRip/BluRay, which is our 'source'
                     group=parsed.get('group'),
                     extension=ext,
                     original_filename=basename
@@ -144,13 +148,15 @@ class EpisodeNamer:
             season = int(range_match.group(1))
             episode = int(range_match.group(2))  # Start episode
 
-            # Title can be before OR after the episode range
+            # Title is typically BEFORE the episode info (S##E##)
+            # The content AFTER is usually quality/codec/source metadata
             before = name[:range_match.start()].strip(' ._-')
             after = name[range_match.end():].strip(' ._-')
 
-            # Choose the non-empty one, or the longer one if both exist
-            if before and after:
-                title = before if len(before) >= len(after) else after
+            # Prefer the "before" part as the title (standard naming convention)
+            # Only use "after" if "before" is empty or very short (< 3 chars)
+            if before and len(before) >= 3:
+                title = before
             elif after:
                 title = after
             elif before:
@@ -167,13 +173,15 @@ class EpisodeNamer:
                 season = int(se_match.group(1))
                 episode = int(se_match.group(2))
 
-                # Title can be before or after
+                # Title is typically BEFORE the episode info (S##E##)
+                # The content AFTER is usually quality/codec/source metadata
                 before = name[:se_match.start()].strip(' ._-')
                 after = name[se_match.end():].strip(' ._-')
 
-                # Choose the non-empty one, or the longer one if both exist
-                if before and after:
-                    title = before if len(before) >= len(after) else after
+                # Prefer the "before" part as the title (standard naming convention)
+                # Only use "after" if "before" is empty or very short (< 3 chars)
+                if before and len(before) >= 3:
+                    title = before
                 elif after:
                     title = after
                 elif before:
@@ -190,11 +198,13 @@ class EpisodeNamer:
                     season = int(x_match.group(1))
                     episode = int(x_match.group(2))
 
+                    # Title is typically BEFORE the episode info
                     before = name[:x_match.start()].strip(' ._-')
                     after = name[x_match.end():].strip(' ._-')
 
-                    if before and after:
-                        title = before if len(before) >= len(after) else after
+                    # Prefer the "before" part as the title (standard naming convention)
+                    if before and len(before) >= 3:
+                        title = before
                     elif after:
                         title = after
                     elif before:

@@ -1,4 +1,20 @@
 
+**<span style="color:#56adda">0.0.14</span>**
+- Fix: Filename parsing now correctly extracts title from before episode info
+  - Regex fallback was incorrectly choosing quality/codec metadata (after S##E##) as title
+  - Now prefers the content before episode info, which is the standard naming convention
+  - Example: "Dont Come Home S1E1-6 COMBiNED WEBRip 480p" now correctly parses title as "Dont Come Home"
+- Fix: PTN field mapping corrected for quality and source
+  - PTN's 'resolution' (480p, 1080p) now maps to our 'quality' field
+  - PTN's 'quality' (WEBRip, BluRay) now maps to our 'source' field
+  - This ensures source info like WEBRip is preserved in output filenames
+- Add: "Split at Credits End" option for LLM credit detection
+  - New setting `llm_split_at_credits_end` under LLM Vision Detection
+  - When enabled, splits immediately 2 seconds after detected credits end
+  - Bypasses searching for black frame/silence after credits
+  - Useful when episodes transition directly without clear A/V markers
+  - Default behavior (disabled) still extends window to find next split characteristic
+
 **<span style="color:#56adda">0.0.13</span>**
 - Fix: LLM credits constraint now enforced in combining logic
   - If LLM detects credits, boundary must be AFTER the credits end
@@ -6,7 +22,6 @@
   - Looks for first black_frame or silence after LLM's credits_detected_at time
   - If credits extend to window edge, automatically extends search by 60 seconds
   - Runs targeted black_frame and silence scans in the extended region
-
 
 **<span style="color:#56adda">0.0.12</span>**
 - Add: GUI progress gauge for detection phase via PluginChildProcess

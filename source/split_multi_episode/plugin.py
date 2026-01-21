@@ -82,6 +82,7 @@ class Settings(PluginSettings):
         "llm_ollama_host": "http://localhost:11434",
         "llm_model": "llava:7b-v1.6-mistral-q4_K_M",
         "llm_frames_per_boundary": 5,
+        "llm_split_at_credits_end": False,
 
         # Speech Detection + options
         "enable_speech_detection": False,
@@ -175,6 +176,7 @@ class Settings(PluginSettings):
                 "slider",
                 {"min": 1, "max": 10, "step": 1}
             ),
+            "llm_split_at_credits_end": self._llm_split_at_credits_setting(),
 
             # Speech Detection + options
             "enable_speech_detection": {
@@ -319,6 +321,16 @@ class Settings(PluginSettings):
             "sub_setting": True,
         }
         if not self.get_setting('enable_speech_detection'):
+            setting["display"] = "hidden"
+        return setting
+
+    def _llm_split_at_credits_setting(self):
+        setting = {
+            "label": "Split at Credits End",
+            "description": "When credits are detected, split immediately after credits end instead of searching for the next black frame or silence. Useful when episodes transition directly without clear A/V markers.",
+            "sub_setting": True,
+        }
+        if not self.get_setting('enable_llm_detection'):
             setting["display"] = "hidden"
         return setting
 
@@ -617,6 +629,7 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
             'scene_change_threshold': settings.get_setting('scene_change_threshold'),
             'llm_ollama_host': settings.get_setting('llm_ollama_host'),
             'llm_model': settings.get_setting('llm_model'),
+            'llm_split_at_credits_end': settings.get_setting('llm_split_at_credits_end'),
             'speech_model_size': settings.get_setting('speech_model_size'),
             'min_episode_length': min_ep_length,
             'max_episode_length': max_ep_length,
@@ -793,7 +806,19 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
             llm_result = llm_results[0]
             credits_end_time = llm_result[2].get('credits_detected_at')
 
-            if credits_end_time and boundary_time < credits_end_time:
+            # Check if user wants to split directly at credits end
+            split_at_credits_end = settings.get_setting('llm_split_at_credits_end')
+
+            if credits_end_time and split_at_credits_end:
+                # User wants to split directly at credits end - don't search for black/silence
+                # Add a small offset (2 seconds) to ensure we're past the last credit frame
+                old_time = boundary_time
+                boundary_time = credits_end_time + 2.0
+                worker_log.append(
+                    f"  Window {i+1}: Split at credits end - using {boundary_time/60:.1f}m "
+                    f"(2s after LLM credits end at {credits_end_time/60:.1f}m)"
+                )
+            elif credits_end_time and boundary_time < credits_end_time:
                 # Boundary is BEFORE credits end - need to adjust
                 # Look for black_frame or silence AFTER the credits
                 later_results = [r for r in results
