@@ -1,4 +1,13 @@
 
+**<span style="color:#56adda">0.0.13</span>**
+- Fix: LLM credits constraint now enforced in combining logic
+  - If LLM detects credits, boundary must be AFTER the credits end
+  - Prevents splitting in the middle of credits when black_frame is detected before credits
+  - Looks for first black_frame or silence after LLM's credits_detected_at time
+  - If credits extend to window edge, automatically extends search by 60 seconds
+  - Runs targeted black_frame and silence scans in the extended region
+
+
 **<span style="color:#56adda">0.0.12</span>**
 - Add: GUI progress gauge for detection phase via PluginChildProcess
   - Detection methods now run in a child process with progress reporting

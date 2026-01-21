@@ -785,6 +785,118 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
                 boundary_time = best_result[0]
                 confidence = best_result[1]
 
+        # Apply LLM credits constraint
+        # If LLM detected credits, the boundary must be AFTER the credits end
+        llm_results = [r for r in results if r[2].get('source') == 'llm_vision']
+        if llm_results:
+            # Get the credits_detected_at time (where LLM last saw credits)
+            llm_result = llm_results[0]
+            credits_end_time = llm_result[2].get('credits_detected_at')
+
+            if credits_end_time and boundary_time < credits_end_time:
+                # Boundary is BEFORE credits end - need to adjust
+                # Look for black_frame or silence AFTER the credits
+                later_results = [r for r in results
+                                 if r[0] >= credits_end_time and r[2].get('source') in ('black_frame', 'silence')]
+
+                # If credits are near window edge and no results after, extend search
+                if not later_results and credits_end_time >= window.end_time - 30:
+                    # Credits extend to edge of window - scan beyond for black/silence
+                    worker_log.append(
+                        f"  Window {i+1}: Credits at window edge ({credits_end_time/60:.1f}m), "
+                        f"extending search by 60s..."
+                    )
+
+                    # Import detectors for extended scan
+                    from split_multi_episode.lib.detection import BlackFrameDetector, SilenceDetector
+                    from split_multi_episode.lib.detection.search_window import SearchWindow
+
+                    # Create extended window starting from credits end
+                    extended_start = credits_end_time
+                    extended_end = min(credits_end_time + 60, total_duration)
+
+                    extended_window = SearchWindow(
+                        start_time=extended_start,
+                        end_time=extended_end,
+                        center_time=(extended_start + extended_end) / 2,
+                        confidence=0.5,
+                        source='extended_for_credits',
+                        episode_before=window.episode_before,
+                        episode_after=window.episode_after,
+                        metadata={'extended': True}
+                    )
+
+                    # Quick scan for black_frame in extended region
+                    try:
+                        black_detector = BlackFrameDetector(
+                            min_black_duration=settings.get_setting('black_min_duration'),
+                            min_episode_length=min_ep_length,
+                            max_episode_length=max_ep_length
+                        )
+                        extended_black = black_detector.detect_in_windows(
+                            file_in, [extended_window], total_duration, None
+                        )
+                        if extended_black and extended_black[0][0] > 0:
+                            later_results.append((extended_black[0][0], extended_black[0][1],
+                                                  {'source': 'black_frame', 'extended': True}))
+                            worker_log.append(
+                                f"    Found black_frame at {extended_black[0][0]/60:.1f}m in extended region"
+                            )
+                    except Exception as e:
+                        worker_log.append(f"    Extended black_frame scan failed: {e}")
+
+                    # Quick scan for silence in extended region if no black found
+                    if not later_results:
+                        try:
+                            silence_detector = SilenceDetector(
+                                silence_threshold_db=settings.get_setting('silence_threshold_db'),
+                                min_silence_duration=settings.get_setting('silence_min_duration'),
+                                min_episode_length=min_ep_length,
+                                max_episode_length=max_ep_length
+                            )
+                            extended_silence = silence_detector.detect_in_windows(
+                                file_in, [extended_window], total_duration
+                            )
+                            if extended_silence and extended_silence[0][0] > 0:
+                                later_results.append((extended_silence[0][0], extended_silence[0][1],
+                                                      {'source': 'silence', 'extended': True}))
+                                worker_log.append(
+                                    f"    Found silence at {extended_silence[0][0]/60:.1f}m in extended region"
+                                )
+                        except Exception as e:
+                            worker_log.append(f"    Extended silence scan failed: {e}")
+
+                if later_results:
+                    # Prefer black_frame, then silence, closest to credits end
+                    black_later = [r for r in later_results if r[2].get('source') == 'black_frame']
+                    silence_later = [r for r in later_results if r[2].get('source') == 'silence']
+
+                    if black_later:
+                        best_later = min(black_later, key=lambda x: x[0])
+                    elif silence_later:
+                        best_later = min(silence_later, key=lambda x: x[0])
+                    else:
+                        best_later = min(later_results, key=lambda x: x[0])
+
+                    old_time = boundary_time
+                    boundary_time = best_later[0]
+                    time_after_credits = boundary_time - credits_end_time
+                    extended_note = " (from extended scan)" if best_later[2].get('extended') else ""
+                    worker_log.append(
+                        f"  Window {i+1}: Adjusted from {old_time/60:.1f}m to {boundary_time/60:.1f}m "
+                        f"({time_after_credits:.0f}s after LLM credits end at {credits_end_time/60:.1f}m, "
+                        f"source={best_later[2].get('source', 'unknown')}{extended_note})"
+                    )
+                else:
+                    # No black_frame/silence after credits - use LLM boundary time
+                    # (which is credits_detected_at + 5s from the LLM detector)
+                    old_time = boundary_time
+                    boundary_time = llm_result[0]  # LLM's suggested boundary time
+                    worker_log.append(
+                        f"  Window {i+1}: Adjusted from {old_time/60:.1f}m to {boundary_time/60:.1f}m "
+                        f"(using LLM boundary, no black/silence after credits at {credits_end_time/60:.1f}m)"
+                    )
+
         # Apply episode-end marker constraint from speech detection
         # If we detected "Stay tuned" etc., boundary should be AFTER that phrase,
         # ideally at a black/silent scene within 30 seconds of the phrase end

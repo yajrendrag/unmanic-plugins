@@ -2,6 +2,16 @@
 
 Automatically detects and splits multi-episode video files (e.g., "S01E01-E03.mkv") into individual episode files using multiple detection techniques.
 
+Split Multi-Episode works by assuming that the episodes in the multiepisode file are of a similar length and makes a determination of how many episodes are in the file.  It does this in several ways:
+
+- it will simply count the number of episodes in the file baesd on the file name and divide that into the total duration of the file, OR
+- it will use chapter markes if andy and if they have "Episode" titles
+- it will calculate it from adding the TMDB run times  (& the added time from commerical chapters if the file has commercial chapter marks and if the file is significantly longer than the sum of all of the run times it gets from TMDB).
+
+From this, it creates 10 minute windows around the nominal episode times that it calculated and then analyzes those windows to find the likely end of one episode / beginning of the next episode. Multiple detection techniques
+are used and the more of them that cluster together at a certtain time in each 10 minute window, the higher likelihood of that being the episode split time.  It turns out that black frame detection seems to be the most accurate as a single
+method of predicting the episode split time and that method is waited higer.
+
 ## Features
 
 - **Multi-technique detection pipeline** - Uses chapters, silence, black frames, image hashing, audio fingerprinting, scene changes, speech detection and LLM vision analysis
