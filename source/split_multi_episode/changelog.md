@@ -1,9 +1,53 @@
 
+**<span style="color:#56adda">0.0.16</span>**
+
+- Fix: LLM detection hanging - use REST API instead of ollama library
+  - The ollama Python library's timeout only applies to connection, not request duration
+  - Switched to direct REST API calls with proper 60-second request timeout
+  - Now properly times out and continues if a single frame query gets stuck
+
+- Improve: LLM now detects credits→non-credits TRANSITION for much better accuracy
+  - Instead of using "last frame with credits", looks for where credits=True changes to credits=False
+  - This transition aligns precisely with the actual episode boundary
+  - Example: credits=True at 59.1m, 59.3m → credits=False at 59.6m = boundary at 59.45m
+  - Transition detection gets high confidence (0.88); no transition gets low confidence (0.54)
+  - Metadata includes `transition_detected`, `last_credits_at`, `first_non_credits_at`
+
+- Improve: Smarter multi-detector agreement handling
+  - Clusters with BOTH black_frame AND silence now get +0.20 confidence boost
+  - A clear A/V gap (black screen + silence) is a very reliable episode boundary
+
+- Fix: LLM credits constraint logic simplified and improved
+  - LLM constraint ignored when winning cluster has black+silence agreement
+  - LLM constraint requires >= 0.7 confidence (only transition detections qualify)
+  - Removed arbitrary 2-minute distance check (transition detection handles this naturally)
+  - Logs clearly show when and why LLM constraint is ignored
+
+- Change: "Split at Credits End" is now an override/nuclear option
+  - Documented as "Force Split at Credits End"
+  - When enabled, bypasses all normal detection logic and trusts LLM completely
+  - Use only when normal multi-detector agreement fails to converge
+
+- Fix: Speech detection CUDA fallback now works during transcription
+  - Previously, CPU fallback only triggered if model loading failed
+  - Now also catches CUDA errors during actual transcription (e.g., missing libcublas.so.12)
+  - Automatically reloads model on CPU and retries transcription
+
+- Fix: GPU speech detection now works in containers without system CUDA libraries
+  - NVIDIA container runtime provides GPU access but not CUDA math libraries (libcublas, libcudnn)
+  - Now installs nvidia-cublas-cu12 and nvidia-cudnn-cu12 via pip in init.d script
+  - Preloads these libraries at module load time so ctranslate2/faster-whisper can find them
+  - Falls back gracefully to CPU if nvidia pip packages aren't available
+
+**<span style="color:#56adda">0.0.15</span>**
+- Fix: Filename parsing now correctly extracts title from before episode info
+  - Fixed in both EpisodeNamer and TMDBValidator modules
+ 
 **<span style="color:#56adda">0.0.14</span>**
 - Fix: Filename parsing now correctly extracts title from before episode info
   - Regex fallback was incorrectly choosing quality/codec metadata (after S##E##) as title
   - Now prefers the content before episode info, which is the standard naming convention
-  - Example: "Dont Come Home S1E1-6 COMBiNED WEBRip 480p" now correctly parses title as "Dont Come Home"
+  - Example: "Show Name S1E1-6 COMBiNED WEBRip 480p" now correctly parses title as "Show Name"
 - Fix: PTN field mapping corrected for quality and source
   - PTN's 'resolution' (480p, 1080p) now maps to our 'quality' field
   - PTN's 'quality' (WEBRip, BluRay) now maps to our 'source' field

@@ -259,20 +259,8 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
         with open(frame_path, 'rb') as f:
             image_data = base64.b64encode(f.read()).decode('utf-8')
 
-        # Try using ollama library first
-        if OLLAMA_AVAILABLE:
-            try:
-                client = ollama.Client(host=self.ollama_host)
-                response = client.generate(
-                    model=self.model,
-                    prompt=self.DEFAULT_PROMPT,
-                    images=[image_data],
-                )
-                return response.get('response', '')
-            except Exception as e:
-                logger.debug(f"Ollama library failed: {e}")
-
-        # Fall back to REST API
+        # Use REST API directly - the ollama library's timeout doesn't work for
+        # long-running generate requests, only for connection timeouts
         try:
             response = requests.post(
                 f"{self.ollama_host}/api/generate",
@@ -288,6 +276,8 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
             if response.status_code == 200:
                 return response.json().get('response', '')
 
+        except requests.exceptions.Timeout:
+            logger.warning(f"Ollama request timed out after 60s")
         except Exception as e:
             logger.debug(f"Ollama REST API failed: {e}")
 
@@ -446,8 +436,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
         with tempfile.TemporaryDirectory(prefix='split_llm_win_') as temp_dir:
             for window in search_windows:
-                # TODO: Make sample_interval configurable via settings
-                # Sample every 10 seconds within the window for precision with quick credits
+                # Sample every 10 seconds within the window for precision
                 sample_interval = 10
                 timestamps = []
                 current = window.start_time
@@ -460,22 +449,21 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     f"{window.start_time/60:.1f}-{window.end_time/60:.1f}m"
                 )
 
-                # Analyze frames at each timestamp
-                credit_detections = []
+                # Analyze ALL frames and track the full sequence
+                # We're looking for the TRANSITION from credits=True to credits=False
+                all_analyses = []
                 for ts in timestamps:
                     analysis = self._analyze_timestamp(file_path, ts, temp_dir)
                     if analysis:
-                        # Track frames that show credits or outros
-                        if analysis.is_credits or analysis.is_outro:
-                            credit_detections.append((ts, analysis.confidence, analysis))
-                            logger.debug(
-                                f"  Found credits/outro at {ts/60:.1f}m "
-                                f"(credits={analysis.is_credits}, outro={analysis.is_outro})"
-                            )
+                        all_analyses.append((ts, analysis))
+                        # Log all frames to show the full sequence including transitions
+                        logger.debug(
+                            f"  Frame at {ts/60:.1f}m: credits={analysis.is_credits}, outro={analysis.is_outro}"
+                        )
 
-                if not credit_detections:
-                    # No credits found - use window center as fallback
-                    logger.debug(f"No credits detected in window {window.start_time/60:.1f}-{window.end_time/60:.1f}m")
+                if not all_analyses:
+                    # No frames could be analyzed - use window center as fallback
+                    logger.debug(f"No frames analyzed in window {window.start_time/60:.1f}-{window.end_time/60:.1f}m")
                     results.append((window.center_time, 0.3, {
                         'source': 'llm_fallback',
                         'window_source': window.source,
@@ -483,32 +471,83 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     }))
                     continue
 
-                # Find the LAST credit detection in the window (end of credits = boundary)
-                # Sort by timestamp and take the last one
-                credit_detections.sort(key=lambda x: x[0])
-                last_credit_ts, last_credit_conf, last_analysis = credit_detections[-1]
+                # Look for the TRANSITION: credits=True → credits=False
+                # This transition marks the actual episode boundary
+                transition_found = False
+                transition_time = None
+                last_credits_ts = None
+                first_non_credits_ts = None
 
-                # The boundary is at or just after the last credit frame
-                # Add half the sample interval to get past the credits
-                boundary_time = last_credit_ts + sample_interval / 2
+                for i in range(len(all_analyses) - 1):
+                    ts1, analysis1 = all_analyses[i]
+                    ts2, analysis2 = all_analyses[i + 1]
 
-                # Clamp to window
-                boundary_time = min(boundary_time, window.end_time)
+                    # Check for transition: credits=True followed by credits=False
+                    if analysis1.is_credits and not analysis2.is_credits:
+                        transition_found = True
+                        last_credits_ts = ts1
+                        first_non_credits_ts = ts2
+                        # Boundary is at the midpoint between last credits and first non-credits
+                        transition_time = (ts1 + ts2) / 2
+                        logger.debug(
+                            f"  TRANSITION found: credits=True at {ts1/60:.1f}m → "
+                            f"credits=False at {ts2/60:.1f}m, boundary at {transition_time/60:.1f}m"
+                        )
+                        break
 
-                confidence = min(0.90, last_credit_conf * 0.9)
+                if transition_found:
+                    # High confidence when we find a clear transition
+                    confidence = 0.88
+                    boundary_time = transition_time
 
-                logger.debug(
-                    f"Window {window.start_time/60:.1f}-{window.end_time/60:.1f}m: "
-                    f"credits end at {last_credit_ts/60:.1f}m, boundary at {boundary_time/60:.1f}m"
-                )
+                    logger.debug(
+                        f"Window {window.start_time/60:.1f}-{window.end_time/60:.1f}m: "
+                        f"credits→non-credits transition at {boundary_time/60:.1f}m (high confidence)"
+                    )
 
-                results.append((boundary_time, confidence, {
-                    'source': 'llm_vision',
-                    'window_source': window.source,
-                    'credits_detected_at': last_credit_ts,
-                    'is_credits': last_analysis.is_credits,
-                    'is_outro': last_analysis.is_outro,
-                }))
+                    results.append((boundary_time, confidence, {
+                        'source': 'llm_vision',
+                        'window_source': window.source,
+                        'credits_detected_at': last_credits_ts,
+                        'transition_detected': True,
+                        'last_credits_at': last_credits_ts,
+                        'first_non_credits_at': first_non_credits_ts,
+                        'is_credits': True,
+                        'is_outro': False,
+                    }))
+                else:
+                    # No transition found - fall back to last credits detection
+                    credit_frames = [(ts, a) for ts, a in all_analyses if a.is_credits or a.is_outro]
+
+                    if not credit_frames:
+                        # No credits at all - use window center
+                        logger.debug(f"No credits detected in window {window.start_time/60:.1f}-{window.end_time/60:.1f}m")
+                        results.append((window.center_time, 0.3, {
+                            'source': 'llm_fallback',
+                            'window_source': window.source,
+                            'fallback': True,
+                        }))
+                        continue
+
+                    # Use last credits detection (old behavior, lower confidence)
+                    last_credit_ts, last_analysis = credit_frames[-1]
+                    boundary_time = last_credit_ts + sample_interval / 2
+                    boundary_time = min(boundary_time, window.end_time)
+                    confidence = 0.54  # Lower confidence without transition
+
+                    logger.debug(
+                        f"Window {window.start_time/60:.1f}-{window.end_time/60:.1f}m: "
+                        f"no transition found, using last credits at {last_credit_ts/60:.1f}m (lower confidence)"
+                    )
+
+                    results.append((boundary_time, confidence, {
+                        'source': 'llm_vision',
+                        'window_source': window.source,
+                        'credits_detected_at': last_credit_ts,
+                        'transition_detected': False,
+                        'is_credits': last_analysis.is_credits,
+                        'is_outro': last_analysis.is_outro,
+                    }))
 
         return results
 

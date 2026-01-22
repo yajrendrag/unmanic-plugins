@@ -66,8 +66,18 @@ Dependencies are automatically installed via `init.d/install-deps.sh`:
 | Setting | Default | Description |
 |---------|---------|-------------|
 | Ollama Host | `http://localhost:11434` | URL of Ollama API endpoint. Can be a remote server (e.g., `http://192.168.1.100:11434`) |
-| LLM Model | `llava:7b-v1.6-mistral-q4_K_M` | Vision model to use |
+| LLM Model | `qwen2.5vl:7b` | Vision model to use |
 | Frames per Boundary | 5 | Number of frames to analyze at each potential boundary |
+
+#### Force Split at Credits End (Override Option)
+
+This is an **override option** that bypasses the normal multi-detector agreement logic. When enabled, the plugin will always split at the point where LLM detects credits or outro sequences end, regardless of what other detectors find.
+
+**When to use this option:**
+- When normal detection methods consistently fail to converge on correct boundaries
+- When the video has unusual structure where credits are the most reliable boundary marker
+- As a last resort when other detection combinations don't work for a specific series
+- as of v0.0.16 of the plugin LLM detection should be more accurate in detecting ending credits from next epiode intro
 
 ### Duration Constraints
 

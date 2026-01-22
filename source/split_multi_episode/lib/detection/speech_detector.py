@@ -13,11 +13,81 @@ within 30 seconds).
 import logging
 import os
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 logger = logging.getLogger("Unmanic.Plugin.split_multi_episode.speech_detector")
+
+
+def _setup_nvidia_libraries():
+    """
+    Set up nvidia pip package libraries for ctranslate2/faster-whisper.
+
+    When nvidia-cublas-cu12 etc. are installed via pip, they put .so files
+    in site-packages/nvidia/*/lib/ which ctranslate2 doesn't find by default.
+    We preload them with ctypes so they're available when ctranslate2 needs them.
+    """
+    import ctypes
+    import glob
+
+    nvidia_libs_loaded = False
+    try:
+        # Find nvidia package location via site-packages
+        import nvidia
+        nvidia_base = os.path.dirname(nvidia.__path__[0]) if hasattr(nvidia, '__path__') else None
+
+        if nvidia_base is None:
+            return False
+
+        # Find cublas and cudnn lib directories
+        cublas_dir = os.path.join(nvidia_base, 'nvidia', 'cublas', 'lib')
+        cudnn_dir = os.path.join(nvidia_base, 'nvidia', 'cudnn', 'lib')
+
+        nvidia_paths = []
+        if os.path.isdir(cublas_dir):
+            nvidia_paths.append(cublas_dir)
+        if os.path.isdir(cudnn_dir):
+            nvidia_paths.append(cudnn_dir)
+
+        if not nvidia_paths:
+            return False
+
+        # Add to LD_LIBRARY_PATH for any subprocess or dlopen calls
+        current_ld_path = os.environ.get('LD_LIBRARY_PATH', '')
+        new_paths = [p for p in nvidia_paths if p not in current_ld_path]
+
+        if new_paths:
+            new_ld_path = ':'.join(new_paths)
+            if current_ld_path:
+                new_ld_path = f"{new_ld_path}:{current_ld_path}"
+            os.environ['LD_LIBRARY_PATH'] = new_ld_path
+
+        # Preload libraries with ctypes so they're available for ctranslate2
+        libs_to_load = [
+            os.path.join(cublas_dir, 'libcublas.so.12'),
+            os.path.join(cublas_dir, 'libcublasLt.so.12'),
+            os.path.join(cudnn_dir, 'libcudnn.so.9'),
+        ]
+
+        for lib_path in libs_to_load:
+            if os.path.exists(lib_path):
+                try:
+                    ctypes.CDLL(lib_path, mode=ctypes.RTLD_GLOBAL)
+                    nvidia_libs_loaded = True
+                except OSError:
+                    pass
+
+    except (ImportError, AttributeError, IndexError):
+        # nvidia packages not installed via pip
+        pass
+
+    return nvidia_libs_loaded
+
+
+# Set up nvidia libraries BEFORE importing faster_whisper/ctranslate2
+_nvidia_libs_loaded = _setup_nvidia_libraries()
 
 # Optional imports
 try:
@@ -98,11 +168,31 @@ class SpeechDetector:
         """Lazy-load the Whisper model."""
         if self._model is None and WHISPER_AVAILABLE:
             logger.info(f"Loading Whisper model: {self.model_size}")
-            self._model = WhisperModel(
-                self.model_size,
-                device=self.device,
-                compute_type=self.compute_type
-            )
+            try:
+                self._model = WhisperModel(
+                    self.model_size,
+                    device=self.device,
+                    compute_type=self.compute_type
+                )
+                logger.info(f"Whisper model loaded successfully (device={self.device})")
+            except Exception as e:
+                # CUDA libraries may be missing or incompatible - fall back to CPU
+                error_str = str(e).lower()
+                if "cuda" in error_str or "cublas" in error_str or "cudnn" in error_str:
+                    logger.warning(f"CUDA not available ({e}), falling back to CPU")
+                    try:
+                        self._model = WhisperModel(
+                            self.model_size,
+                            device="cpu",
+                            compute_type="int8"
+                        )
+                        logger.info("Whisper model loaded on CPU (fallback)")
+                    except Exception as e2:
+                        logger.error(f"Failed to load Whisper model on CPU: {e2}")
+                        self._model = None
+                else:
+                    logger.error(f"Failed to load Whisper model: {e}")
+                    self._model = None
         return self._model
 
     def detect_in_windows(
@@ -283,8 +373,38 @@ class SpeechDetector:
             return segments
 
         except Exception as e:
-            logger.error(f"Transcription failed: {e}")
-            return []
+            # Check if this is a CUDA library error - try to reload on CPU and retry
+            error_str = str(e).lower()
+            if "cuda" in error_str or "cublas" in error_str or "cudnn" in error_str:
+                logger.warning(f"CUDA error during transcription ({e}), reloading model on CPU")
+                try:
+                    self._model = WhisperModel(
+                        self.model_size,
+                        device="cpu",
+                        compute_type="int8"
+                    )
+                    logger.info("Whisper model reloaded on CPU, retrying transcription")
+                    # Retry transcription on CPU
+                    segments_gen, info = self._model.transcribe(
+                        audio_path,
+                        beam_size=5,
+                        vad_filter=True,
+                    )
+                    segments = []
+                    for segment in segments_gen:
+                        segments.append(SpeechSegment(
+                            start_time=segment.start + time_offset,
+                            end_time=segment.end + time_offset,
+                            text=segment.text.strip().lower(),
+                            confidence=segment.avg_logprob if hasattr(segment, 'avg_logprob') else 0.0
+                        ))
+                    return segments
+                except Exception as e2:
+                    logger.error(f"CPU fallback transcription also failed: {e2}")
+                    return []
+            else:
+                logger.error(f"Transcription failed: {e}")
+                return []
 
     def _find_episode_end_markers(
         self,
