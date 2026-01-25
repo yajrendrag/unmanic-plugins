@@ -21,11 +21,42 @@
 """
 
 import logging
+import threading
+import time
 from pathlib import Path
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
 logger = logging.getLogger("Unmanic.Plugin.reprocess_file")
+
+
+def delayed_create_task(abspath, library_id, max_retries=10, delay=1):
+    """
+    Create a task with retry logic, waiting for any existing task to complete.
+
+    When this plugin runs during post-processing, the current task still exists
+    in the database (it gets deleted after the plugin returns). This function
+    runs in a background thread and retries task creation until the original
+    task is deleted and the new task can be created.
+
+    :param abspath: Absolute path to the file to add to the task queue
+    :param library_id: Target library ID for the new task
+    :param max_retries: Maximum number of retry attempts
+    :param delay: Delay in seconds between retry attempts
+    :return: True if task was created, False otherwise
+    """
+    from unmanic.libs.task import Task
+
+    for attempt in range(max_retries):
+        time.sleep(delay)
+        task = Task()
+        if task.create_task_by_absolute_path(abspath, task_type='local', library_id=library_id):
+            logger.info(f"Successfully created task for '{abspath}' in library {library_id}")
+            return True
+        logger.debug(f"Attempt {attempt + 1}/{max_retries}: Task creation failed for '{abspath}', retrying...")
+
+    logger.error(f"Failed to create task for '{abspath}' in library {library_id} after {max_retries} attempts")
+    return False
 
 class Settings(PluginSettings):
     settings = {
@@ -140,9 +171,6 @@ def on_postprocessor_task_results(data):
     :param data:
     :return:
     """
-
-    from unmanic.libs.task import Task
-
     # Configure settings object (maintain compatibility with v1 plugins)
     if data.get('library_id'):
         settings = Settings(library_id=data.get('library_id'))
@@ -184,13 +212,20 @@ def on_postprocessor_task_results(data):
 
         if target_library_id and abspath:
 
-            # Add source file to the target library's queue
-            task = Task()
-            task.create_task_by_absolute_path(abspath, task_type='local', library_id=int(target_library_id))
-            logger.info(f"Adding task for file {abspath} in library {target_library_id}")
+            # Add source file to the target library's queue using a background thread.
+            # This is necessary because the current task still exists in the database
+            # when this plugin runs (it's deleted after the plugin returns). The background
+            # thread waits for the current task to be deleted before creating the new one.
+            thread = threading.Thread(
+                target=delayed_create_task,
+                args=(str(abspath), int(target_library_id)),
+                daemon=True
+            )
+            thread.start()
+            logger.info(f"Started background task to add '{abspath}' to library {target_library_id}")
 
         else:
 
-            logger.error(f"Unable to create task for file {abspath} in library {target_library_id}")
+            logger.error(f"Unable to create task for file '{abspath}' in library {target_library_id}")
 
     return data
