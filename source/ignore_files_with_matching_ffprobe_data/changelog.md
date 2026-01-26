@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.4</span>**
+- typo in description.md (info page)
+
 **<span style="color:#56adda">0.0.3</span>**
 - add file_path to file_contains_disallowed_values function parameters
 

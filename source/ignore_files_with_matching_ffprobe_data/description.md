@@ -29,7 +29,7 @@ Find all streams matching codec_name field of h264".
 
   - **The ffprobe field to match against**
     ```
-    $.streams[*].codecs_name
+    $.streams[*].codec_name
     ```
   - **Search strings**
     ```
