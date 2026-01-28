@@ -2,36 +2,92 @@
 
 Automatically detects and splits multi-episode video files (e.g., "S01E01-E03.mkv") into individual episode files using multiple detection techniques.
 
-Split Multi-Episode works by assuming that the episodes in the multiepisode file are of a similar length and makes a determination of how many episodes are in the file.  It does this in several ways:
-
-- it will simply count the number of episodes in the file baesd on the file name and divide that into the total duration of the file, OR
-- it will use chapter markes if andy and if they have "Episode" titles
-- it will calculate it from adding the TMDB run times  (& the added time from commerical chapters if the file has commercial chapter marks and if the file is significantly longer than the sum of all of the run times it gets from TMDB).
-
-From this, it creates 10 minute windows around the nominal episode times that it calculated and then analyzes those windows to find the likely end of one episode / beginning of the next episode. Multiple detection techniques
-are used and the more of them that cluster together at a certtain time in each 10 minute window, the higher likelihood of that being the episode split time.  It turns out that black frame detection seems to be the most accurate as a single
-method of predicting the episode split time and that method is waited higer.
-
 ## Features
 
-- **Multi-technique detection pipeline** - Uses chapters, silence, black frames, image hashing, audio fingerprinting, scene changes, speech detection and LLM vision analysis
+- **Two-phase detection architecture** - Phase 1 narrows search to expected boundary regions; Phase 2 runs detectors within those windows
+- **Raw detection clustering** - Multiple detectors contribute evidence that gets clustered; multi-detector agreement beats single high-confidence detections
+- **LLM Precision Mode** - For clean files without commercials, uses dense sampling with TMDB-predicted windows and logo-centric split logic
 - **TMDB validation** - Validates detected episode durations against The Movie Database
 - **Lossless splitting** - Uses FFmpeg stream copy for fast, quality-preserving extraction
 - **Smart naming** - Automatically parses source filenames and generates proper episode names
-- **Flexible output** - Place episodes in source directory or create season subdirectories
 
 ## Detection Methods
 
-| Method | Description | Reliability |
-|--------|-------------|-------------|
-| Chapter Detection | Uses chapter markers (e.g., "Episode 1", "Commercial 1") | Highest |
-| Silence Detection | Finds silence gaps between episodes | High |
-| Black Frame Detection | Detects black frames at episode boundaries | High |
-| Scene Change Detection | Detects dramatic visual transitions using FFmpeg scene filter | Medium |
-| Speech Detection | Uses Whisper to detect "Stay tuned", "Next time on" phrases | Medium |
-| Audio Fingerprinting | Finds recurring theme music using Chromaprint | Medium |
-| Image Hash Detection | Finds recurring intro sequences using perceptual hashing | Medium |
-| LLM Vision | Uses Ollama to detect credits, title cards, recaps | Medium |
+| Method | Description | Use Case |
+|--------|-------------|----------|
+| Chapter Detection | Uses chapter markers (e.g., "Episode 1", "Commercial 1") | Files with proper chapter metadata |
+| Silence Detection | Finds silence gaps between episodes | Most broadcast recordings |
+| Black Frame Detection | Detects black frames at episode boundaries | Most broadcast recordings |
+| Scene Change Detection | Detects dramatic visual transitions using FFmpeg scene filter | Clean transitions without A/V gaps |
+| Speech Detection | Uses Whisper to detect "Stay tuned", "Next time on" phrases | Broadcast with announcer cues |
+| Audio Fingerprinting | Finds recurring theme music using Chromaprint | Series with consistent intro music |
+| Image Hash Detection | Finds recurring intro sequences using perceptual hashing | Series with consistent visual intros |
+| LLM Vision | Uses Ollama to detect credits, logos, title cards | Universal fallback, precision mode |
+
+## How Detection Works
+
+### Phase 1: Window Determination
+
+The plugin first determines narrow search windows where episode boundaries are expected:
+
+1. **Chapter markers** - If chapters exist, uses them to estimate boundary regions
+2. **TMDB runtimes** - If enabled, uses expected episode durations to calculate window centers
+3. **Equal division** - Falls back to dividing file duration by expected episode count
+
+Windows are typically 10 minutes wide (±5 minutes from expected boundary).
+
+### Phase 2: Boundary Detection
+
+Within each window, enabled detectors scan for boundary evidence:
+
+- **Silence detector** - Returns all silence gaps, scored by duration (duration × 10)
+- **Black frame detector** - Returns all black frames, scored by duration (duration × 10)
+- **Scene change detector** - Returns all scene changes, scored by magnitude (score × 100)
+- **Speech detector** - Returns episode-end phrases ("stay tuned", etc.), scored at 50
+- **LLM detector** - Returns credits/logo/outro transitions, scored by run length
+
+### Raw Detection Clustering
+
+All detections from all detectors are clustered together per window:
+
+- Detections within 60 seconds of each other form a cluster
+- Cluster score = sum of individual scores + diversity bonus
+- Diversity bonus: 1.5^(num_detectors - 1) rewards multi-detector agreement
+- Example: low-conf black_frame + low-conf silence at same time beats high-conf black_frame alone
+
+The best cluster per window becomes the episode boundary.
+
+## LLM Precision Mode
+
+For **clean files without commercials** (DVD rips, streaming content), Precision Mode provides highly accurate splitting:
+
+### When to Use
+
+- Files without commercial breaks
+- TMDB has accurate runtime data for the series
+- Standard detection methods produce inconsistent results
+
+### How It Works
+
+1. **Narrow windows** - Uses ±1.1 minute windows centered on TMDB-predicted boundaries
+2. **Dense sampling** - Analyzes frames every 2 seconds (~66 frames per window)
+3. **Sequential processing** - After each boundary, adjusts subsequent windows by the cumulative timing drift
+4. **Logo-centric logic** - Prioritizes network/production logos as boundary markers
+5. **Boundary filtering** - Excludes logos that appear after credits transition (next episode's intro)
+
+### Fallback Chain
+
+If no detections in primary window:
+1. Expand backward 1.5 minutes (boundaries often earlier than predicted)
+2. Expand forward 1.5 minutes
+3. Fall back to normal mode (10-minute window, 10-second intervals)
+4. If still nothing found, abort rather than make unreliable split
+
+### Requirements
+
+- LLM Detection must be enabled
+- TMDB Validation must be enabled with valid API credentials
+- TMDB must have runtime data for the episodes
 
 ## Dependencies
 
@@ -44,6 +100,7 @@ Dependencies are automatically installed via `init.d/install-deps.sh`:
 - **parse-torrent-title** - Filename parsing
 - **faster-whisper** (optional) - Speech detection for episode-end phrases
 - **ollama** (optional) - LLM vision detection client
+- **nvidia-cublas-cu12** / **nvidia-cudnn-cu12** (optional) - GPU acceleration for speech detection in containers
 
 ## Configuration
 
@@ -51,14 +108,14 @@ Dependencies are automatically installed via `init.d/install-deps.sh`:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Enable Chapter Detection | On | Use chapter markers to detect episode boundaries (highest reliability) |
+| Enable Chapter Detection | On | Use chapter markers to detect episode boundaries |
 | Enable Silence Detection | On | Detect silence gaps between episodes |
 | Enable Black Frame Detection | On | Detect black frames that may indicate episode breaks |
-| Enable Scene Change Detection | Off | Detect dramatic visual transitions between episodes using FFmpeg |
-| Enable Image Hash Detection | Off | Use perceptual hashing to find recurring intro/outro sequences (CPU intensive) |
-| Enable Audio Fingerprint Detection | Off | Detect recurring intro music patterns using Chromaprint |
-| Enable LLM Vision Detection | Off | Use Ollama vision model to detect credits, title cards (requires Ollama) |
-| Enable Speech Detection | Off | Use Whisper to detect "Stay tuned" and preview phrases (requires faster-whisper) |
+| Enable Scene Change Detection | Off | Detect dramatic visual transitions using FFmpeg |
+| Enable Image Hash Detection | Off | Find recurring intro/outro sequences (CPU intensive) |
+| Enable Audio Fingerprint Detection | Off | Detect recurring intro music using Chromaprint |
+| Enable LLM Vision Detection | Off | Use Ollama vision model to detect credits, logos, title cards |
+| Enable Speech Detection | Off | Use Whisper to detect episode-end phrases |
 | Enable TMDB Validation | Off | Validate detected runtimes against TMDB episode data |
 
 ### LLM Settings (when enabled)
@@ -66,18 +123,22 @@ Dependencies are automatically installed via `init.d/install-deps.sh`:
 | Setting | Default | Description |
 |---------|---------|-------------|
 | Ollama Host | `http://localhost:11434` | URL of Ollama API endpoint. Can be a remote server (e.g., `http://192.168.1.100:11434`) |
-| LLM Model | `qwen2.5vl:7b` | Vision model to use |
-| Frames per Boundary | 5 | Number of frames to analyze at each potential boundary |
+| LLM Model | `qwen2.5vl:3b` | Vision model to use |
+| LLM Precision Mode | Off | Use narrow windows with dense sampling for clean files |
 
-#### Force Split at Credits End (Override Option)
+#### LLM Detection Details
 
-This is an **override option** that bypasses the normal multi-detector agreement logic. When enabled, the plugin will always split at the point where LLM detects credits or outro sequences end, regardless of what other detectors find.
+The LLM detector analyzes video frames and identifies:
+- **Credits** - Cast names, production crew, end credits
+- **Logos** - Network logos (HBO, Netflix, BBC), production company logos
+- **Title cards** - Episode titles, show titles
+- **Outro sequences** - "Next time on", preview content
 
-**When to use this option:**
-- When normal detection methods consistently fail to converge on correct boundaries
-- When the video has unusual structure where credits are the most reliable boundary marker
-- As a last resort when other detection combinations don't work for a specific series
-- as of v0.0.16 of the plugin LLM detection should be more accurate in detecting ending credits from next epiode intro
+**Transition detection**: The detector looks for credits=True → credits=False transitions, not just frames with credits. This provides the precise boundary point.
+
+**Dynamic sampling**: Normally samples every 10 seconds. When a logo is detected, switches to 1-second sampling to capture the precise transition, then resumes 10-second sampling.
+
+**Retry logic**: Uses 3×20s retries instead of a single long timeout. Handles Ollama crashes/restarts gracefully.
 
 ### Duration Constraints
 
@@ -92,29 +153,36 @@ This is an **override option** that bypasses the normal multi-detector agreement
 | Setting | Default | Description |
 |---------|---------|-------------|
 | Silence Threshold | -30 dB | Audio level threshold for silence detection |
-| Minimum Silence Duration | 2.0 sec | Minimum silence duration to detect |
-| Minimum Black Duration | 1.0 sec | Minimum black frame duration to detect |
+| Minimum Silence Duration | 2.0 sec | Minimum silence duration to consider |
+| Minimum Black Duration | 1.0 sec | Minimum black frame duration to consider |
 | Scene Change Threshold | 0.3 | Scene change sensitivity (0.1-0.5, lower = more sensitive) |
-| Confidence Threshold | 0.7 | Minimum confidence score to split at a boundary (0.0-1.0) |
-
-#### Confidence Threshold
-
-The confidence threshold determines the minimum score required before the plugin will split at a detected boundary. Each detection method assigns a confidence score (0.0-1.0) based on how strongly the evidence supports an episode boundary at that location.
-
-The default value of **0.7** is a good starting point because:
-- It filters out weak or ambiguous detections while accepting reasonably confident boundaries
-- Multiple agreeing detectors boost confidence, so boundaries found by 2+ methods typically exceed 0.7
-- It's high enough to avoid false positives but low enough that strong single-detector results (like black frames in a search window) can pass
-
-If you're getting **too many false splits**, increase the threshold toward 0.85-0.9. If **valid boundaries are being missed**, try lowering it to 0.6-0.65.
 
 ### Speech Detection Settings (when enabled)
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Whisper Model Size | base | Model size for speech detection (tiny=fastest, large-v2=most accurate) |
+| Whisper Model Size | base | Model size (tiny=fastest, large-v2=most accurate) |
 
-Speech detection listens for episode-end phrases like "Stay tuned", "Next time on", or "Coming up next" which indicate the episode content has ended. The split point is placed AFTER these phrases, at the next black frame or silence gap.
+Speech detection listens for episode-end phrases like "Stay tuned", "Next time on", or "Coming up next". The split point is placed AFTER these phrases, at the next black frame or silence gap.
+
+### Output Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Output Naming Pattern | `S{season:02d}E{episode:02d} - {basename}` | Pattern for episode filenames |
+| Lossless Stream Copy | On | Use FFmpeg `-c copy` for fast lossless extraction |
+| Create Season Directory | Off | Create a season subdirectory for split episodes |
+| Season Directory Pattern | `Season {season:02d}` | Pattern for season directory name |
+| Delete Source After Split | Off | Delete source file after successful split. **Destructive!** |
+
+### TMDB Settings (when enabled)
+
+| Setting | Description |
+|---------|-------------|
+| TMDB API Key | API key from themoviedb.org |
+| TMDB API Read Access Token | API read access token (v4 auth) |
+
+TMDB validation compares detected episode durations against expected runtimes. For files with commercial chapter markers, the commercial time is subtracted before comparison so the content-only runtime matches TMDB's content-only runtime.
 
 ### Scene Change Settings (when enabled)
 
@@ -122,32 +190,14 @@ Speech detection listens for episode-end phrases like "Stay tuned", "Next time o
 |---------|---------|-------------|
 | Scene Change Threshold | 0.3 | Sensitivity for scene detection (0.1=very sensitive, 0.5=only major changes) |
 
-### Output Settings
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Output Naming Pattern | `S{season:02d}E{episode:02d} - {basename}` | Pattern for episode filenames. Variables: `{title}`, `{season}`, `{episode}`, `{basename}`, `{ext}` |
-| Lossless Stream Copy | On | Use FFmpeg stream copy (`-c copy`) for fast lossless extraction |
-| Create Season Directory | Off | Create a season subdirectory (e.g., "Season 01") for split episodes |
-| Season Directory Pattern | `Season {season:02d}` | Pattern for season directory name. Variables: `{season}`, `{title}` |
-| Delete Source After Split | Off | Delete the multi-episode source file after successful split. **WARNING: Destructive!** |
-
-### TMDB Settings (when enabled)
-
-| Setting | Description |
-|---------|-------------|
-| TMDB API Key | API key from themoviedb.org |
-| TMDB API Read Access Token | API read access token (v4 auth) from themoviedb.org |
-
-To get TMDB API credentials, create an account at [themoviedb.org](https://www.themoviedb.org/) and request an API key in your account settings.
-
 ## Example Workflow
 
 1. Plugin detects file `S1E1-3 My Show.mkv` (175 min duration)
-2. Chapter detection finds 3 episodes marked as "Episode 1", "Episode 2", "Episode 3"
-3. Audio fingerprinting confirms episode boundaries by detecting recurring theme music
-4. TMDB validation confirms expected ~60 min runtime per episode
-5. Plugin splits into:
+2. **Phase 1**: TMDB reports ~60 min per episode; creates windows at 60m and 120m (±5 min each)
+3. **Phase 2**: Within each window, silence and black frame detectors find candidates
+4. **Clustering**: Detections at similar timestamps cluster together; best cluster wins
+5. **Validation**: TMDB confirms detected ~60 min runtime per episode
+6. Plugin splits into:
    - `S01E01 - My Show.mkv` (59.5 min)
    - `S01E02 - My Show.mkv` (57.9 min)
    - `S01E03 - My Show.mkv` (58.2 min)
@@ -160,18 +210,20 @@ To get TMDB API credentials, create an account at [themoviedb.org](https://www.t
 - Check if chapters exist but use non-standard naming
 
 **Wrong number of episodes detected:**
-- Adjust confidence threshold
 - Enable TMDB validation to verify against known episode counts
+- Check that filename parses correctly (e.g., "S01E01-E03" format)
 
 **Splits at wrong positions:**
-- Chapter markers may indicate commercials rather than episodes
-- Try enabling silence + black frame detection together
-- Adjust silence/black frame duration thresholds
+- Enable multiple detectors - clustering works best with 2+ methods agreeing
+- For clean files without commercials, try LLM Precision Mode
+- Check logs for detection scores and cluster information
 
 **LLM detection not working:**
-- Ensure Ollama is running and accessible at the configured host
-- Pull the required model: `ollama pull llava:7b-v1.6-mistral-q4_K_M`
+- Ensure Ollama is running and accessible at the configured host (`curl http://localhost:11434/api/tags`)
+- Pull the required model: `ollama pull ollama pull qwen2.5vl:3b`
 - Check network connectivity if using a remote Ollama server
+- Check logs for timeout/retry messages
+- Try a smaller model if experiencing crashes
 - GPU can become stuck in P8 state.  to avoid this you need to perform some steps on the system where Ollama server is running:
   - ensure you have no zombie ollama processes running (if not sure, restart your host running ollama server)
   - sudo nvidia-smi -lmc 7000,7501
@@ -181,3 +233,8 @@ To get TMDB API credentials, create an account at [themoviedb.org](https://www.t
   - # undo the locks so your GPU doesn't run hot indefinitely - this will allow it to again reach state P8
   - sudo nvidia-smi -rmc
   - sudo nvidia-smi -rgc
+
+**LLM Precision Mode missing boundaries:**
+- Check that TMDB has accurate runtime data for your episodes
+- Look for "drift adjustment" messages in logs
+- If boundaries are consistently early/late, the mode will adapt via drift tracking

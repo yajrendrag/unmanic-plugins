@@ -89,15 +89,23 @@ class TMDBValidator:
         self,
         file_path: str,
         detected_durations: List[float],
+        title_override: Optional[str] = None,
         season_override: Optional[int] = None,
+        start_episode_override: Optional[int] = None,
+        commercial_times: Optional[List[float]] = None,
     ) -> ValidationResult:
         """
         Validate detected episode durations against TMDB data.
 
         Args:
-            file_path: Path to the video file (for title parsing)
+            file_path: Path to the video file (for title parsing if no override)
             detected_durations: List of detected episode durations in seconds
+            title_override: Optional title to use instead of parsing from filename
             season_override: Optional season number override
+            start_episode_override: Optional starting episode number override
+            commercial_times: Optional list of commercial durations per episode (seconds)
+                              If provided, these are subtracted from detected durations
+                              before comparing to TMDB (which reports content-only runtimes)
 
         Returns:
             ValidationResult with confidence adjustment
@@ -111,27 +119,33 @@ class TMDBValidator:
                 message="TMDB validation not available"
             )
 
-        # Parse series info from filename
-        series_info = self._parse_filename(file_path)
-        if not series_info:
-            return ValidationResult(
-                is_valid=True,
-                confidence_adjustment=0.0,
-                expected_runtimes=[],
-                detected_durations=[d / 60 for d in detected_durations],
-                message="Could not parse series info from filename"
-            )
-
-        title = series_info.get('title', '')
-        season = season_override or series_info.get('season', 1)
-        episode_info = series_info.get('episode', 1)
-        # Handle episode ranges (PTN may return a list for ranges like 5-8)
-        if isinstance(episode_info, list):
-            start_episode = episode_info[0] if episode_info else 1
+        # Use overrides or parse from filename
+        if title_override:
+            title = title_override
+            season = season_override or 1
+            start_episode = start_episode_override or 1
         else:
-            start_episode = episode_info
+            # Parse series info from filename
+            series_info = self._parse_filename(file_path)
+            if not series_info:
+                return ValidationResult(
+                    is_valid=True,
+                    confidence_adjustment=0.0,
+                    expected_runtimes=[],
+                    detected_durations=[d / 60 for d in detected_durations],
+                    message="Could not parse series info from filename"
+                )
 
-        logger.info(f"Looking up TMDB info for: {title} S{season}")
+            title = series_info.get('title', '')
+            season = season_override or series_info.get('season', 1)
+            episode_info = series_info.get('episode', 1)
+            # Handle episode ranges (PTN may return a list for ranges like 5-8)
+            if isinstance(episode_info, list):
+                start_episode = start_episode_override or (episode_info[0] if episode_info else 1)
+            else:
+                start_episode = start_episode_override or episode_info
+
+        logger.info(f"Looking up TMDB info for: {title} S{season}E{start_episode}")
 
         # Search for the series
         series_id = self._search_series(title)
@@ -175,10 +189,27 @@ class TMDBValidator:
                 message=f"Found {len(expected_episodes)} episodes ({ep_info}) but no runtime data in TMDB"
             )
 
+        # Adjust for commercial time if provided
+        adjusted_durations = detected_durations
+        has_commercials = False
+        if commercial_times and len(commercial_times) == len(detected_durations):
+            has_commercials = True
+            adjusted_durations = [
+                max(0, dur - comm)  # Subtract commercial time, don't go negative
+                for dur, comm in zip(detected_durations, commercial_times)
+            ]
+            logger.debug(
+                f"Adjusting for commercials: "
+                f"raw={[f'{d/60:.1f}m' for d in detected_durations]}, "
+                f"commercials={[f'{c/60:.1f}m' for c in commercial_times]}, "
+                f"adjusted={[f'{a/60:.1f}m' for a in adjusted_durations]}"
+            )
+
         # Compare runtimes
         return self._compare_runtimes(
             expected_runtimes,
-            [d / 60 for d in detected_durations]  # Convert to minutes
+            [d / 60 for d in adjusted_durations],  # Convert to minutes
+            commercial_adjusted=has_commercials,
         )
 
     def _parse_filename(self, file_path: str) -> Optional[Dict]:
@@ -384,7 +415,8 @@ class TMDBValidator:
     def _compare_runtimes(
         self,
         expected_runtimes: List[int],
-        detected_durations: List[float]
+        detected_durations: List[float],
+        commercial_adjusted: bool = False,
     ) -> ValidationResult:
         """
         Compare expected and detected runtimes.
@@ -392,6 +424,7 @@ class TMDBValidator:
         Args:
             expected_runtimes: Expected runtimes in minutes
             detected_durations: Detected durations in minutes
+            commercial_adjusted: Whether durations were adjusted by subtracting commercial time
 
         Returns:
             ValidationResult with confidence adjustment
@@ -440,6 +473,9 @@ class TMDBValidator:
                 deviation_sum += deviation
 
         # Calculate confidence adjustment
+        # Add note about commercial adjustment to messages
+        adj_note = " (commercial-adjusted)" if commercial_adjusted else ""
+
         if total_compared > 0:
             match_ratio = match_count / total_compared
             avg_deviation = deviation_sum / total_compared
@@ -448,17 +484,17 @@ class TMDBValidator:
                 # Good match - boost confidence
                 confidence_adjustment = 0.1
                 is_valid = True
-                message = f"Good runtime match ({match_count}/{total_compared} episodes)"
+                message = f"Good runtime match ({match_count}/{total_compared} episodes){adj_note}"
             elif match_ratio >= 0.5:
                 # Partial match - small boost
                 confidence_adjustment = 0.05
                 is_valid = True
-                message = f"Partial runtime match ({match_count}/{total_compared} episodes)"
+                message = f"Partial runtime match ({match_count}/{total_compared} episodes){adj_note}"
             else:
                 # Poor match - reduce confidence
                 confidence_adjustment = -0.1
                 is_valid = False
-                message = f"Poor runtime match ({match_count}/{total_compared} episodes)"
+                message = f"Poor runtime match ({match_count}/{total_compared} episodes){adj_note}"
         else:
             confidence_adjustment = 0.0
             is_valid = True
@@ -476,25 +512,75 @@ class TMDBValidator:
         self,
         title: str,
         season: int,
+        start_episode: int = 1,
         num_episodes: int = 10
-    ) -> List[int]:
+    ) -> Tuple[List[int], str]:
         """
         Get expected episode runtimes for a series.
 
         Args:
             title: Series title
             season: Season number
-            num_episodes: Maximum number of episodes to fetch
+            start_episode: First episode number to fetch (1-indexed)
+            num_episodes: Number of episodes to fetch
 
         Returns:
-            List of runtimes in minutes
+            Tuple of (list of runtimes in minutes, status message)
         """
         if not self.is_available():
-            return []
+            return [], "TMDB not available"
+
+        logger.debug(f"TMDB lookup: title='{title}', season={season}, start_ep={start_episode}, count={num_episodes}")
 
         series_id = self._search_series(title)
         if not series_id:
-            return []
+            logger.debug(f"TMDB: Series '{title}' not found")
+            return [], f"Series '{title}' not found on TMDB"
+
+        logger.debug(f"TMDB: Found series_id={series_id} for '{title}'")
 
         episodes = self._get_season_episodes(series_id, season)
-        return [ep.runtime for ep in episodes[:num_episodes] if ep.runtime]
+        if not episodes:
+            logger.debug(f"TMDB: No episodes found for season {season}")
+            return [], f"No episodes found for season {season}"
+
+        logger.debug(f"TMDB: Season {season} has {len(episodes)} episodes")
+
+        # Get the specific episodes we need (start_episode is 1-indexed)
+        ep_start_idx = start_episode - 1
+        ep_end_idx = ep_start_idx + num_episodes
+
+        if ep_start_idx >= len(episodes):
+            msg = f"Episodes {start_episode}-{start_episode + num_episodes - 1} not in TMDB (season has {len(episodes)} episodes)"
+            logger.debug(f"TMDB: {msg}")
+            return [], msg
+
+        requested_episodes = episodes[ep_start_idx:ep_end_idx]
+        if len(requested_episodes) < num_episodes:
+            available = [ep.episode_number for ep in requested_episodes]
+            missing_start = start_episode + len(requested_episodes)
+            missing_end = start_episode + num_episodes - 1
+            msg = f"Only found episodes {available}, missing E{missing_start}-E{missing_end}"
+            logger.debug(f"TMDB: {msg}")
+
+        # Extract runtimes, noting which episodes lack runtime data
+        runtimes = []
+        missing_runtime = []
+        for ep in requested_episodes:
+            if ep.runtime:
+                runtimes.append(ep.runtime)
+                logger.debug(f"TMDB: E{ep.episode_number} '{ep.name}' runtime={ep.runtime}m")
+            else:
+                runtimes.append(0)  # Placeholder
+                missing_runtime.append(ep.episode_number)
+                logger.debug(f"TMDB: E{ep.episode_number} '{ep.name}' has no runtime data")
+
+        if missing_runtime:
+            msg = f"Episodes {missing_runtime} have no runtime data in TMDB"
+            logger.debug(f"TMDB: {msg}")
+            # Filter out zero runtimes
+            runtimes = [r for r in runtimes if r > 0]
+            if not runtimes:
+                return [], msg
+
+        return runtimes, f"Found {len(runtimes)} episode runtimes"

@@ -493,3 +493,65 @@ class BlackFrameDetector:
             r for r in all_blacks
             if r.start_time >= window_start and r.end_time <= window_end
         ]
+
+    def detect_raw_in_windows(
+        self,
+        file_path: str,
+        search_windows: List,  # List of SearchWindow objects
+    ) -> List:
+        """
+        Return ALL black frame detections as RawDetection objects.
+
+        Instead of picking the "best" black frame per window, this returns
+        all detected black frames for clustering with other detectors.
+
+        Score is based on black frame duration:
+        - 1 second black = score 10
+        - 2 second black = score 20
+        - etc.
+
+        Args:
+            file_path: Path to the video file
+            search_windows: List of SearchWindow objects defining where to search
+
+        Returns:
+            List of RawDetection objects (imported from raw_detection module)
+        """
+        from .raw_detection import RawDetection
+
+        all_detections = []
+
+        for window in search_windows:
+            # Scan only this window using FFmpeg seeking
+            window_duration = window.end_time - window.start_time
+            window_blacks = self._detect_black_in_window(
+                file_path, window.start_time, window_duration
+            )
+
+            logger.debug(
+                f"Window {window.start_time/60:.1f}-{window.end_time/60:.1f}m: "
+                f"found {len(window_blacks)} black frames"
+            )
+
+            # Convert each black frame to a RawDetection
+            for black in window_blacks:
+                midpoint = (black.start_time + black.end_time) / 2
+
+                # Score based on duration (10 points per second)
+                # Longer black frames are more significant
+                score = black.duration * 10
+
+                all_detections.append(RawDetection(
+                    timestamp=midpoint,
+                    score=score,
+                    source='black_frame',
+                    metadata={
+                        'black_start': black.start_time,
+                        'black_end': black.end_time,
+                        'black_duration': black.duration,
+                        'window_center': window.center_time,
+                    }
+                ))
+
+        logger.info(f"Black frame detector: {len(all_detections)} raw detections")
+        return all_detections

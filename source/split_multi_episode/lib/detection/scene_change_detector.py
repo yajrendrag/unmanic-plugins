@@ -236,3 +236,54 @@ class SceneChangeDetector:
 
         logger.debug(f"Found {len(scenes)} scene changes in window")
         return scenes
+
+    def detect_raw_in_windows(
+        self,
+        file_path: str,
+        search_windows: List,  # List of SearchWindow objects
+    ) -> List:
+        """
+        Return ALL scene change detections as RawDetection objects.
+
+        Score is based on scene change magnitude (0-1 scale * 100).
+
+        Args:
+            file_path: Path to the video file
+            search_windows: List of SearchWindow objects defining where to search
+
+        Returns:
+            List of RawDetection objects (imported from raw_detection module)
+        """
+        from .raw_detection import RawDetection
+
+        all_detections = []
+
+        for window in search_windows:
+            window_duration = window.end_time - window.start_time
+            scene_changes = self._detect_scenes_in_window(
+                file_path, window.start_time, window_duration
+            )
+
+            logger.debug(
+                f"Window {window.start_time/60:.1f}-{window.end_time/60:.1f}m: "
+                f"found {len(scene_changes)} scene changes"
+            )
+
+            # Convert each scene change to a RawDetection
+            for scene in scene_changes:
+                # Score based on scene change magnitude (scale to similar range as others)
+                # Scene score is 0-1, multiply by 100 to get comparable scores
+                score = scene.score * 100
+
+                all_detections.append(RawDetection(
+                    timestamp=scene.timestamp,
+                    score=score,
+                    source='scene_change',
+                    metadata={
+                        'scene_score': scene.score,
+                        'window_center': window.center_time,
+                    }
+                ))
+
+        logger.info(f"Scene change detector: {len(all_detections)} raw detections")
+        return all_detections

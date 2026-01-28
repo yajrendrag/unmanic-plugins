@@ -898,3 +898,63 @@ class SilenceDetector:
             r for r in all_silences
             if r.start_time >= window_start and r.end_time <= window_end
         ]
+
+    def detect_raw_in_windows(
+        self,
+        file_path: str,
+        search_windows: List,  # List of SearchWindow objects
+    ) -> List:
+        """
+        Return ALL silence detections as RawDetection objects.
+
+        Instead of picking the "best" silence per window, this returns
+        all detected silences for clustering with other detectors.
+
+        Score is based on silence duration:
+        - 1 second silence = score 10
+        - 2 second silence = score 20
+        - etc.
+
+        Args:
+            file_path: Path to the video file
+            search_windows: List of SearchWindow objects defining where to search
+
+        Returns:
+            List of RawDetection objects (imported from raw_detection module)
+        """
+        from .raw_detection import RawDetection
+
+        all_detections = []
+
+        for window in search_windows:
+            # Scan only this window using FFmpeg seeking
+            window_duration = window.end_time - window.start_time
+            window_silences = self._detect_silence_in_window(
+                file_path, window.start_time, window_duration
+            )
+
+            logger.debug(
+                f"Window {window.start_time/60:.1f}-{window.end_time/60:.1f}m: "
+                f"found {len(window_silences)} silence regions"
+            )
+
+            # Convert each silence region to a RawDetection
+            for silence in window_silences:
+                # Score based on duration (10 points per second)
+                # Longer silences are more significant
+                score = silence.duration * 10
+
+                all_detections.append(RawDetection(
+                    timestamp=silence.midpoint,
+                    score=score,
+                    source='silence',
+                    metadata={
+                        'silence_start': silence.start_time,
+                        'silence_end': silence.end_time,
+                        'silence_duration': silence.duration,
+                        'window_center': window.center_time,
+                    }
+                ))
+
+        logger.info(f"Silence detector: {len(all_detections)} raw detections")
+        return all_detections

@@ -40,6 +40,7 @@ from split_multi_episode.lib.detection import (
     SearchWindowDeterminer,
     SceneChangeDetector,
     SpeechDetector,
+    SearchWindow,
 )
 from split_multi_episode.lib.validation import TMDBValidator
 from split_multi_episode.lib.splitter import EpisodeSplitter
@@ -80,9 +81,8 @@ class Settings(PluginSettings):
         # LLM Vision Detection + options
         "enable_llm_detection": False,
         "llm_ollama_host": "http://localhost:11434",
-        "llm_model": "qwen2.5vl:7b",
-        "llm_frames_per_boundary": 5,
-        "llm_split_at_credits_end": False,
+        "llm_model": "qwen2.5vl:3b",
+        "llm_precision_mode": False,
 
         # Speech Detection + options
         "enable_speech_detection": False,
@@ -97,9 +97,6 @@ class Settings(PluginSettings):
         "min_episode_length_minutes": 15,
         "max_episode_length_minutes": 90,
         "min_file_duration_minutes": 30,
-
-        # Detection Parameters
-        "confidence_threshold": 0.7,
 
         # Output Settings
         "output_naming_pattern": "S{season:02d}E{episode:02d} - {basename}",
@@ -169,14 +166,8 @@ class Settings(PluginSettings):
                 "description": "Use Ollama vision model to detect credits, title cards (requires Ollama)",
             },
             "llm_ollama_host": self._llm_setting("Ollama Host", "URL of Ollama API endpoint"),
-            "llm_model": self._llm_setting("LLM Model", "Vision model to use (e.g., llava:7b)"),
-            "llm_frames_per_boundary": self._llm_setting(
-                "Frames per Boundary",
-                "Number of frames to analyze at each potential boundary",
-                "slider",
-                {"min": 1, "max": 10, "step": 1}
-            ),
-            "llm_split_at_credits_end": self._llm_split_at_credits_setting(),
+            "llm_model": self._llm_setting("LLM Model", "Vision model to use (e.g., qwen2.5vl:3b)"),
+            "llm_precision_mode": self._llm_precision_mode_setting(),
 
             # Speech Detection + options
             "enable_speech_detection": {
@@ -214,14 +205,6 @@ class Settings(PluginSettings):
                 "description": "Only process files longer than this (suggests 2+ episodes)",
                 "input_type": "slider",
                 "slider_options": {"min": 15, "max": 120, "step": 5},
-            },
-
-            # Detection Parameters
-            "confidence_threshold": {
-                "label": "Confidence Threshold",
-                "description": "Minimum confidence score to split at a boundary (0.0-1.0)",
-                "input_type": "slider",
-                "slider_options": {"min": 0.5, "max": 0.95, "step": 0.05},
             },
 
             # Output Settings
@@ -270,6 +253,19 @@ class Settings(PluginSettings):
         if extra:
             setting.update(extra)
         if not self.get_setting('enable_llm_detection'):
+            setting["display"] = "hidden"
+        return setting
+
+    def _llm_precision_mode_setting(self):
+        setting = {
+            "label": "LLM Precision Mode",
+            "description": "Use narrow 2.2-minute windows with 2-second sampling for logo-focused detection. "
+                          "Requires TMDB for window positioning. Best for clean files without commercials. "
+                          "Disables all other detectors when enabled.",
+            "sub_setting": True,
+        }
+        # Only show if both LLM and TMDB are enabled
+        if not self.get_setting('enable_llm_detection') or not self.get_setting('enable_tmdb_validation'):
             setting["display"] = "hidden"
         return setting
 
@@ -323,17 +319,6 @@ class Settings(PluginSettings):
         if not self.get_setting('enable_speech_detection'):
             setting["display"] = "hidden"
         return setting
-
-    def _llm_split_at_credits_setting(self):
-        setting = {
-            "label": "Split at Credits/Outro End",
-            "description": "When credits or outro are detected, split immediately after they end instead of searching for the next black frame or silence. Useful when episodes transition directly without clear A/V markers.",
-            "sub_setting": True,
-        }
-        if not self.get_setting('enable_llm_detection'):
-            setting["display"] = "hidden"
-        return setting
-
 
 def file_already_processed(path):
     """Check if this file has already been processed."""
@@ -503,7 +488,6 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
     # Get settings
     min_ep_length = settings.get_setting('min_episode_length_minutes') * 60
     max_ep_length = settings.get_setting('max_episode_length_minutes') * 60
-    confidence_threshold = settings.get_setting('confidence_threshold')
 
     # Extract expected episode count from filename (e.g., "S2E5-8" = 4 episodes)
     namer = EpisodeNamer()
@@ -529,21 +513,26 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
         )
         if tmdb_validator.is_available():
             parsed_info = namer.parse_filename(file_in)
+            worker_log.append(f"  Parsed title: '{parsed_info.title}', season: {parsed_info.season}, episode: {parsed_info.episode}")
             if parsed_info.title:
-                runtimes = tmdb_validator.get_series_episode_runtimes(
+                runtimes, tmdb_message = tmdb_validator.get_series_episode_runtimes(
                     parsed_info.title,
                     parsed_info.season or 1,
+                    start_episode=start_ep or 1,
                     num_episodes=expected_episode_count or 10
                 )
                 if runtimes:
-                    ep_offset = (start_ep - 1) if start_ep else 0
-                    if ep_offset < len(runtimes):
-                        expected_runtimes = runtimes[ep_offset:ep_offset + expected_episode_count]
-                        worker_log.append(f"  TMDB runtimes: {expected_runtimes} minutes")
+                    expected_runtimes = runtimes
+                    worker_log.append(f"  TMDB runtimes: {expected_runtimes} minutes")
+                else:
+                    worker_log.append(f"  TMDB: {tmdb_message}")
+            else:
+                worker_log.append("  TMDB: Could not parse title from filename")
 
     # Get chapter information if enabled
     chapter_boundaries = None
     chapter_info = {}
+    commercial_times_per_episode = None
     if settings.get_setting('enable_chapter_detection'):
         worker_log.append("  Analyzing chapters...")
         chapter_detector = ChapterDetector(
@@ -553,10 +542,17 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
         boundaries = chapter_detector.detect(probe_data)
         if boundaries:
             if boundaries[0].source == 'chapter_commercial':
-                # Commercial markers - extract timing info for window refinement
+                # Commercial markers - extract commercial times per episode
+                # Note: We DON'T set chapter_boundaries here because commercial markers
+                # indicate where commercials start, not where episode content ends.
+                # Commercial times are only useful when combined with TMDB runtimes.
                 chapter_info['commercial_1_times'] = [b.end_time for b in boundaries[:-1]]
-                chapter_boundaries = [(b.start_time, b.end_time) for b in boundaries]
                 worker_log.append(f"    Found commercial markers for {len(boundaries)} episode regions")
+
+                # Get commercial times per episode for accurate window calculation
+                commercial_times_per_episode = chapter_detector.get_commercial_times_per_episode(probe_data)
+                if commercial_times_per_episode:
+                    worker_log.append(f"    Commercial times per episode: {[f'{t/60:.1f}m' for t in commercial_times_per_episode]}")
             else:
                 # True episode chapters - use directly as boundaries
                 chapter_boundaries = [(b.start_time, b.end_time) for b in boundaries]
@@ -575,20 +571,58 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
     search_windows = window_determiner.determine_windows(
         chapter_boundaries=chapter_boundaries,
         tmdb_runtimes=expected_runtimes,
+        commercial_times_per_episode=commercial_times_per_episode,
     )
 
     # Refine windows with commercial chapter info if available
-    if chapter_info.get('commercial_1_times'):
-        search_windows = window_determiner.refine_windows_with_chapters(
-            search_windows, chapter_info
-        )
+    # Skip if:
+    # - We already used TMDB+chapters (commercial times already incorporated)
+    # - We don't have TMDB runtimes (commercial markers alone don't help position windows)
+    if (chapter_info.get('commercial_1_times') and search_windows and expected_runtimes):
+        if not any('tmdb+chapters' in w.source for w in search_windows):
+            search_windows = window_determiner.refine_windows_with_chapters(
+                search_windows, chapter_info
+            )
 
     if not search_windows:
         worker_log.append("Could not determine search windows")
         data['worker_log'] = worker_log
         return data
 
-    worker_log.append(f"  Created {len(search_windows)} search windows:")
+    # Check for LLM Precision Mode
+    llm_precision_mode = (
+        settings.get_setting('llm_precision_mode') and
+        settings.get_setting('enable_llm_detection') and
+        settings.get_setting('enable_tmdb_validation') and
+        expected_runtimes
+    )
+
+    if llm_precision_mode:
+        # Override search windows with narrow precision windows based on TMDB
+        # Window: ±1.1 minutes (66 seconds) around expected boundary
+        PRECISION_WINDOW_HALF = 66  # seconds
+        precision_windows = []
+        cumulative_runtime = 0
+
+        for i, runtime in enumerate(expected_runtimes[:-1]):  # Don't need window after last episode
+            cumulative_runtime += runtime * 60  # Convert to seconds
+            center = cumulative_runtime
+            precision_windows.append(SearchWindow(
+                start_time=center - PRECISION_WINDOW_HALF,
+                end_time=center + PRECISION_WINDOW_HALF,
+                center_time=center,
+                confidence=0.8,
+                source='tmdb_precision',
+                episode_before=i + 1,
+                episode_after=i + 2,
+                metadata={},
+            ))
+
+        search_windows = precision_windows
+        worker_log.append(f"  LLM Precision Mode: Created {len(search_windows)} narrow windows (±1.1m):")
+    else:
+        worker_log.append(f"  Created {len(search_windows)} search windows:")
+
     for i, w in enumerate(search_windows):
         worker_log.append(
             f"    Window {i+1}: {w.start_time/60:.1f}-{w.end_time/60:.1f}m "
@@ -623,13 +657,13 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
             'enable_audio_fingerprint_detection': settings.get_setting('enable_audio_fingerprint_detection'),
             'enable_llm_detection': settings.get_setting('enable_llm_detection'),
             'enable_speech_detection': settings.get_setting('enable_speech_detection'),
+            'llm_precision_mode': llm_precision_mode,
             'silence_threshold_db': settings.get_setting('silence_threshold_db'),
             'silence_min_duration': settings.get_setting('silence_min_duration'),
             'black_min_duration': settings.get_setting('black_min_duration'),
             'scene_change_threshold': settings.get_setting('scene_change_threshold'),
             'llm_ollama_host': settings.get_setting('llm_ollama_host'),
             'llm_model': settings.get_setting('llm_model'),
-            'llm_split_at_credits_end': settings.get_setting('llm_split_at_credits_end'),
             'speech_model_size': settings.get_setting('speech_model_size'),
             'min_episode_length': min_ep_length,
             'max_episode_length': max_ep_length,
@@ -645,409 +679,68 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
 
     if detection_result is None:
         worker_log.append("Detection failed - falling back to window centers")
-        window_results = {i: [] for i in range(len(search_windows))}
-        episode_end_markers = {i: None for i in range(len(search_windows))}
+        window_boundaries = {i: [w.center_time, 0.3, {'fallback': True}]
+                            for i, w in enumerate(search_windows)}
     else:
-        # Unpack results (convert string keys back to int)
-        window_results = {
-            int(k): [tuple(r) for r in v]
-            for k, v in detection_result.get('window_results', {}).items()
+        # Unpack results from raw clustering (convert string keys back to int)
+        window_boundaries = {
+            int(k): v for k, v in detection_result.get('window_boundaries', {}).items()
         }
-        episode_end_markers = {
-            int(k): v
-            for k, v in detection_result.get('episode_end_markers', {}).items()
-        }
+        raw_detection_count = len(detection_result.get('all_raw_detections', []))
+        worker_log.append(f"  Clustered {raw_detection_count} raw detections")
 
-    # ========== Combine Results Per Window ==========
-    worker_log.append("Combining results per window...")
+    # ========== Use Clustered Results Per Window ==========
+    worker_log.append("Using clustered results per window...")
+
+    # Check for any failed windows first
+    failed_windows = []
+    for i, window in enumerate(search_windows):
+        result = window_boundaries.get(i)
+        if result and result[2].get('failed'):
+            failed_windows.append(i + 1)
+            error_msg = result[2].get('error', 'Detection failed')
+            worker_log.append(f"  Window {i+1}: FAILED - {error_msg}")
+
+    if failed_windows:
+        worker_log.append(
+            f"ERROR: Detection failed for window(s) {failed_windows}. "
+            f"Cannot reliably split file - aborting."
+        )
+        data['worker_log'] = worker_log
+        return data
 
     final_boundaries = []
     prev_end = 0.0
 
     for i, window in enumerate(search_windows):
-        results = window_results[i]
+        result = window_boundaries.get(i)
 
-        if not results:
+        if not result or result[2].get('fallback'):
             # No detections - use window center
             boundary_time = window.center_time
             confidence = 0.3
             worker_log.append(f"  Window {i+1}: no detections, using center {boundary_time/60:.1f}m")
         else:
-            # Find clusters of agreeing detectors first, then pick the best cluster
-            # This prevents a single high-proximity result from overriding agreement
+            boundary_time, confidence, metadata = result
+            sources = metadata.get('sources', ['unknown'])
+            num_detectors = metadata.get('num_detectors', 1)
+            cluster_score = metadata.get('cluster_score', 0)
+            from_expansion = ' (from expansion)' if metadata.get('from_expansion') else ''
 
-            # Build clusters: group detectors within 60 seconds of each other
-            clusters = []
-            used = set()
-
-            # Sort by time to make clustering easier
-            sorted_results = sorted(results, key=lambda x: x[0])
-
-            for idx, (r_time, r_conf, r_meta) in enumerate(sorted_results):
-                if idx in used:
-                    continue
-
-                # Start a new cluster with this result
-                cluster = [(r_time, r_conf, r_meta)]
-                used.add(idx)
-
-                # Find all other results within 60 seconds
-                for idx2, (r2_time, r2_conf, r2_meta) in enumerate(sorted_results):
-                    if idx2 in used:
-                        continue
-                    if abs(r2_time - r_time) < 60:
-                        cluster.append((r2_time, r2_conf, r2_meta))
-                        used.add(idx2)
-
-                clusters.append(cluster)
-
-            # Score each cluster: detectors agreeing + confidence + proximity to center
-            # Black frame + silence together is a very strong boundary indicator
-            window_half = (window.end_time - window.start_time) / 2
-
-            def cluster_has_black_frame(cluster):
-                return any(c[2].get('source') == 'black_frame' for c in cluster)
-
-            def cluster_has_silence(cluster):
-                return any(c[2].get('source') == 'silence' for c in cluster)
-
-            def cluster_has_black_and_silence(cluster):
-                """Check if cluster has BOTH black_frame AND silence - very strong signal."""
-                return cluster_has_black_frame(cluster) and cluster_has_silence(cluster)
-
-            def score_cluster(cluster):
-                num_detectors = len(cluster)
-                # Boost black_frame confidence by 0.15 when calculating avg
-                boosted_confs = []
-                for c in cluster:
-                    conf = c[1]
-                    if c[2].get('source') == 'black_frame':
-                        conf = min(0.95, conf + 0.15)  # Boost black_frame
-                    boosted_confs.append(conf)
-                avg_conf = sum(boosted_confs) / num_detectors
-
-                # Extra boost if cluster has BOTH black_frame AND silence
-                # This is a very reliable episode boundary signal
-                if cluster_has_black_and_silence(cluster):
-                    avg_conf = min(0.98, avg_conf + 0.20)
-
-                avg_time = sum(c[0] for c in cluster) / num_detectors
-
-                # Calculate proximity to window center (0-1 scale)
-                distance_from_center = abs(avg_time - window.center_time)
-                proximity = 1.0 - (distance_from_center / window_half) if window_half > 0 else 0.5
-                proximity = max(0, proximity)  # Clamp to 0 if outside window
-
-                # Weighted score: 30% detector count, 30% confidence, 40% proximity
-                return (num_detectors * 0.3) + (avg_conf * 0.3) + (proximity * 0.4)
-
-            # Prefer clusters that contain black_frame detection
-            clusters_with_black = [c for c in clusters if cluster_has_black_frame(c)]
-            clusters_to_consider = clusters_with_black if clusters_with_black else clusters
-
-            if clusters_with_black:
-                worker_log.append(f"    Found {len(clusters_with_black)} cluster(s) with black_frame")
-
-            best_cluster = None
-            best_cluster_score = -1
-            winning_cluster_has_black_silence = False
-
-            for cluster in clusters_to_consider:
-                cluster_score = score_cluster(cluster)
-
-                if cluster_score > best_cluster_score:
-                    best_cluster_score = cluster_score
-                    best_cluster = cluster
-                    winning_cluster_has_black_silence = cluster_has_black_and_silence(cluster)
-
-            # Use the winning cluster
-            if best_cluster and len(best_cluster) > 1:
-                # Multiple detectors agree
-                # If black_frame is in cluster, use its time (most precise for cut point)
-                # Otherwise use average time
-                black_frame_result = None
-                for c in best_cluster:
-                    if c[2].get('source') == 'black_frame':
-                        black_frame_result = c
-                        break
-
-                if black_frame_result:
-                    # Use black_frame time - it marks the exact transition point
-                    boundary_time = black_frame_result[0]
-                    avg_conf = sum(c[1] for c in best_cluster) / len(best_cluster)
-                    confidence = min(0.95, avg_conf * 1.1)  # Boost for agreement
-                    sources = [c[2].get('source', 'unknown') for c in best_cluster]
-                    worker_log.append(
-                        f"  Window {i+1}: {len(best_cluster)} detectors agree, using black_frame at {boundary_time/60:.1f}m "
-                        f"(conf={confidence:.2f}, sources={sources})"
-                    )
-                else:
-                    # No black_frame - use average time
-                    avg_time = sum(c[0] for c in best_cluster) / len(best_cluster)
-                    avg_conf = sum(c[1] for c in best_cluster) / len(best_cluster)
-                    boundary_time = avg_time
-                    confidence = min(0.95, avg_conf * 1.1)  # Boost for agreement
-                    sources = [c[2].get('source', 'unknown') for c in best_cluster]
-                    worker_log.append(
-                        f"  Window {i+1}: {len(best_cluster)} detectors agree at {boundary_time/60:.1f}m "
-                        f"(conf={confidence:.2f}, sources={sources})"
-                    )
-            else:
-                # Single detector or no cluster
-                # Prefer black_frame over other detectors (strong boundary signal)
-                black_frame_results = [r for r in results if r[2].get('source') == 'black_frame']
-                if black_frame_results:
-                    # Use black_frame even if other detectors have higher confidence
-                    best_result = black_frame_results[0]
-                    worker_log.append(
-                        f"  Window {i+1}: using black_frame at {best_result[0]/60:.1f}m "
-                        f"(conf={best_result[1]:.2f}, preferred over higher-confidence singles)"
-                    )
-                else:
-                    # No black_frame - pick highest confidence
-                    best_result = max(results, key=lambda x: x[1])
-                    worker_log.append(
-                        f"  Window {i+1}: best single at {best_result[0]/60:.1f}m "
-                        f"(conf={best_result[1]:.2f}, source={best_result[2].get('source', 'unknown')})"
-                    )
-                boundary_time = best_result[0]
-                confidence = best_result[1]
-
-        # Apply LLM credits/outro constraint
-        # The LLM can detect credits/outros and suggest splitting after them.
-        # However, we need to be careful not to override strong detector agreement.
-        llm_results = [r for r in results if r[2].get('source') == 'llm_vision']
-        if llm_results:
-            llm_result = llm_results[0]
-            llm_confidence = llm_result[1]
-            llm_metadata = llm_result[2]
-            credits_end_time = llm_metadata.get('credits_detected_at')
-            detected_credits = llm_metadata.get('is_credits', False)
-            detected_outro = llm_metadata.get('is_outro', False)
-
-            # Check if user wants nuclear option: always split at credits/outro end
-            split_at_credits_end = settings.get_setting('llm_split_at_credits_end')
-
-            if credits_end_time and split_at_credits_end:
-                # NUCLEAR OPTION: User wants to always split at credits/outro end
-                # This bypasses all other logic - use when normal detection doesn't converge
-                old_time = boundary_time
-                boundary_time = credits_end_time + 2.0
-                detection_type = "credits" if detected_credits else "outro" if detected_outro else "credits/outro"
-                worker_log.append(
-                    f"  Window {i+1}: [OVERRIDE] Split at {detection_type} end - using {boundary_time/60:.1f}m "
-                    f"(2s after LLM {detection_type} at {credits_end_time/60:.1f}m)"
-                )
-
-            # Normal path: only apply LLM constraint if conditions are met
-            # Do NOT apply if:
-            # - Winning cluster has both black_frame AND silence (very reliable boundary)
-            # - LLM confidence is too low (< 0.7) - indicates no credits→non-credits transition found
-            elif credits_end_time and boundary_time < credits_end_time and not split_at_credits_end:
-                apply_llm_constraint = True
-                ignore_reason = None
-
-                # Check 1: Strong black+silence cluster trumps LLM
-                if winning_cluster_has_black_silence:
-                    apply_llm_constraint = False
-                    ignore_reason = f"strong black+silence agreement at {boundary_time/60:.1f}m"
-
-                # Check 2: LLM confidence threshold (low confidence = no transition found)
-                elif llm_confidence < 0.7:
-                    apply_llm_constraint = False
-                    ignore_reason = f"low LLM confidence ({llm_confidence:.2f} < 0.7, no credits transition found)"
-
-                if not apply_llm_constraint:
-                    worker_log.append(
-                        f"  Window {i+1}: Ignoring LLM credits at {credits_end_time/60:.1f}m - {ignore_reason}"
-                    )
-                else:
-                    # Apply LLM constraint: boundary is BEFORE credits end - need to adjust
-                    # Look for black_frame or silence AFTER the credits
-                    later_results = [r for r in results
-                                     if r[0] >= credits_end_time and r[2].get('source') in ('black_frame', 'silence')]
-
-                    # If credits are near window edge and no results after, extend search
-                    if not later_results and credits_end_time >= window.end_time - 30:
-                        # Credits extend to edge of window - scan beyond for black/silence
-                        worker_log.append(
-                            f"  Window {i+1}: Credits at window edge ({credits_end_time/60:.1f}m), "
-                            f"extending search by 60s..."
-                        )
-
-                        # Import detectors for extended scan
-                        from split_multi_episode.lib.detection import BlackFrameDetector, SilenceDetector
-                        from split_multi_episode.lib.detection.search_window import SearchWindow
-
-                        # Create extended window starting from credits end
-                        extended_start = credits_end_time
-                        extended_end = min(credits_end_time + 60, total_duration)
-
-                        extended_window = SearchWindow(
-                            start_time=extended_start,
-                            end_time=extended_end,
-                            center_time=(extended_start + extended_end) / 2,
-                            confidence=0.5,
-                            source='extended_for_credits',
-                            episode_before=window.episode_before,
-                            episode_after=window.episode_after,
-                            metadata={'extended': True}
-                        )
-
-                        # Quick scan for black_frame in extended region
-                        try:
-                            black_detector = BlackFrameDetector(
-                                min_black_duration=settings.get_setting('black_min_duration'),
-                                min_episode_length=min_ep_length,
-                                max_episode_length=max_ep_length
-                            )
-                            extended_black = black_detector.detect_in_windows(
-                                file_in, [extended_window], total_duration, None
-                            )
-                            if extended_black and extended_black[0][0] > 0:
-                                later_results.append((extended_black[0][0], extended_black[0][1],
-                                                      {'source': 'black_frame', 'extended': True}))
-                                worker_log.append(
-                                    f"    Found black_frame at {extended_black[0][0]/60:.1f}m in extended region"
-                                )
-                        except Exception as e:
-                            worker_log.append(f"    Extended black_frame scan failed: {e}")
-
-                        # Quick scan for silence in extended region if no black found
-                        if not later_results:
-                            try:
-                                silence_detector = SilenceDetector(
-                                    silence_threshold_db=settings.get_setting('silence_threshold_db'),
-                                    min_silence_duration=settings.get_setting('silence_min_duration'),
-                                    min_episode_length=min_ep_length,
-                                    max_episode_length=max_ep_length
-                                )
-                                extended_silence = silence_detector.detect_in_windows(
-                                    file_in, [extended_window], total_duration
-                                )
-                                if extended_silence and extended_silence[0][0] > 0:
-                                    later_results.append((extended_silence[0][0], extended_silence[0][1],
-                                                          {'source': 'silence', 'extended': True}))
-                                    worker_log.append(
-                                        f"    Found silence at {extended_silence[0][0]/60:.1f}m in extended region"
-                                    )
-                            except Exception as e:
-                                worker_log.append(f"    Extended silence scan failed: {e}")
-
-                    if later_results:
-                        # Prefer black_frame, then silence, closest to credits end
-                        black_later = [r for r in later_results if r[2].get('source') == 'black_frame']
-                        silence_later = [r for r in later_results if r[2].get('source') == 'silence']
-
-                        if black_later:
-                            best_later = min(black_later, key=lambda x: x[0])
-                        elif silence_later:
-                            best_later = min(silence_later, key=lambda x: x[0])
-                        else:
-                            best_later = min(later_results, key=lambda x: x[0])
-
-                        old_time = boundary_time
-                        boundary_time = best_later[0]
-                        time_after_credits = boundary_time - credits_end_time
-                        extended_note = " (from extended scan)" if best_later[2].get('extended') else ""
-                        worker_log.append(
-                            f"  Window {i+1}: Adjusted from {old_time/60:.1f}m to {boundary_time/60:.1f}m "
-                            f"({time_after_credits:.0f}s after LLM credits end at {credits_end_time/60:.1f}m, "
-                            f"source={best_later[2].get('source', 'unknown')}{extended_note})"
-                        )
-                    else:
-                        # No black_frame/silence after credits - use LLM boundary time
-                        old_time = boundary_time
-                        boundary_time = llm_result[0]  # LLM's suggested boundary time
-                        worker_log.append(
-                            f"  Window {i+1}: Adjusted from {old_time/60:.1f}m to {boundary_time/60:.1f}m "
-                            f"(using LLM boundary, no black/silence after credits at {credits_end_time/60:.1f}m)"
-                        )
-
-        # Apply episode-end marker constraint from speech detection
-        # If we detected "Stay tuned" etc., boundary should be AFTER that phrase,
-        # ideally at a black/silent scene within 30 seconds of the phrase end
-        if episode_end_markers.get(i) is not None:
-            phrase_end_time = episode_end_markers[i]
-
-            if boundary_time < phrase_end_time:
-                # Boundary is BEFORE the episode-end phrase - need to adjust
-                # Look for black_frame or silence AFTER the phrase, preferring within 30 seconds
-                later_results = [r for r in results if r[0] >= phrase_end_time]
-
-                if later_results:
-                    # Score results: prefer black_frame, prefer within 30 seconds
-                    def score_result(r):
-                        time_after_phrase = r[0] - phrase_end_time
-                        is_black = r[2].get('source') == 'black_frame'
-                        is_silence = r[2].get('source') == 'silence'
-
-                        # Base score from confidence
-                        score = r[1]
-
-                        # Prefer black_frame and silence (strong boundary signals)
-                        if is_black:
-                            score += 0.3
-                        elif is_silence:
-                            score += 0.2
-
-                        # Prefer results within 30 seconds (ideal range)
-                        if time_after_phrase <= 30:
-                            score += 0.2 * (1 - time_after_phrase / 30)  # Max bonus at phrase end
-                        else:
-                            # Penalize results beyond 30 seconds (might be cutting into next episode)
-                            penalty = min(0.3, (time_after_phrase - 30) / 60 * 0.3)
-                            score -= penalty
-
-                        return score
-
-                    # Find best result AFTER phrase
-                    best_later = max(later_results, key=score_result)
-                    time_after = best_later[0] - phrase_end_time
-
-                    old_time = boundary_time
-                    boundary_time = best_later[0]
-                    worker_log.append(
-                        f"  Window {i+1}: Adjusted from {old_time/60:.1f}m to {boundary_time/60:.1f}m "
-                        f"({time_after:.0f}s after episode-end phrase, "
-                        f"source={best_later[2].get('source', 'unknown')})"
-                    )
-                else:
-                    # No results after phrase - use 5 seconds after phrase end
-                    old_time = boundary_time
-                    boundary_time = phrase_end_time + 5.0
-                    worker_log.append(
-                        f"  Window {i+1}: Adjusted from {old_time/60:.1f}m to {boundary_time/60:.1f}m "
-                        f"(5s after episode-end phrase at {phrase_end_time/60:.1f}m)"
-                    )
-            elif boundary_time > phrase_end_time + 60:
-                # Boundary is more than 60 seconds after phrase - might be too late
-                # Look for something closer to the phrase
-                closer_results = [r for r in results
-                                  if phrase_end_time <= r[0] <= phrase_end_time + 60]
-                if closer_results:
-                    # Prefer black_frame/silence within 30 seconds
-                    black_close = [r for r in closer_results
-                                   if r[2].get('source') == 'black_frame' and r[0] <= phrase_end_time + 30]
-                    if black_close:
-                        best_close = black_close[0]
-                    else:
-                        best_close = min(closer_results, key=lambda x: x[0] - phrase_end_time)
-
-                    old_time = boundary_time
-                    boundary_time = best_close[0]
-                    worker_log.append(
-                        f"  Window {i+1}: Adjusted from {old_time/60:.1f}m to {boundary_time/60:.1f}m "
-                        f"(closer to episode-end phrase at {phrase_end_time/60:.1f}m)"
-                    )
+            worker_log.append(
+                f"  Window {i+1}: boundary at {boundary_time/60:.1f}m "
+                f"(conf={confidence:.2f}, {num_detectors} detector(s): {sources}, "
+                f"cluster_score={cluster_score:.1f}){from_expansion}"
+            )
 
         # Create episode boundary
         from split_multi_episode.lib.detection.boundary_merger import MergedBoundary
+        sources = result[2].get('sources', ['fallback']) if result else ['fallback']
         final_boundaries.append(MergedBoundary(
             start_time=prev_end,
             end_time=boundary_time,
             confidence=confidence,
-            sources=[r[2].get('source', 'unknown') for r in results] if results else ['fallback'],
+            sources=sources,
             source_boundaries=[],
             metadata={'window_index': i, 'window_source': window.source}
         ))
@@ -1074,7 +767,7 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
 
     worker_log.append(f"Detected {len(merged_boundaries)} episodes")
 
-    # TMDB validation
+    # TMDB validation - use same parsed info as Phase 1 for consistency
     if settings.get_setting('enable_tmdb_validation'):
         worker_log.append("Validating against TMDB...")
         tmdb_validator = TMDBValidator(
@@ -1083,7 +776,16 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
         )
         if tmdb_validator.is_available():
             durations = [b.end_time - b.start_time for b in merged_boundaries]
-            result = tmdb_validator.validate(file_in, durations)
+            # Use the already-parsed info for consistent title parsing
+            parsed_info = namer.parse_filename(file_in)
+            result = tmdb_validator.validate(
+                file_in,
+                durations,
+                title_override=parsed_info.title,
+                season_override=parsed_info.season or 1,
+                start_episode_override=start_ep or 1,
+                commercial_times=commercial_times_per_episode,
+            )
             worker_log.append(f"  TMDB: {result.message}")
             # Apply confidence adjustments would go here
         else:

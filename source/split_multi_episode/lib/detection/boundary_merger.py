@@ -77,7 +77,6 @@ class BoundaryMerger:
     def __init__(
         self,
         merge_threshold: float = 30.0,
-        confidence_threshold: float = 0.7,
         require_multiple_detectors: bool = True,
         min_episode_length: float = 900,
         max_episode_length: float = 5400,
@@ -88,14 +87,12 @@ class BoundaryMerger:
 
         Args:
             merge_threshold: Maximum time difference (seconds) to merge boundaries
-            confidence_threshold: Minimum confidence to keep a boundary
             require_multiple_detectors: Require 2+ methods to agree (unless standalone)
             min_episode_length: Minimum episode duration in seconds
             max_episode_length: Maximum episode duration in seconds
             weights: Optional custom confidence weights by source
         """
         self.merge_threshold = merge_threshold
-        self.confidence_threshold = confidence_threshold
         self.require_multiple_detectors = require_multiple_detectors
         self.min_episode_length = min_episode_length
         self.max_episode_length = max_episode_length
@@ -413,14 +410,6 @@ class BoundaryMerger:
         prev_end = 0.0
 
         for boundary in merged:
-            # Check confidence threshold
-            if boundary.confidence < self.confidence_threshold:
-                logger.debug(
-                    f"Skipping boundary at {boundary.end_time:.1f}s: "
-                    f"confidence {boundary.confidence:.2f} below threshold"
-                )
-                continue
-
             # Calculate episode duration
             episode_duration = boundary.end_time - boundary.start_time
 

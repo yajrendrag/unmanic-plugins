@@ -51,6 +51,12 @@ $PIP install --quiet "parse-torrent-title>=2.8.0"
 echo "split_multi_episode: Installing faster-whisper for speech detection..."
 $PIP install --quiet "faster-whisper>=1.0.0"
 
+# Install NVIDIA CUDA libraries via pip for GPU-accelerated speech detection
+# These provide libcublas.so.12 etc. within the Python environment
+echo "split_multi_episode: Installing NVIDIA CUDA libraries for GPU speech detection..."
+$PIP install --quiet "nvidia-cublas-cu12>=12.4.0"
+$PIP install --quiet "nvidia-cudnn-cu12>=9.0.0"
+
 echo "split_multi_episode: Python dependencies installed"
 
 # Optional: Install Ollama for LLM detection (user must do this manually on the host)

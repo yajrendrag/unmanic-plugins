@@ -84,19 +84,23 @@ class SearchWindowDeterminer:
         chapter_boundaries: Optional[List[Tuple[float, float]]] = None,
         tmdb_runtimes: Optional[List[int]] = None,
         commercial_times: Optional[List[Tuple[float, float]]] = None,
+        commercial_times_per_episode: Optional[List[float]] = None,
     ) -> List[SearchWindow]:
         """
         Determine search windows using available information.
 
         Priority:
-        1. Chapter marks (most precise)
-        2. TMDB runtimes + episode count
-        3. Episode count + total duration (fallback)
+        1. TMDB runtimes + commercial times per episode (most precise when both available)
+        2. Chapter marks
+        3. TMDB runtimes alone (estimate commercials)
+        4. Episode count + total duration (fallback)
 
         Args:
             chapter_boundaries: List of (start, end) from chapter detection
             tmdb_runtimes: List of episode runtimes in minutes from TMDB
             commercial_times: List of (start, end) for detected commercial breaks
+            commercial_times_per_episode: List of total commercial duration (seconds)
+                per episode, from chapter markers
 
         Returns:
             List of SearchWindow objects, one for each expected boundary
@@ -110,21 +114,30 @@ class SearchWindowDeterminer:
         # Try each method in priority order
         windows = None
 
-        # Priority 1: Chapter-based windows
+        # Priority 1: TMDB runtimes + actual commercial times per episode
+        # This is the most accurate when we have both pieces of data
+        if (tmdb_runtimes and len(tmdb_runtimes) >= self.expected_episode_count and
+            commercial_times_per_episode and len(commercial_times_per_episode) >= self.expected_episode_count):
+            windows = self._windows_from_tmdb(tmdb_runtimes, commercial_times_per_episode)
+            if windows:
+                logger.info(f"Using TMDB+chapters search windows ({len(windows)} windows)")
+                return windows
+
+        # Priority 2: Chapter-based windows (when no TMDB data)
         if chapter_boundaries and len(chapter_boundaries) >= self.expected_episode_count:
             windows = self._windows_from_chapters(chapter_boundaries)
             if windows:
                 logger.info(f"Using chapter-based search windows ({len(windows)} windows)")
                 return windows
 
-        # Priority 2: TMDB runtime-based windows
+        # Priority 3: TMDB runtime-based windows (estimate commercials)
         if tmdb_runtimes and len(tmdb_runtimes) >= self.expected_episode_count:
-            windows = self._windows_from_tmdb(tmdb_runtimes, commercial_times)
+            windows = self._windows_from_tmdb(tmdb_runtimes, None)
             if windows:
                 logger.info(f"Using TMDB-based search windows ({len(windows)} windows)")
                 return windows
 
-        # Priority 3: Equal division with commercial adjustment
+        # Priority 4: Equal division with commercial adjustment
         if commercial_times:
             windows = self._windows_from_commercials(commercial_times)
             if windows:
@@ -188,17 +201,19 @@ class SearchWindowDeterminer:
     def _windows_from_tmdb(
         self,
         tmdb_runtimes: List[int],
-        commercial_times: Optional[List[Tuple[float, float]]] = None,
+        commercial_times_per_episode: Optional[List[float]] = None,
     ) -> Optional[List[SearchWindow]]:
         """
         Create search windows from TMDB episode runtimes.
 
-        TMDB runtimes are content-only (no commercials). We estimate
-        commercial time and add it to get actual file positions.
+        TMDB runtimes are content-only (no commercials). If we have actual
+        commercial times per episode (from chapter markers), we use those.
+        Otherwise we estimate commercial time from the file duration difference.
 
         Args:
             tmdb_runtimes: Episode runtimes in minutes
-            commercial_times: Optional commercial break info
+            commercial_times_per_episode: Optional list of commercial durations
+                per episode in seconds (from chapter markers)
 
         Returns:
             List of search windows
@@ -207,39 +222,66 @@ class SearchWindowDeterminer:
             return None
 
         # Use only the runtimes we need
-        runtimes = tmdb_runtimes[:self.expected_episode_count]
-        total_content_time = sum(runtimes) * 60  # Convert to seconds
+        runtimes_min = tmdb_runtimes[:self.expected_episode_count]
+        runtimes_sec = [r * 60 for r in runtimes_min]  # Convert to seconds
+        total_content_time = sum(runtimes_sec)
 
-        # Estimate commercial time
-        total_commercial_time = self.total_duration - total_content_time
+        # Determine commercial time per episode
+        if (commercial_times_per_episode and
+            len(commercial_times_per_episode) >= self.expected_episode_count):
+            # Use actual commercial times from chapter markers
+            commercials_sec = commercial_times_per_episode[:self.expected_episode_count]
+            total_commercial_time = sum(commercials_sec)
+            use_actual_commercials = True
 
-        if total_commercial_time < 0:
-            # TMDB runtimes exceed file duration
-            # Scale runtimes proportionally to fit the file
-            scale_factor = self.total_duration / total_content_time
-            runtimes = [r * scale_factor for r in runtimes]
-            total_content_time = self.total_duration
-            total_commercial_time = 0
             logger.debug(
-                f"TMDB runtimes exceed file duration, scaling by {scale_factor:.3f}"
+                f"TMDB+Chapters: Using actual commercial times per episode: "
+                f"{[f'{c/60:.1f}m' for c in commercials_sec]}"
+            )
+        else:
+            # Estimate: file duration - content time = commercial time
+            total_commercial_time = max(0, self.total_duration - total_content_time)
+            commercials_sec = [total_commercial_time / self.expected_episode_count] * self.expected_episode_count
+            use_actual_commercials = False
+
+            logger.debug(
+                f"TMDB: Estimating {total_commercial_time/60:.1f}m total commercials "
+                f"({commercials_sec[0]/60:.1f}m per episode)"
             )
 
-        # Distribute commercial time proportionally
-        commercial_per_episode = total_commercial_time / self.expected_episode_count
+        # Calculate episode totals (content + commercials)
+        episode_totals = [runtimes_sec[i] + commercials_sec[i]
+                         for i in range(self.expected_episode_count)]
+        calculated_duration = sum(episode_totals)
+
+        # Pro-rate any discrepancy between calculated and actual file duration
+        discrepancy = self.total_duration - calculated_duration
+        if abs(discrepancy) > 1.0:  # More than 1 second difference
+            logger.debug(
+                f"Duration discrepancy: calculated {calculated_duration/60:.1f}m vs "
+                f"actual {self.total_duration/60:.1f}m (diff: {discrepancy/60:.2f}m)"
+            )
+            # Distribute discrepancy proportionally to each episode's total
+            for i in range(self.expected_episode_count):
+                proportion = episode_totals[i] / calculated_duration
+                episode_totals[i] += discrepancy * proportion
+
+            logger.debug(
+                f"Adjusted episode totals: {[f'{t/60:.1f}m' for t in episode_totals]}"
+            )
 
         logger.debug(
-            f"TMDB: {total_content_time/60:.1f}m content, "
-            f"{total_commercial_time/60:.1f}m commercials, "
-            f"{commercial_per_episode/60:.1f}m per episode"
+            f"TMDB: {total_content_time/60:.1f}m content + "
+            f"{total_commercial_time/60:.1f}m commercials = "
+            f"{sum(episode_totals)/60:.1f}m total"
         )
 
+        # Build windows at cumulative episode boundaries
         windows = []
         cumulative_time = 0.0
 
         for i in range(self.expected_episode_count - 1):
-            # Episode content + its commercials
-            episode_block = (runtimes[i] * 60) + commercial_per_episode
-            cumulative_time += episode_block
+            cumulative_time += episode_totals[i]
 
             # Window centered on cumulative time
             window_start = max(0, cumulative_time - self.window_size)
@@ -249,13 +291,15 @@ class SearchWindowDeterminer:
                 start_time=window_start,
                 end_time=window_end,
                 center_time=cumulative_time,
-                confidence=0.8,
-                source='tmdb',
+                confidence=0.85 if use_actual_commercials else 0.8,
+                source='tmdb+chapters' if use_actual_commercials else 'tmdb',
                 episode_before=i + 1,
                 episode_after=i + 2,
                 metadata={
-                    'tmdb_runtime_min': runtimes[i],
-                    'estimated_commercial_sec': commercial_per_episode,
+                    'tmdb_runtime_min': runtimes_min[i],
+                    'commercial_sec': commercials_sec[i],
+                    'episode_total_sec': episode_totals[i],
+                    'actual_commercials': use_actual_commercials,
                 }
             ))
 

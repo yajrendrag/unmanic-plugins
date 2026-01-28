@@ -12,6 +12,7 @@ from .boundary_merger import BoundaryMerger
 from .search_window import SearchWindowDeterminer, SearchWindow
 from .scene_change_detector import SceneChangeDetector
 from .speech_detector import SpeechDetector
+from .raw_detection import RawDetection, DetectionCluster, RawDetectionClusterer
 
 __all__ = [
     'ChapterDetector',
@@ -26,4 +27,7 @@ __all__ = [
     'SearchWindow',
     'SceneChangeDetector',
     'SpeechDetector',
+    'RawDetection',
+    'DetectionCluster',
+    'RawDetectionClusterer',
 ]

@@ -1,4 +1,153 @@
 
+**<span style="color:#56adda">0.2.0</span>**
+- New: LLM Precision Mode for clean files without commercials
+  - Narrow 2.2-minute windows centered on TMDB-predicted boundaries (±1.1m)
+  - Dense 2-second sampling interval (~66 frames per window)
+  - Sequential window processing with drift adjustment:
+    - After each boundary is found, subsequent windows shift by the cumulative drift
+    - Example: if episode 1 ends 30s early, window 2 shifts 30s earlier
+    - Handles TMDB runtimes that don't perfectly match actual content
+    - Logs drift adjustments and total cumulative drift
+  - Logo-centric split logic with boundary filtering:
+    - When credits detected: uses only logos AT or BEFORE the credits transition
+    - When no credits: detects logo clumps and uses first clump only
+    - Logos after the boundary (next episode intro) are excluded
+  - Auto-expansion when no detections found in primary window:
+    - First expands backward 1.5 minutes (cumulative timing errors make boundaries earlier)
+    - Then expands forward 1.5 minutes if still nothing found
+  - Final fallback to normal mode (10-minute window, 10-second intervals):
+    - Scans only the far regions not already covered by precision mode
+    - If still no detections, aborts with error rather than making unreliable split
+  - Falls back to credits transitions, then window center
+  - Requires both LLM and TMDB to be enabled
+  - Best for DVD rips and streaming content with accurate TMDB runtimes
+
+- Change: Default LLM model changed to qwen2.5vl:3b (better stability than 7b)
+
+**<span style="color:#56adda">0.1.0</span>**
+- Improve: TMDB validation now subtracts commercial time before comparing
+  - Files with commercial markers: durations adjusted by subtracting commercial time per episode
+  - Comparison reflects content-only runtime vs TMDB's content-only runtime
+  - Message indicates "(commercial-adjusted)" when adjustment was applied
+  - Fixes misleading "Poor runtime match" for files with commercials
+
+- Remove: "Frames per Boundary" LLM setting (was unused dead code)
+- Remove: "Split at Credits/Outro End" LLM setting (now redundant with transition detection)
+
+- Fix: LLM raw detection now returns TRANSITIONS for credits/outro
+  - Previously returned every credits=True frame, clustering averaged to middle of credits
+  - Now detects credits=True→False transitions and returns the transition point
+  - Boundary is at midpoint between last credits frame and first non-credits frame
+  - Score based on run length (run_length * 20) - longer credit runs = higher confidence
+  - Requires 3+ consecutive True frames for credits/outro (filters noise)
+
+- Fix: LLM logo detection now returns each logo frame (not transition-based)
+  - Logos are brief/intermittent - networks splash logos between shows
+  - Each logo=True frame becomes a detection with score=30
+  - Multiple logo frames in proximity naturally cluster together
+  - Previously required 3+ consecutive frames which never happens for logos
+
+- Improve: Fine sampling mode now stays active for 10 seconds (was 5)
+  - Gives more time to capture logo transitions after initial detection
+  - Helps when logos appear intermittently across multiple frames
+
+- Improve: Ollama API requests now include stability parameters
+  - temperature=0.1 (more deterministic, less random sampling)
+  - top_k=40 (limit token selection pool)
+  - num_predict=150 (limit response length)
+  - May reduce "failed to sample token" crashes
+
+- Improve: LLM detector retry logic for Ollama instability
+  - Changed from 1×60s timeout to 3×20s retries
+  - Handles Ollama crashes/restarts (panic: failed to sample token)
+  - Retries on HTTP 500 and connection errors with brief pauses
+  - Fails faster on individual timeouts, recovers when Ollama restarts
+
+- Major: Refactored to raw detection clustering architecture
+  - Detectors now return ALL raw detections via `detect_raw_in_windows()`, not just "best" per window
+  - Clustering combines raw detections across all detectors per window
+  - Multi-detector agreement at same timestamp beats single high-confidence detection
+  - Example: low-conf black_frame + low-conf LLM at 187m > high-conf black_frame alone at 184m
+
+- Change: Boundary detectors with raw clustering support
+  - silence: All silences scored by duration (duration * 10)
+  - black_frame: All black frames scored by duration (duration * 10)
+  - scene_change: All scene changes scored by magnitude (scene_score * 100)
+  - speech: Episode-end phrases ("stay tuned", etc.) scored at 50
+  - llm_vision: Each credits/logo/outro frame scored by sampling interval
+
+- Note: Pattern detectors (image_hash, audio_fingerprint) not using raw clustering
+  - These detect recurring intros at episode STARTS, not boundaries
+  - Different use case from boundary detection
+
+- Change: LLM detector scoring based on time represented
+  - Each credits/logo/outro frame scored by sampling interval
+  - 10s interval frame = 10 points, 1s interval frame = 1 point
+  - Credits, logo, outro are separate indicators that cluster independently
+  - Natural clustering replaces arbitrary "3+ consecutive frames = strong" logic
+
+- Change: Cluster scoring formula (RawDetectionClusterer)
+  - Sum of individual detection scores
+  - Detector diversity bonus: 1.5^(num_detectors - 1)
+  - Proximity penalty: tighter clusters score higher
+  - 60-second clustering tolerance window
+
+- Simplify: Plugin combining logic greatly reduced
+  - Removed 400+ lines of manual cluster logic in plugin.py
+  - Detection runner now returns best clustered boundary per window
+  - Plugin just uses the result directly
+
+**<span style="color:#56adda">0.0.18</span>**
+- Feature: Dynamic LLM sampling rate based on logo detection
+  - Normal sampling: every 10 seconds
+  - When logo detected: switches to 1-second sampling for precision
+  - Captures precise logo→non-logo transition
+  - Resumes 10-second sampling after transition captured
+  - Logs show `[FINE]` prefix during high-frequency sampling
+
+- Feature: Strong logo detection as independent boundary indicator
+  - 3+ consecutive logo=True frames (at 1s intervals) = strong logo
+  - Strong logo→no-logo transition gets confidence 0.90
+  - Works independently of credits detection
+  - Useful when no strong credits transition is found
+
+- Improve: Combining logic now prefers high-confidence LLM over black_frame
+  - High-confidence LLM (>=0.88) indicates strong credits or logo transition
+  - LLM's precise transition time is used instead of black_frame's time
+  - Black_frame may detect a different black frame (scene change, not boundary)
+  - Falls back to black_frame only when LLM confidence is low
+
+- Improve: TMDB lookup debugging and consistency
+  - Added detailed debug logging for TMDB title parsing and lookups
+  - Logs parsed title, series_id, episodes found, and runtimes
+  - Specific error messages when episodes are missing or lack runtime data
+  - Phase 1 (window calculation) and validation now use same title parsing
+  - Prevents inconsistent TMDB results between phases
+
+- Fix: TMDB episode range handling
+  - Now passes start_episode directly to get exact episodes needed
+  - Handles cases where file is S2E5-8 but TMDB only has partial season data
+  - Logs specific warnings about which episodes couldn't be found
+
+**<span style="color:#56adda">0.0.17</span>**
+- Feature: LLM now detects network/production logos (HBO, Netflix, BBC, etc.)
+  - Logo detection added to LLM prompt alongside credits, intro, outro
+  - Logo on/near transition acts as confirmation, boosting confidence
+
+- Improve: Transition strength now considered for better accuracy
+  - Strong transition: 3+ consecutive credits=True frames → credits=False (conf 0.88-0.92)
+  - Weak transition: 1-2 frames of credits=True → ignored as noise
+  - Logo confirmation: logo on last credits frame or within 2 frames after = +0.04 confidence
+  - Single isolated credits=True frames after logo are ignored (likely intro misdetected)
+  - Metadata includes `credits_run_length`, `logo_confirms`
+
+- Improve: Accurate search window calculation using TMDB + commercial chapter data
+  - Extracts actual commercial duration per episode from chapter markers (Commercial 1, 2, 3...)
+  - Episode total = TMDB runtime + episode's actual commercial time
+  - Any discrepancy vs file duration is pro-rated proportionally across episodes
+  - Window centers are now at the true calculated boundary position
+  - Falls back to estimated commercials when chapter data unavailable
+
 **<span style="color:#56adda">0.0.16</span>**
 
 - Fix: LLM detection hanging - use REST API instead of ollama library

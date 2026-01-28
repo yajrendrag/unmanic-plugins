@@ -278,6 +278,78 @@ class ChapterDetector:
 
         return []
 
+    def get_commercial_times_per_episode(
+        self,
+        probe_data: dict,
+    ) -> Optional[List[float]]:
+        """
+        Get total commercial time for each episode from chapter markers.
+
+        Groups commercial chapters (Commercial 1, Commercial 2, etc.) by episode.
+        Commercial 1 marks the start of a new episode's commercial block.
+        All commercials from Commercial 1 through Commercial N belong to that episode.
+
+        Args:
+            probe_data: FFprobe output dictionary
+
+        Returns:
+            List of commercial durations (in seconds) per episode, or None if
+            no commercial markers found. Length = number of episodes.
+        """
+        chapters = probe_data.get('chapters', [])
+        if not chapters:
+            return None
+
+        # Pattern to match any "Commercial N" chapter
+        commercial_pattern = re.compile(r'^commercial\s+(\d+)$', re.IGNORECASE)
+
+        # Find all commercial chapters with their times and numbers
+        commercials = []
+        for ch in chapters:
+            title = ch.get('tags', {}).get('title', '')
+            match = commercial_pattern.match(title)
+            if match:
+                commercial_num = int(match.group(1))
+                start_time = float(ch.get('start_time', 0))
+                end_time = float(ch.get('end_time', 0))
+                duration = end_time - start_time
+                commercials.append({
+                    'num': commercial_num,
+                    'start': start_time,
+                    'end': end_time,
+                    'duration': duration,
+                })
+
+        if not commercials:
+            return None
+
+        # Sort by start time
+        commercials.sort(key=lambda x: x['start'])
+
+        # Group by episode: Commercial 1 starts a new episode's commercials
+        episodes_commercials = []
+        current_episode_total = 0.0
+
+        for comm in commercials:
+            if comm['num'] == 1:
+                # Start of new episode's commercials
+                if current_episode_total > 0 or episodes_commercials:
+                    # Save previous episode's total (or 0 for first episode if no commercials before first Commercial 1)
+                    episodes_commercials.append(current_episode_total)
+                current_episode_total = comm['duration']
+            else:
+                # Additional commercial for current episode
+                current_episode_total += comm['duration']
+
+        # Don't forget the last episode's commercials
+        episodes_commercials.append(current_episode_total)
+
+        logger.debug(
+            f"Commercial times per episode: {[f'{t/60:.1f}m' for t in episodes_commercials]}"
+        )
+
+        return episodes_commercials
+
     def _analyze_chapter_structure(self, chapters: List[dict]) -> dict:
         """
         Analyze chapter structure to determine if chapters represent episodes.

@@ -432,3 +432,75 @@ class SpeechDetector:
         # Sort by start time
         markers.sort(key=lambda x: x.start_time)
         return markers
+
+    def detect_raw_in_windows(
+        self,
+        file_path: str,
+        search_windows: List,  # List of SearchWindow objects
+    ) -> List:
+        """
+        Return ALL speech detections as RawDetection objects.
+
+        Detects episode-end phrases ("stay tuned", "next time on", etc.)
+        and returns them as raw detections for clustering.
+
+        Score is 50 for each episode-end phrase detection (high weight
+        because these are strong boundary indicators).
+
+        Args:
+            file_path: Path to the video file
+            search_windows: List of SearchWindow objects defining where to search
+
+        Returns:
+            List of RawDetection objects (imported from raw_detection module)
+        """
+        from .raw_detection import RawDetection
+
+        if not self.is_available():
+            logger.warning("Speech detection not available for raw detection")
+            return []
+
+        all_detections = []
+        model = self._get_model()
+
+        if model is None:
+            return []
+
+        with tempfile.TemporaryDirectory(prefix='split_speech_raw_') as temp_dir:
+            for window in search_windows:
+                window_duration = window.end_time - window.start_time
+
+                # Extract audio for this window
+                audio_path = os.path.join(temp_dir, f'window_{window.start_time:.0f}.wav')
+                if not self._extract_audio(file_path, window.start_time, window_duration, audio_path):
+                    continue
+
+                # Transcribe the audio
+                segments = self._transcribe(audio_path, window.start_time)
+                if not segments:
+                    continue
+
+                # Find episode-end phrases
+                episode_end_markers = self._find_episode_end_markers(segments)
+
+                for marker in episode_end_markers:
+                    # Use the END time of the phrase as the detection point
+                    # Score is high (50) because these are strong indicators
+                    all_detections.append(RawDetection(
+                        timestamp=marker.end_time,
+                        score=50,
+                        source='speech',
+                        metadata={
+                            'phrase': marker.text,
+                            'phrase_start': marker.start_time,
+                            'phrase_end': marker.end_time,
+                            'window_center': window.center_time,
+                        }
+                    ))
+
+                    logger.debug(
+                        f"Speech raw detection: '{marker.text}' ending at {marker.end_time/60:.1f}m"
+                    )
+
+        logger.info(f"Speech detector: {len(all_detections)} raw detections")
+        return all_detections
