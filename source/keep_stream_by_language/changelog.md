@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.9</span>**
+- fix directoryinfo path reference in worker process - it needed to use original file path not file_in as that could be a cache file which would have no directory info
+
 **<span style="color:#56adda">0.1.8</span>**
 - fix streams_list function to ignore commentary streams when testing audio streams against config lists.
 - change behavior in worker to set a keep_all_audio flag if null test succeeds; then skip keep_audio_langs and just keep all languages; this allows subs to still process

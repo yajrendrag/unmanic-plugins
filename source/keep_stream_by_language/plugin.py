@@ -474,7 +474,7 @@ def on_worker_process(data):
     if reorder_kept:
         prefer_2_or_mc = settings.get_setting('prefer_2_or_mc')
 
-    if not file_streams_already_kept(settings, data.get('file_in')):
+    if not file_streams_already_kept(settings, data.get('original_file_path')):
         # Get stream mapper
         mapper = PluginStreamMapper()
         mapper.set_settings(settings)
