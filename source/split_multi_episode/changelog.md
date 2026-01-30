@@ -1,4 +1,7 @@
 
+*<span style="color:#56adda">0.2.3</span>**
+- move llm_detector.py to lib/detection
+
 *<span style="color:#56adda">0.2.2</span>**
 
 - Change: LLM Precision Mode windows widened to 4 minutes total

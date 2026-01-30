@@ -1250,105 +1250,190 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
         return None
 
-    def _parse_pattern(self, pattern: str) -> Tuple[List[str], int]:
+    def _parse_pattern(self, pattern: str) -> Tuple[List[str], int, set]:
         """
-        Parse a boundary pattern string into a list of tokens and split index.
+        Parse a boundary pattern string into a list of tokens, split index, and types.
+
+        This implements "ignore pattern" logic - only detection types mentioned
+        in the pattern are considered. Other detections are filtered out.
 
         Args:
-            pattern: Pattern string like "c-l-c-s-l"
+            pattern: Pattern string like "c-l-c-s-l" or "l-l-s" (ignore pattern)
 
         Returns:
-            Tuple of (tokens list without 's', split_index)
-            e.g., "c-l-c-s-l" -> (['c', 'l', 'c', 'l'], 3)
+            Tuple of (tokens list without 's', split_index, types_in_pattern)
+            e.g., "c-l-c-s-l" -> (['c', 'l', 'c', 'l'], 3, {'c', 'l'})
+            e.g., "l-l-s" -> (['l', 'l'], 2, {'l'})  # ignore credits
         """
         # Filter out spaces and split by hyphen
         pattern = pattern.replace(' ', '').lower()
         tokens = [t for t in pattern.split('-') if t]
 
-        # Find split point index
+        # Find split point index and collect types
         split_index = -1
         tokens_without_split = []
+        types_in_pattern = set()
+
         for i, t in enumerate(tokens):
             if t == 's':
                 split_index = len(tokens_without_split)
             else:
                 tokens_without_split.append(t)
+                types_in_pattern.add(t)
 
-        return tokens_without_split, split_index
+        return tokens_without_split, split_index, types_in_pattern
 
-    def _match_pattern(
+    def _group_detections(
         self,
-        detections: List[Tuple[float, str]],  # List of (timestamp, type) where type is 'c' or 'l'
-        pattern_tokens: List[str],
-        split_index: int,
-    ) -> Optional[float]:
+        detections: List[Tuple[float, str]],  # List of (timestamp, type)
+        grouping_buffer: float,
+    ) -> List[Tuple[float, str, List[float]]]:
         """
-        Match detections against a pattern and return the split point timestamp.
+        Group nearby detections of the same type into blocks.
+
+        Detections within `grouping_buffer` seconds of each other (of the same type)
+        are merged into a single block. The block's timestamp is the LAST detection
+        in the group (for splitting purposes).
 
         Args:
             detections: List of (timestamp, type) tuples, sorted by timestamp
-            pattern_tokens: Pattern tokens without 's' (e.g., ['c', 'l', 'c', 'l'])
+            grouping_buffer: Maximum seconds between detections to group them
+
+        Returns:
+            List of (representative_timestamp, type, all_timestamps) tuples
+            representative_timestamp is the LAST detection in the group
+        """
+        if not detections:
+            return []
+
+        grouped = []
+        current_group_timestamps = [detections[0][0]]
+        current_type = detections[0][1]
+
+        for i in range(1, len(detections)):
+            ts, typ = detections[i]
+            prev_ts = current_group_timestamps[-1]
+
+            # Check if this detection should join the current group
+            # Must be same type AND within buffer
+            if typ == current_type and (ts - prev_ts) <= grouping_buffer:
+                current_group_timestamps.append(ts)
+            else:
+                # Close current group and start new one
+                # Use LAST timestamp as representative (for split-before logic)
+                grouped.append((
+                    current_group_timestamps[-1],  # Last timestamp in group
+                    current_type,
+                    current_group_timestamps.copy()
+                ))
+                current_group_timestamps = [ts]
+                current_type = typ
+
+        # Don't forget the last group
+        grouped.append((
+            current_group_timestamps[-1],
+            current_type,
+            current_group_timestamps.copy()
+        ))
+
+        return grouped
+
+    def _match_pattern(
+        self,
+        blocks: List[Tuple[float, str, List[float]]],  # Grouped blocks from _group_detections
+        pattern_tokens: List[str],
+        split_index: int,
+    ) -> Optional[Tuple[float, dict]]:
+        """
+        Match grouped blocks against a pattern and return the split point.
+
+        Args:
+            blocks: List of (timestamp, type, all_timestamps) from _group_detections
+            pattern_tokens: Pattern tokens without 's' (e.g., ['l', 'l'] for "l-l-s")
             split_index: Where the split point falls in the pattern
 
         Returns:
-            Timestamp to split at, or None if no match
+            Tuple of (split_timestamp, metadata) or None if no match
         """
-        if not detections or not pattern_tokens:
+        if not blocks or not pattern_tokens:
             return None
 
-        # Try to match the full pattern first
-        if len(detections) >= len(pattern_tokens):
-            # Check if detections match the pattern
+        # Extract just (timestamp, type) for matching
+        block_sequence = [(b[0], b[1]) for b in blocks]
+
+        logger.debug(
+            f"  Pattern matching: {len(blocks)} blocks against pattern "
+            f"{'-'.join(pattern_tokens)} (split at index {split_index})"
+        )
+        logger.debug(
+            f"  Blocks: {[(f'{ts/60:.1f}m', typ, len(all_ts)) for ts, typ, all_ts in blocks]}"
+        )
+
+        # Try to match the full pattern
+        if len(block_sequence) >= len(pattern_tokens):
+            # Check if blocks match the pattern
             matches = True
             for i, token in enumerate(pattern_tokens):
-                if i >= len(detections):
+                if i >= len(block_sequence):
                     matches = False
                     break
-                if detections[i][1] != token:
+                if block_sequence[i][1] != token:
                     matches = False
                     break
 
             if matches:
-                # Full match - split point is right before the detection at split_index
-                if split_index < len(detections):
-                    # Split before this detection
-                    split_ts = detections[split_index][0]
+                # Full match - split point is right before the block at split_index
+                if split_index < len(blocks):
+                    # Split before this block - use FIRST timestamp of this block
+                    # (the block's timestamp is the LAST, but we split BEFORE)
+                    split_block = blocks[split_index]
+                    split_ts = split_block[2][0]  # First timestamp in the block
                     logger.debug(
-                        f"  PATTERN FULL MATCH: split before detection at {split_ts/60:.1f}m"
+                        f"  PATTERN FULL MATCH: split before block {split_index} "
+                        f"at {split_ts/60:.1f}m (block has {len(split_block[2])} detections)"
                     )
-                    return split_ts
+                    return (split_ts, {
+                        'match_type': 'full',
+                        'blocks_matched': len(pattern_tokens),
+                        'split_block_detections': len(split_block[2]),
+                    })
                 else:
-                    # Split is at the end
-                    split_ts = detections[-1][0]
+                    # Split is at the end (after last block)
+                    split_ts = blocks[-1][0]
                     logger.debug(
-                        f"  PATTERN FULL MATCH: split after last detection at {split_ts/60:.1f}m"
+                        f"  PATTERN FULL MATCH: split after last block at {split_ts/60:.1f}m"
                     )
-                    return split_ts
+                    return (split_ts, {
+                        'match_type': 'full_end',
+                        'blocks_matched': len(pattern_tokens),
+                    })
 
-        # Partial match - find the first credits→logo transition
-        # The user's logic: if we can't match the full pattern, the credits→logo
-        # transition is the key boundary marker. Split before the first logo
-        # that follows credits.
-        prev_was_credits = False
-        for ts, typ in detections:
-            if typ == 'c':
-                prev_was_credits = True
-            elif typ == 'l' and prev_was_credits:
-                # Found credits→logo transition, split before this logo
-                logger.debug(
-                    f"  PATTERN PARTIAL MATCH: credits→logo transition, "
-                    f"split before logo at {ts/60:.1f}m"
-                )
-                return ts
+        # Partial match fallback - for patterns containing credits
+        # Find credits→logo transition and split before the logo
+        if 'c' in pattern_tokens and 'l' in pattern_tokens:
+            prev_was_credits = False
+            for ts, typ, all_ts in blocks:
+                if typ == 'c':
+                    prev_was_credits = True
+                elif typ == 'l' and prev_was_credits:
+                    # Split before first detection in this logo block
+                    split_ts = all_ts[0]
+                    logger.debug(
+                        f"  PATTERN PARTIAL MATCH: credits→logo transition, "
+                        f"split before logo at {split_ts/60:.1f}m"
+                    )
+                    return (split_ts, {
+                        'match_type': 'partial_c_to_l',
+                    })
 
-        # No credits→logo transition found - try splitting before first logo
-        for ts, typ in detections:
-            if typ == 'l':
-                logger.debug(
-                    f"  PATTERN PARTIAL MATCH: no c→l transition, "
-                    f"split before first logo at {ts/60:.1f}m"
-                )
-                return ts
+        # For logo-only patterns (like l-l-s), if we don't have enough blocks,
+        # we can't match - return None
+        if len(block_sequence) < len(pattern_tokens):
+            logger.debug(
+                f"  PATTERN NO MATCH: need {len(pattern_tokens)} blocks, "
+                f"only have {len(block_sequence)}"
+            )
+            return None
 
         return None
 
@@ -1357,8 +1442,9 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
         file_path: str,
         search_windows: List,  # List of SearchWindow objects (narrow windows)
         post_credits_buffer: int = 15,  # seconds to look for logos after credits
-        precision_pattern: str = "",  # Pattern like "c-l-c-s-l"
+        precision_pattern: str = "",  # Pattern like "c-l-c-s-l" or "l-l-s"
         progress_callback: Optional[callable] = None,  # callback(frames_done, total_frames)
+        pattern_grouping_buffer: float = 10.0,  # seconds to group detections into blocks
     ) -> List[Tuple[float, float, dict]]:
         """
         LLM Precision Mode: Dense sampling in narrow windows for logo-focused detection.
@@ -1371,14 +1457,21 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
         - Logo-centric split logic OR pattern matching
         - Auto-expansion when no detections found (±1.5 minutes)
 
+        Pattern Mode (when precision_pattern is set):
+        - "Ignore pattern" logic: only detection types in the pattern are considered
+        - e.g., "l-l-s" means only consider logos, ignore credits entirely
+        - Detections within pattern_grouping_buffer seconds are grouped into blocks
+        - Pattern is matched against grouped blocks, not individual detections
+
         Args:
             file_path: Path to the video file
             search_windows: List of SearchWindow objects (should be narrow windows)
             post_credits_buffer: Seconds after credits to include logos (default 15)
-            precision_pattern: Pattern like "c-l-c-s-l" for pattern-based matching.
-                              When specified, uses pattern matching instead of buffer logic.
+            precision_pattern: Pattern like "c-l-c-s-l" or "l-l-s" for pattern matching.
+                              Only detection types in the pattern are considered.
                               If pattern doesn't match, expands once then fails.
             progress_callback: Optional callback(frames_done, total_frames) for progress
+            pattern_grouping_buffer: Seconds within which to group detections into blocks
 
         Returns:
             List of (boundary_time, confidence, metadata) tuples, one per window
@@ -1397,17 +1490,19 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
         # Parse pattern if provided
         pattern_tokens = []
         pattern_split_index = -1
+        pattern_types = set()
         use_pattern_mode = False
 
         if precision_pattern:
             precision_pattern = precision_pattern.replace(' ', '').lower()
             if precision_pattern and 's' in precision_pattern:
-                pattern_tokens, pattern_split_index = self._parse_pattern(precision_pattern)
+                pattern_tokens, pattern_split_index, pattern_types = self._parse_pattern(precision_pattern)
                 if pattern_tokens and pattern_split_index >= 0:
                     use_pattern_mode = True
                     logger.info(
                         f"Pattern mode: '{precision_pattern}' -> tokens={pattern_tokens}, "
-                        f"split at index {pattern_split_index}"
+                        f"split at index {pattern_split_index}, "
+                        f"types={pattern_types} (grouping buffer={pattern_grouping_buffer}s)"
                     )
 
         with tempfile.TemporaryDirectory(prefix='split_llm_precision_') as temp_dir:
@@ -1436,33 +1531,45 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     }))
                     continue
 
-                # Pattern mode: extract detections and match against pattern
+                # Pattern mode: extract detections, filter, group, and match
                 if use_pattern_mode:
                     # Build detection sequence: (timestamp, type) sorted by time
+                    # ONLY include types that are in the pattern (ignore logic)
                     all_detections = []
                     for ts, analysis in window_analyses:
-                        if analysis.is_credits:
+                        if 'c' in pattern_types and analysis.is_credits:
                             all_detections.append((ts, 'c'))
-                        if analysis.is_logo:
+                        if 'l' in pattern_types and analysis.is_logo:
                             all_detections.append((ts, 'l'))
 
                     # Sort by timestamp (should already be sorted, but ensure it)
                     all_detections.sort(key=lambda x: x[0])
 
                     logger.debug(
-                        f"  Pattern mode: {len(all_detections)} detections in window: "
-                        f"{[(f'{t/60:.1f}m', d) for t, d in all_detections]}"
+                        f"  Pattern mode: {len(all_detections)} filtered detections "
+                        f"(types={pattern_types}): {[(f'{t/60:.1f}m', d) for t, d in all_detections]}"
                     )
 
-                    # Try to match pattern
-                    split_ts = self._match_pattern(all_detections, pattern_tokens, pattern_split_index)
+                    # Group detections into blocks using the grouping buffer
+                    grouped_blocks = self._group_detections(all_detections, pattern_grouping_buffer)
+                    logger.debug(
+                        f"  Grouped into {len(grouped_blocks)} blocks (buffer={pattern_grouping_buffer}s): "
+                        f"{[(f'{ts/60:.1f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks]}"
+                    )
 
-                    if split_ts is not None:
+                    # Try to match pattern against grouped blocks
+                    match_result = self._match_pattern(grouped_blocks, pattern_tokens, pattern_split_index)
+
+                    if match_result is not None:
+                        split_ts, match_metadata = match_result
                         results.append((split_ts, 0.90, {
                             'source': 'llm_precision_pattern',
                             'window_source': window.source,
                             'pattern': precision_pattern,
                             'detection_count': len(all_detections),
+                            'block_count': len(grouped_blocks),
+                            'grouping_buffer': pattern_grouping_buffer,
+                            **match_metadata,
                         }))
                         continue
 
@@ -1490,26 +1597,32 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                         combined_analyses = exp_analyses + list(window_analyses)
                         combined_detections = []
                         for ts, analysis in combined_analyses:
-                            if analysis.is_credits:
+                            if 'c' in pattern_types and analysis.is_credits:
                                 combined_detections.append((ts, 'c'))
-                            if analysis.is_logo:
+                            if 'l' in pattern_types and analysis.is_logo:
                                 combined_detections.append((ts, 'l'))
                         combined_detections.sort(key=lambda x: x[0])
 
+                        # Group combined detections
+                        grouped_blocks = self._group_detections(combined_detections, pattern_grouping_buffer)
                         logger.debug(
-                            f"  Combined detections after backward expansion: "
-                            f"{[(f'{t/60:.1f}m', d) for t, d in combined_detections]}"
+                            f"  Combined after backward expansion: {len(grouped_blocks)} blocks: "
+                            f"{[(f'{ts/60:.1f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks]}"
                         )
 
-                        split_ts = self._match_pattern(combined_detections, pattern_tokens, pattern_split_index)
+                        match_result = self._match_pattern(grouped_blocks, pattern_tokens, pattern_split_index)
 
-                        if split_ts is not None:
+                        if match_result is not None:
+                            split_ts, match_metadata = match_result
                             results.append((split_ts, 0.85, {
                                 'source': 'llm_precision_pattern_expanded',
                                 'window_source': window.source,
                                 'pattern': precision_pattern,
                                 'detection_count': len(combined_detections),
+                                'block_count': len(grouped_blocks),
+                                'grouping_buffer': pattern_grouping_buffer,
                                 'from_expansion': True,
+                                **match_metadata,
                             }))
                             continue
 
@@ -1540,26 +1653,32 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                     combined_detections = []
                     for ts, analysis in all_analyses:
-                        if analysis.is_credits:
+                        if 'c' in pattern_types and analysis.is_credits:
                             combined_detections.append((ts, 'c'))
-                        if analysis.is_logo:
+                        if 'l' in pattern_types and analysis.is_logo:
                             combined_detections.append((ts, 'l'))
                     combined_detections.sort(key=lambda x: x[0])
 
+                    # Group final combined detections
+                    grouped_blocks = self._group_detections(combined_detections, pattern_grouping_buffer)
                     logger.debug(
-                        f"  Combined detections after all expansions: "
-                        f"{[(f'{t/60:.1f}m', d) for t, d in combined_detections]}"
+                        f"  Combined after all expansions: {len(grouped_blocks)} blocks: "
+                        f"{[(f'{ts/60:.1f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks]}"
                     )
 
-                    split_ts = self._match_pattern(combined_detections, pattern_tokens, pattern_split_index)
+                    match_result = self._match_pattern(grouped_blocks, pattern_tokens, pattern_split_index)
 
-                    if split_ts is not None:
+                    if match_result is not None:
+                        split_ts, match_metadata = match_result
                         results.append((split_ts, 0.80, {
                             'source': 'llm_precision_pattern_expanded',
                             'window_source': window.source,
                             'pattern': precision_pattern,
                             'detection_count': len(combined_detections),
+                            'block_count': len(grouped_blocks),
+                            'grouping_buffer': pattern_grouping_buffer,
                             'from_expansion': True,
+                            **match_metadata,
                         }))
                         continue
 
@@ -1567,7 +1686,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     logger.warning(
                         f"  PATTERN MATCH FAILED: Could not match pattern '{precision_pattern}' "
                         f"in window {window.center_time/60:.1f}m (even after expansion). "
-                        f"Detections found: {[(f'{t/60:.1f}m', d) for t, d in combined_detections]}"
+                        f"Blocks found: {[(f'{ts/60:.1f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks]}"
                     )
                     results.append((window.center_time, 0.0, {
                         'source': 'llm_precision_pattern_failed',
@@ -1575,7 +1694,8 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                         'failed': True,
                         'pattern': precision_pattern,
                         'error': f"Pattern '{precision_pattern}' did not match detections",
-                        'detections_found': [(f'{t/60:.1f}m', d) for t, d in combined_detections],
+                        'blocks_found': [(f'{ts/60:.1f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks],
+                        'grouping_buffer': pattern_grouping_buffer,
                     }))
                     continue
 
