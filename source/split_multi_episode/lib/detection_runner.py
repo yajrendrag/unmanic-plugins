@@ -303,7 +303,11 @@ def _run_precision_mode(
     progress.set_methods(['llm_precision'])
     progress.start_method('llm_precision', num_windows)
 
-    progress.log(f"LLM Precision Mode: {num_windows} windows, 2-second sampling, sequential with drift adjustment")
+    precision_pattern = settings.get('llm_precision_pattern', '')
+    if precision_pattern:
+        progress.log(f"LLM Precision Mode: {num_windows} windows, pattern matching '{precision_pattern}'")
+    else:
+        progress.log(f"LLM Precision Mode: {num_windows} windows, 2-second sampling, sequential with drift adjustment")
 
     detector = LLMDetector(
         ollama_host=settings['llm_ollama_host'],
@@ -348,7 +352,19 @@ def _run_precision_mode(
         )
 
         # Run detection on this single window
-        results = detector.detect_precision_in_windows(file_path, [adjusted_window])
+        post_credits_buffer = settings.get('llm_post_credits_buffer', 15)
+        precision_pattern = settings.get('llm_precision_pattern', '')
+
+        # Create progress callback for frame-level updates
+        def frame_progress_callback(frames_done, total_frames):
+            if total_frames > 0:
+                fraction = frames_done / total_frames
+                progress.update_sub_progress(fraction)
+
+        results = detector.detect_precision_in_windows(
+            file_path, [adjusted_window], post_credits_buffer, precision_pattern,
+            progress_callback=frame_progress_callback
+        )
 
         if not results:
             # Should not happen, but handle gracefully
@@ -359,6 +375,7 @@ def _run_precision_mode(
                 'error': 'No result returned from detector',
             }]
             failed_windows.append(i + 1)
+            progress.update_window_progress(i + 1)
             continue
 
         boundary_time, confidence, metadata = results[0]
@@ -373,6 +390,7 @@ def _run_precision_mode(
                 f"  Window {i+1}: FAILED - {metadata.get('error', 'No detections found')}"
             )
             # Don't update drift on failure - keep using current drift
+            progress.update_window_progress(i + 1)
             continue
 
         # Calculate drift for this window and update cumulative
@@ -396,11 +414,19 @@ def _run_precision_mode(
                 f"  Window {i+1}: {boundary_time/60:.1f}m via credits transition "
                 f"(conf={confidence:.2f}){from_expansion}{drift_info}"
             )
+        elif 'pattern' in source:
+            progress.log(
+                f"  Window {i+1}: {boundary_time/60:.1f}m via pattern match "
+                f"(conf={confidence:.2f}){from_expansion}{drift_info}"
+            )
         else:
             progress.log(
                 f"  Window {i+1}: {boundary_time/60:.1f}m fallback "
                 f"(conf={confidence:.2f}){drift_info}"
             )
+
+        # Update progress gauge after each window
+        progress.update_window_progress(i + 1)
 
     if failed_windows:
         progress.log(

@@ -75,13 +75,39 @@ For **clean files without commercials** (DVD rips, streaming content), Precision
 4. **Logo-centric logic** - Prioritizes network/production logos as boundary markers
 5. **Boundary filtering** - Excludes logos that appear after credits transition (next episode's intro)
 
-### Fallback Chain
+### Fallback Chain (Buffer Mode)
 
 If no detections in primary window:
 1. Expand backward 1.5 minutes (boundaries often earlier than predicted)
 2. Expand forward 1.5 minutes
 3. Fall back to normal mode (10-minute window, 10-second intervals)
 4. If still nothing found, abort rather than make unreliable split
+
+### Pattern Mode
+
+For shows with complex credits/logo sequences, you can specify an exact pattern to match:
+
+**Pattern syntax:**
+- `c` = credits detection
+- `l` = logo detection
+- `s` = split point (where to cut)
+- `-` = separator
+
+**Example:** `c-l-c-s-l`
+- Matches: credits → logo → credits → **[SPLIT HERE]** → logo
+- The split occurs right before the second logo
+
+**Matching behavior:**
+- Full match: If all pattern elements are found in order, splits at the `s` position
+- Partial match: If pattern is `c-l-c-s-l` but only `c-l-l` detected, splits before the first `l` where the pattern broke
+- No match: Expands window once (backward then forward), then fails with error
+
+**When to use:**
+- Shows with alternating credits/logo patterns (c-l-c-l sequences)
+- When the buffer approach splits at the wrong logo
+- Complex end sequences that need precise pattern matching
+
+Note: When a pattern is specified, the Post-Credits Buffer setting is ignored.
 
 ### Requirements
 
@@ -125,6 +151,8 @@ Dependencies are automatically installed via `init.d/install-deps.sh`:
 | Ollama Host | `http://localhost:11434` | URL of Ollama API endpoint. Can be a remote server (e.g., `http://192.168.1.100:11434`) |
 | LLM Model | `qwen2.5vl:3b` | Vision model to use |
 | LLM Precision Mode | Off | Use narrow windows with dense sampling for clean files |
+| Post-Credits Buffer | 15 sec | How far after credits to include logos as boundary markers (5-60 sec) |
+| Boundary Pattern | (empty) | Sequence pattern for complex boundaries (e.g., "c-l-c-s-l") |
 
 #### LLM Detection Details
 

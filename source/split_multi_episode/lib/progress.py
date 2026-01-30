@@ -47,6 +47,7 @@ class ProgressTracker:
         self.current_method: Optional[str] = None
         self._total_windows: int = 1
         self._completed_windows: int = 0
+        self._sub_progress: float = 0.0  # Progress within current window (0.0 to 1.0)
 
     def set_methods(self, method_names: List[str]):
         """Set the list of enabled detection methods."""
@@ -65,9 +66,18 @@ class ProgressTracker:
 
     def update_window_progress(self, completed_windows: int):
         """Update progress within current method based on windows completed."""
+        logger.debug(f"update_window_progress: {completed_windows}/{self._total_windows}")
         self._completed_windows = completed_windows
-        if self._total_windows > 1 and self.current_method:
-            self.log(f"  {self.current_method}: window {completed_windows}/{self._total_windows}")
+        self._sub_progress = 0.0  # Reset sub-progress when window completes
+        # Always log window progress for precision mode visibility
+        if self.current_method:
+            percent = int((completed_windows / self._total_windows) * 100) if self._total_windows > 0 else 0
+            self.log(f"  {self.current_method}: window {completed_windows}/{self._total_windows} ({percent}%)")
+        self._emit_progress()
+
+    def update_sub_progress(self, fraction: float):
+        """Update progress within current window (0.0 to 1.0)."""
+        self._sub_progress = max(0.0, min(1.0, fraction))
         self._emit_progress()
 
     def complete_method(self):
@@ -92,22 +102,35 @@ class ProgressTracker:
 
     def _emit_progress(self):
         """Calculate and emit overall progress."""
+        import sys
+
         if not self.methods:
+            logger.debug("_emit_progress: no methods set, skipping")
             return
 
         # Calculate: (completed_methods + current_method_progress) / total_methods
+        # Include sub-progress within current window
         current_progress = 0.0
         if self.current_method and self._total_windows > 0:
-            current_progress = self._completed_windows / self._total_windows
+            current_progress = (self._completed_windows + self._sub_progress) / self._total_windows
 
         overall = (self.completed_methods + current_progress) / len(self.methods)
         percent = int(overall * 100)
 
+        # Debug to stderr (visible in unmanic logs)
+        print(
+            f"[PROGRESS DEBUG] {percent}% "
+            f"(windows={self._completed_windows}/{self._total_windows}, "
+            f"sub={self._sub_progress:.2f}, "
+            f"queue={self.progress_queue is not None})",
+            file=sys.stderr, flush=True
+        )
+
         if self.progress_queue is not None:
             try:
                 self.progress_queue.put(percent)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[PROGRESS ERROR] Failed to put on queue: {e}", file=sys.stderr, flush=True)
 
     def get_overall_progress(self) -> int:
         """Get current overall progress (0-100)."""

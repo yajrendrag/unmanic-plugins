@@ -1045,7 +1045,8 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
         end_time: float,
         temp_dir: str,
         interval: int = 2,
-        label: str = ""
+        label: str = "",
+        progress_callback: Optional[callable] = None,
     ) -> Tuple[List[Tuple[float, 'FrameAnalysis']], List[float], List[float], List[Tuple[float, int]]]:
         """
         Scan a time range with precision sampling and return analysis results.
@@ -1057,6 +1058,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
             temp_dir: Temp directory for frames
             interval: Sampling interval in seconds
             label: Label for logging (e.g., "expansion_backward")
+            progress_callback: Optional callback(frames_done, total_frames) for progress updates
 
         Returns:
             Tuple of (window_analyses, logo_timestamps, credits_timestamps, credits_transitions)
@@ -1064,8 +1066,20 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
         window_analyses = []
         current_ts = start_time
 
+        # Calculate total frames for progress reporting
+        total_frames = max(1, int((end_time - start_time) / interval) + 1)
+        frames_done = 0
+
         while current_ts <= end_time:
             analysis = self._analyze_timestamp(file_path, current_ts, temp_dir)
+            frames_done += 1
+
+            # Report progress after each frame
+            if progress_callback:
+                try:
+                    progress_callback(frames_done, total_frames)
+                except Exception:
+                    pass
 
             if analysis:
                 window_analyses.append((current_ts, analysis))
@@ -1084,7 +1098,8 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
         # Collect credits timestamps
         credits_timestamps = [ts for ts, a in window_analyses if a.is_credits]
 
-        # Find credits transitions
+        # Find credits transitions - use LAST credits=True frame as boundary
+        # With 2-second intervals, we use actual frame timestamps, not midpoints
         credits_transitions = []
         i = 0
         while i < len(window_analyses):
@@ -1096,13 +1111,12 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                 if j < len(window_analyses):
                     ts_last_credits = window_analyses[j-1][0]
-                    ts_first_non_credits = window_analyses[j][0]
-                    transition_time = (ts_last_credits + ts_first_non_credits) / 2
                     run_length = j - i
-                    credits_transitions.append((transition_time, run_length))
+                    # Use last credits frame as the transition point
+                    credits_transitions.append((ts_last_credits, run_length))
                     logger.debug(
-                        f"  {label}Credits transition: {run_length} frame(s) ending at {ts_last_credits/60:.1f}m "
-                        f"→ boundary at {transition_time/60:.1f}m"
+                        f"  {label}Credits transition: {run_length} frame(s), "
+                        f"last credits at {ts_last_credits/60:.1f}m"
                     )
                 i = j
             else:
@@ -1117,7 +1131,8 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
         credits_timestamps: List[float],
         credits_transitions: List[Tuple[float, int]],
         window_source: str,
-        expansion_label: str = ""
+        expansion_label: str = "",
+        post_credits_buffer: int = 15,
     ) -> Optional[Tuple[float, float, dict]]:
         """
         Process precision scan results and return boundary if found.
@@ -1129,6 +1144,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
             credits_transitions: List of (transition_time, run_length) tuples
             window_source: Source label for the window
             expansion_label: Label if this is from expansion (for metadata)
+            post_credits_buffer: Seconds after credits to include logos
 
         Returns:
             (boundary_time, confidence, metadata) tuple, or None if no detections
@@ -1142,18 +1158,20 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
             credits_run_length = best_transition[1]
 
         # Filter logos to only those relevant to THIS episode's boundary
+        # With 2-second intervals, use LAST logo frame as boundary (not center)
         boundary_logos = []
         excluded_logos = []
 
         if logo_timestamps:
             if credits_boundary is not None:
-                # Credits boundary exists - filter logos to those at or before it
-                boundary_logos = [ts for ts in logo_timestamps if ts <= credits_boundary + 2]
-                excluded_logos = [ts for ts in logo_timestamps if ts > credits_boundary + 2]
+                # Credits boundary exists - include logos at/before credits AND
+                # logos immediately after (within buffer) which are the "end logo"
+                boundary_logos = [ts for ts in logo_timestamps if ts <= credits_boundary + post_credits_buffer]
+                excluded_logos = [ts for ts in logo_timestamps if ts > credits_boundary + post_credits_buffer]
 
                 if excluded_logos:
                     logger.debug(
-                        f"  Filtered out {len(excluded_logos)} logos after credits transition "
+                        f"  Filtered out {len(excluded_logos)} logos (>{post_credits_buffer}s after credits) "
                         f"(likely next episode intro): {[f'{t/60:.1f}m' for t in excluded_logos]}"
                     )
             else:
@@ -1181,7 +1199,9 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     boundary_logos = logo_timestamps
 
         if boundary_logos:
-            boundary_time = sum(boundary_logos) / len(boundary_logos)
+            # Use LAST logo frame as boundary (not center)
+            # With 2-second intervals, we use actual frame timestamps
+            boundary_time = max(boundary_logos)
             confidence = min(0.95, 0.7 + len(boundary_logos) * 0.05)
 
             # Slightly lower confidence for expansion results
@@ -1190,7 +1210,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
             logger.debug(
                 f"  {expansion_label}LOGO-BASED: {len(boundary_logos)} logos (of {len(logo_timestamps)} total), "
-                f"center at {boundary_time/60:.1f}m (confidence={confidence:.2f})"
+                f"last logo at {boundary_time/60:.1f}m (confidence={confidence:.2f})"
             )
 
             return (boundary_time, confidence, {
@@ -1230,10 +1250,115 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
         return None
 
+    def _parse_pattern(self, pattern: str) -> Tuple[List[str], int]:
+        """
+        Parse a boundary pattern string into a list of tokens and split index.
+
+        Args:
+            pattern: Pattern string like "c-l-c-s-l"
+
+        Returns:
+            Tuple of (tokens list without 's', split_index)
+            e.g., "c-l-c-s-l" -> (['c', 'l', 'c', 'l'], 3)
+        """
+        # Filter out spaces and split by hyphen
+        pattern = pattern.replace(' ', '').lower()
+        tokens = [t for t in pattern.split('-') if t]
+
+        # Find split point index
+        split_index = -1
+        tokens_without_split = []
+        for i, t in enumerate(tokens):
+            if t == 's':
+                split_index = len(tokens_without_split)
+            else:
+                tokens_without_split.append(t)
+
+        return tokens_without_split, split_index
+
+    def _match_pattern(
+        self,
+        detections: List[Tuple[float, str]],  # List of (timestamp, type) where type is 'c' or 'l'
+        pattern_tokens: List[str],
+        split_index: int,
+    ) -> Optional[float]:
+        """
+        Match detections against a pattern and return the split point timestamp.
+
+        Args:
+            detections: List of (timestamp, type) tuples, sorted by timestamp
+            pattern_tokens: Pattern tokens without 's' (e.g., ['c', 'l', 'c', 'l'])
+            split_index: Where the split point falls in the pattern
+
+        Returns:
+            Timestamp to split at, or None if no match
+        """
+        if not detections or not pattern_tokens:
+            return None
+
+        # Try to match the full pattern first
+        if len(detections) >= len(pattern_tokens):
+            # Check if detections match the pattern
+            matches = True
+            for i, token in enumerate(pattern_tokens):
+                if i >= len(detections):
+                    matches = False
+                    break
+                if detections[i][1] != token:
+                    matches = False
+                    break
+
+            if matches:
+                # Full match - split point is right before the detection at split_index
+                if split_index < len(detections):
+                    # Split before this detection
+                    split_ts = detections[split_index][0]
+                    logger.debug(
+                        f"  PATTERN FULL MATCH: split before detection at {split_ts/60:.1f}m"
+                    )
+                    return split_ts
+                else:
+                    # Split is at the end
+                    split_ts = detections[-1][0]
+                    logger.debug(
+                        f"  PATTERN FULL MATCH: split after last detection at {split_ts/60:.1f}m"
+                    )
+                    return split_ts
+
+        # Partial match - find the first credits→logo transition
+        # The user's logic: if we can't match the full pattern, the credits→logo
+        # transition is the key boundary marker. Split before the first logo
+        # that follows credits.
+        prev_was_credits = False
+        for ts, typ in detections:
+            if typ == 'c':
+                prev_was_credits = True
+            elif typ == 'l' and prev_was_credits:
+                # Found credits→logo transition, split before this logo
+                logger.debug(
+                    f"  PATTERN PARTIAL MATCH: credits→logo transition, "
+                    f"split before logo at {ts/60:.1f}m"
+                )
+                return ts
+
+        # No credits→logo transition found - try splitting before first logo
+        for ts, typ in detections:
+            if typ == 'l':
+                logger.debug(
+                    f"  PATTERN PARTIAL MATCH: no c→l transition, "
+                    f"split before first logo at {ts/60:.1f}m"
+                )
+                return ts
+
+        return None
+
     def detect_precision_in_windows(
         self,
         file_path: str,
-        search_windows: List,  # List of SearchWindow objects (narrow 2.2m windows)
+        search_windows: List,  # List of SearchWindow objects (narrow windows)
+        post_credits_buffer: int = 15,  # seconds to look for logos after credits
+        precision_pattern: str = "",  # Pattern like "c-l-c-s-l"
+        progress_callback: Optional[callable] = None,  # callback(frames_done, total_frames)
     ) -> List[Tuple[float, float, dict]]:
         """
         LLM Precision Mode: Dense sampling in narrow windows for logo-focused detection.
@@ -1243,12 +1368,17 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
         - 2-second sampling intervals (vs 10s in normal mode)
         - No fine/coarse mode switching
         - No "strong" transition requirement
-        - Logo-centric split logic
+        - Logo-centric split logic OR pattern matching
         - Auto-expansion when no detections found (±1.5 minutes)
 
         Args:
             file_path: Path to the video file
-            search_windows: List of SearchWindow objects (should be narrow ~2.2m windows)
+            search_windows: List of SearchWindow objects (should be narrow windows)
+            post_credits_buffer: Seconds after credits to include logos (default 15)
+            precision_pattern: Pattern like "c-l-c-s-l" for pattern-based matching.
+                              When specified, uses pattern matching instead of buffer logic.
+                              If pattern doesn't match, expands once then fails.
+            progress_callback: Optional callback(frames_done, total_frames) for progress
 
         Returns:
             List of (boundary_time, confidence, metadata) tuples, one per window
@@ -1264,6 +1394,22 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
         PRECISION_INTERVAL = 2  # 2-second sampling
         EXPANSION_DURATION = 90  # 1.5 minutes expansion in each direction
 
+        # Parse pattern if provided
+        pattern_tokens = []
+        pattern_split_index = -1
+        use_pattern_mode = False
+
+        if precision_pattern:
+            precision_pattern = precision_pattern.replace(' ', '').lower()
+            if precision_pattern and 's' in precision_pattern:
+                pattern_tokens, pattern_split_index = self._parse_pattern(precision_pattern)
+                if pattern_tokens and pattern_split_index >= 0:
+                    use_pattern_mode = True
+                    logger.info(
+                        f"Pattern mode: '{precision_pattern}' -> tokens={pattern_tokens}, "
+                        f"split at index {pattern_split_index}"
+                    )
+
         with tempfile.TemporaryDirectory(prefix='split_llm_precision_') as temp_dir:
             for window in search_windows:
                 logger.debug(
@@ -1275,7 +1421,8 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                 window_analyses, logo_timestamps, credits_timestamps, credits_transitions = \
                     self._scan_precision_range(
                         file_path, window.start_time, window.end_time,
-                        temp_dir, PRECISION_INTERVAL, ""
+                        temp_dir, PRECISION_INTERVAL, "",
+                        progress_callback=progress_callback
                     )
 
                 logger.debug(f"  Analyzed {len(window_analyses)} frames in precision window")
@@ -1289,10 +1436,155 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     }))
                     continue
 
+                # Pattern mode: extract detections and match against pattern
+                if use_pattern_mode:
+                    # Build detection sequence: (timestamp, type) sorted by time
+                    all_detections = []
+                    for ts, analysis in window_analyses:
+                        if analysis.is_credits:
+                            all_detections.append((ts, 'c'))
+                        if analysis.is_logo:
+                            all_detections.append((ts, 'l'))
+
+                    # Sort by timestamp (should already be sorted, but ensure it)
+                    all_detections.sort(key=lambda x: x[0])
+
+                    logger.debug(
+                        f"  Pattern mode: {len(all_detections)} detections in window: "
+                        f"{[(f'{t/60:.1f}m', d) for t, d in all_detections]}"
+                    )
+
+                    # Try to match pattern
+                    split_ts = self._match_pattern(all_detections, pattern_tokens, pattern_split_index)
+
+                    if split_ts is not None:
+                        results.append((split_ts, 0.90, {
+                            'source': 'llm_precision_pattern',
+                            'window_source': window.source,
+                            'pattern': precision_pattern,
+                            'detection_count': len(all_detections),
+                        }))
+                        continue
+
+                    # Pattern didn't match in primary window - try expansion
+                    logger.debug(
+                        f"  Pattern did not match in primary window - expanding search"
+                    )
+
+                    # Expansion 1: BACKWARD
+                    backward_start = max(0, window.start_time - EXPANSION_DURATION)
+                    backward_end = window.start_time - PRECISION_INTERVAL
+
+                    if backward_start < backward_end:
+                        logger.debug(
+                            f"  Pattern expansion BACKWARD: {backward_start/60:.1f}-{backward_end/60:.1f}m"
+                        )
+
+                        exp_analyses, _, _, _ = self._scan_precision_range(
+                            file_path, backward_start, backward_end,
+                            temp_dir, PRECISION_INTERVAL, "[PATTERN←] ",
+                            progress_callback=progress_callback
+                        )
+
+                        # Combine with original window analyses
+                        combined_analyses = exp_analyses + list(window_analyses)
+                        combined_detections = []
+                        for ts, analysis in combined_analyses:
+                            if analysis.is_credits:
+                                combined_detections.append((ts, 'c'))
+                            if analysis.is_logo:
+                                combined_detections.append((ts, 'l'))
+                        combined_detections.sort(key=lambda x: x[0])
+
+                        logger.debug(
+                            f"  Combined detections after backward expansion: "
+                            f"{[(f'{t/60:.1f}m', d) for t, d in combined_detections]}"
+                        )
+
+                        split_ts = self._match_pattern(combined_detections, pattern_tokens, pattern_split_index)
+
+                        if split_ts is not None:
+                            results.append((split_ts, 0.85, {
+                                'source': 'llm_precision_pattern_expanded',
+                                'window_source': window.source,
+                                'pattern': precision_pattern,
+                                'detection_count': len(combined_detections),
+                                'from_expansion': True,
+                            }))
+                            continue
+
+                    # Expansion 2: FORWARD
+                    forward_start = window.end_time + PRECISION_INTERVAL
+                    forward_end = window.end_time + EXPANSION_DURATION
+
+                    logger.debug(
+                        f"  Pattern expansion FORWARD: {forward_start/60:.1f}-{forward_end/60:.1f}m"
+                    )
+
+                    exp_analyses, _, _, _ = self._scan_precision_range(
+                        file_path, forward_start, forward_end,
+                        temp_dir, PRECISION_INTERVAL, "[PATTERN→] ",
+                        progress_callback=progress_callback
+                    )
+
+                    # Combine all analyses
+                    all_analyses = list(window_analyses) + exp_analyses
+                    if backward_start < backward_end:
+                        # Include backward expansion too
+                        back_analyses, _, _, _ = self._scan_precision_range(
+                            file_path, backward_start, backward_end,
+                            temp_dir, PRECISION_INTERVAL, "",
+                            progress_callback=progress_callback
+                        )
+                        all_analyses = back_analyses + all_analyses
+
+                    combined_detections = []
+                    for ts, analysis in all_analyses:
+                        if analysis.is_credits:
+                            combined_detections.append((ts, 'c'))
+                        if analysis.is_logo:
+                            combined_detections.append((ts, 'l'))
+                    combined_detections.sort(key=lambda x: x[0])
+
+                    logger.debug(
+                        f"  Combined detections after all expansions: "
+                        f"{[(f'{t/60:.1f}m', d) for t, d in combined_detections]}"
+                    )
+
+                    split_ts = self._match_pattern(combined_detections, pattern_tokens, pattern_split_index)
+
+                    if split_ts is not None:
+                        results.append((split_ts, 0.80, {
+                            'source': 'llm_precision_pattern_expanded',
+                            'window_source': window.source,
+                            'pattern': precision_pattern,
+                            'detection_count': len(combined_detections),
+                            'from_expansion': True,
+                        }))
+                        continue
+
+                    # Pattern mode failed - no normal mode fallback
+                    logger.warning(
+                        f"  PATTERN MATCH FAILED: Could not match pattern '{precision_pattern}' "
+                        f"in window {window.center_time/60:.1f}m (even after expansion). "
+                        f"Detections found: {[(f'{t/60:.1f}m', d) for t, d in combined_detections]}"
+                    )
+                    results.append((window.center_time, 0.0, {
+                        'source': 'llm_precision_pattern_failed',
+                        'window_source': window.source,
+                        'failed': True,
+                        'pattern': precision_pattern,
+                        'error': f"Pattern '{precision_pattern}' did not match detections",
+                        'detections_found': [(f'{t/60:.1f}m', d) for t, d in combined_detections],
+                    }))
+                    continue
+
+                # Non-pattern mode: use buffer-based logic
                 # Try to find boundary in primary window
                 result = self._process_precision_detections(
                     window_analyses, logo_timestamps, credits_timestamps,
-                    credits_transitions, window.source, ""
+                    credits_transitions, window.source, "",
+                    post_credits_buffer
                 )
 
                 if result:
@@ -1316,12 +1608,14 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                     _, logo_ts, credits_ts, credits_trans = self._scan_precision_range(
                         file_path, backward_start, backward_end,
-                        temp_dir, PRECISION_INTERVAL, "[EXPAND←] "
+                        temp_dir, PRECISION_INTERVAL, "[EXPAND←] ",
+                        progress_callback=progress_callback
                     )
 
                     result = self._process_precision_detections(
                         [], logo_ts, credits_ts, credits_trans,
-                        window.source, "backward"
+                        window.source, "backward",
+                        post_credits_buffer
                     )
 
                     if result:
@@ -1339,12 +1633,14 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                 _, logo_ts, credits_ts, credits_trans = self._scan_precision_range(
                     file_path, forward_start, forward_end,
-                    temp_dir, PRECISION_INTERVAL, "[EXPAND→] "
+                    temp_dir, PRECISION_INTERVAL, "[EXPAND→] ",
+                    progress_callback=progress_callback
                 )
 
                 result = self._process_precision_detections(
                     [], logo_ts, credits_ts, credits_trans,
-                    window.source, "forward"
+                    window.source, "forward",
+                    post_credits_buffer
                 )
 
                 if result:
@@ -1383,12 +1679,14 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                     _, logo_ts, credits_ts, credits_trans = self._scan_precision_range(
                         file_path, far_backward_start, far_backward_end,
-                        temp_dir, NORMAL_INTERVAL, "[NORMAL←] "
+                        temp_dir, NORMAL_INTERVAL, "[NORMAL←] ",
+                        progress_callback=progress_callback
                     )
 
                     result = self._process_precision_detections(
                         [], logo_ts, credits_ts, credits_trans,
-                        window.source, "normal_backward"
+                        window.source, "normal_backward",
+                        post_credits_buffer
                     )
 
                     if result:
@@ -1404,12 +1702,14 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                     _, logo_ts, credits_ts, credits_trans = self._scan_precision_range(
                         file_path, far_forward_start, far_forward_end,
-                        temp_dir, NORMAL_INTERVAL, "[NORMAL→] "
+                        temp_dir, NORMAL_INTERVAL, "[NORMAL→] ",
+                        progress_callback=progress_callback
                     )
 
                     result = self._process_precision_detections(
                         [], logo_ts, credits_ts, credits_trans,
-                        window.source, "normal_forward"
+                        window.source, "normal_forward",
+                        post_credits_buffer
                     )
 
                     if result:

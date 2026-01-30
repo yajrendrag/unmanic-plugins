@@ -83,6 +83,8 @@ class Settings(PluginSettings):
         "llm_ollama_host": "http://localhost:11434",
         "llm_model": "qwen2.5vl:3b",
         "llm_precision_mode": False,
+        "llm_post_credits_buffer": 15,
+        "llm_precision_pattern": "",
 
         # Speech Detection + options
         "enable_speech_detection": False,
@@ -168,6 +170,8 @@ class Settings(PluginSettings):
             "llm_ollama_host": self._llm_setting("Ollama Host", "URL of Ollama API endpoint"),
             "llm_model": self._llm_setting("LLM Model", "Vision model to use (e.g., qwen2.5vl:3b)"),
             "llm_precision_mode": self._llm_precision_mode_setting(),
+            "llm_post_credits_buffer": self._llm_post_credits_buffer_setting(),
+            "llm_precision_pattern": self._llm_precision_pattern_setting(),
 
             # Speech Detection + options
             "enable_speech_detection": {
@@ -259,13 +263,44 @@ class Settings(PluginSettings):
     def _llm_precision_mode_setting(self):
         setting = {
             "label": "LLM Precision Mode",
-            "description": "Use narrow 2.2-minute windows with 2-second sampling for logo-focused detection. "
+            "description": "Use narrow windows with 2-second sampling for logo-focused detection. "
                           "Requires TMDB for window positioning. Best for clean files without commercials. "
                           "Disables all other detectors when enabled.",
             "sub_setting": True,
         }
         # Only show if both LLM and TMDB are enabled
         if not self.get_setting('enable_llm_detection') or not self.get_setting('enable_tmdb_validation'):
+            setting["display"] = "hidden"
+        return setting
+
+    def _llm_post_credits_buffer_setting(self):
+        setting = {
+            "label": "Post-Credits Buffer (seconds)",
+            "description": "How long after credits end to look for logos/bumpers that are part of the episode. "
+                          "Increase for shows with longer end sequences (previews, 'next time on', network logos). "
+                          "Ignored if Pattern is specified.",
+            "input_type": "slider",
+            "slider_options": {"min": 5, "max": 60, "step": 5},
+            "sub_setting": True,
+        }
+        # Only show if LLM precision mode is enabled and no pattern specified
+        if not self.get_setting('enable_llm_detection') or not self.get_setting('llm_precision_mode'):
+            setting["display"] = "hidden"
+        elif self.get_setting('llm_precision_pattern'):
+            setting["display"] = "hidden"
+        return setting
+
+    def _llm_precision_pattern_setting(self):
+        setting = {
+            "label": "Boundary Pattern",
+            "description": "Specify a pattern to match at episode boundaries. "
+                          "Codes: c=credits, l=logo, s=split point. "
+                          "Example: c-l-c-s-l (split before 2nd logo after credits-logo-credits sequence). "
+                          "Leave empty to use Post-Credits Buffer instead.",
+            "sub_setting": True,
+        }
+        # Only show if LLM precision mode is enabled
+        if not self.get_setting('enable_llm_detection') or not self.get_setting('llm_precision_mode'):
             setting["display"] = "hidden"
         return setting
 
@@ -598,9 +633,12 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
     )
 
     if llm_precision_mode:
-        # Override search windows with narrow precision windows based on TMDB
-        # Window: ±1.1 minutes (66 seconds) around expected boundary
-        PRECISION_WINDOW_HALF = 66  # seconds
+        # Override search windows with asymmetric precision windows based on TMDB
+        # Window: -3m to +0.5m around expected boundary
+        # Asymmetric because episodes are typically shorter than TMDB predicts,
+        # and cumulative drift compounds making later boundaries progressively earlier
+        PRECISION_WINDOW_BACKWARD = 180  # 3 minutes before predicted boundary
+        PRECISION_WINDOW_FORWARD = 30    # 0.5 minutes after predicted boundary
         precision_windows = []
         cumulative_runtime = 0
 
@@ -608,8 +646,8 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
             cumulative_runtime += runtime * 60  # Convert to seconds
             center = cumulative_runtime
             precision_windows.append(SearchWindow(
-                start_time=center - PRECISION_WINDOW_HALF,
-                end_time=center + PRECISION_WINDOW_HALF,
+                start_time=center - PRECISION_WINDOW_BACKWARD,
+                end_time=center + PRECISION_WINDOW_FORWARD,
                 center_time=center,
                 confidence=0.8,
                 source='tmdb_precision',
@@ -619,7 +657,7 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
             ))
 
         search_windows = precision_windows
-        worker_log.append(f"  LLM Precision Mode: Created {len(search_windows)} narrow windows (±1.1m):")
+        worker_log.append(f"  LLM Precision Mode: Created {len(search_windows)} asymmetric windows (-3m/+0.5m):")
     else:
         worker_log.append(f"  Created {len(search_windows)} search windows:")
 
@@ -658,6 +696,8 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
             'enable_llm_detection': settings.get_setting('enable_llm_detection'),
             'enable_speech_detection': settings.get_setting('enable_speech_detection'),
             'llm_precision_mode': llm_precision_mode,
+            'llm_post_credits_buffer': settings.get_setting('llm_post_credits_buffer'),
+            'llm_precision_pattern': settings.get_setting('llm_precision_pattern'),
             'silence_threshold_db': settings.get_setting('silence_threshold_db'),
             'silence_min_duration': settings.get_setting('silence_min_duration'),
             'black_min_duration': settings.get_setting('black_min_duration'),

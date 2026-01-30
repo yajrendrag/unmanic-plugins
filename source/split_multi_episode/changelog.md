@@ -1,4 +1,37 @@
 
+*<span style="color:#56adda">0.2.1</span>**
+
+- Change: LLM Precision Mode now uses asymmetric windows (-3m/+0.5m instead of ±1.1m)
+  - More backward coverage since episodes are typically shorter than TMDB predicts
+  - Cumulative drift compounds across episodes, making later boundaries progressively earlier
+  - 3.5-minute total window with ~105 frames at 2-second sampling
+
+- Fix: LLM Precision Mode now uses LAST frame timestamps instead of midpoints/centers
+  - With 2-second intervals, use actual frame timestamps not interpolation
+  - Credits transition: uses last credits=True frame
+  - Logo: uses last logo=True frame in the boundary group
+  - Logos within 15 seconds after credits are included (end logo marking boundary)
+
+- Remove: "Confidence Threshold" setting (now handled internally by clustering algorithm)
+
+- Add: "Post-Credits Buffer" setting for LLM Precision Mode (5-60 seconds slider, default 15)
+  - Controls how far after credits transition to include logos as part of the boundary
+  - Some shows have longer gaps between credits end and network logo
+  - Increase if splits are occurring before the actual episode end
+
+- Add: "Boundary Pattern" setting for LLM Precision Mode (alternative to buffer)
+  - Specify exact sequence pattern like "c-l-c-s-l" where c=credits, l=logo, s=split point
+  - Example: c-l-c-s-l means split before the 2nd logo (after credits-logo-credits sequence)
+  - Purely sequence-based matching (order matters, timing gaps don't)
+  - Partial matching: if pattern is c-l-c-s-l but only c-l-l detected, splits before 1st l
+  - Expansion tries backward then forward, then fails (no normal mode fallback)
+  - Useful for shows with complex credits/logo patterns that buffer can't handle
+
+- Fix: LLM Precision Mode now shows progress in GUI gauge
+  - Progress updates after each frame is analyzed (not just after each window)
+  - Sub-window progress tracking for smooth progress during long scans
+  - ETC timer now updates during window processing
+
 **<span style="color:#56adda">0.2.0</span>**
 - New: LLM Precision Mode for clean files without commercials
   - Narrow 2.2-minute windows centered on TMDB-predicted boundaries (±1.1m)
