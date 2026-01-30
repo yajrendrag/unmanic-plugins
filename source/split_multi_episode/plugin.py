@@ -83,8 +83,10 @@ class Settings(PluginSettings):
         "llm_ollama_host": "http://localhost:11434",
         "llm_model": "qwen2.5vl:3b",
         "llm_precision_mode": False,
+        "llm_precision_symmetric_windows": False,
         "llm_post_credits_buffer": 15,
         "llm_precision_pattern": "",
+        "llm_pattern_grouping_buffer": 10,
 
         # Speech Detection + options
         "enable_speech_detection": False,
@@ -170,8 +172,10 @@ class Settings(PluginSettings):
             "llm_ollama_host": self._llm_setting("Ollama Host", "URL of Ollama API endpoint"),
             "llm_model": self._llm_setting("LLM Model", "Vision model to use (e.g., qwen2.5vl:3b)"),
             "llm_precision_mode": self._llm_precision_mode_setting(),
+            "llm_precision_symmetric_windows": self._llm_symmetric_windows_setting(),
             "llm_post_credits_buffer": self._llm_post_credits_buffer_setting(),
             "llm_precision_pattern": self._llm_precision_pattern_setting(),
+            "llm_pattern_grouping_buffer": self._llm_pattern_grouping_buffer_setting(),
 
             # Speech Detection + options
             "enable_speech_detection": {
@@ -273,6 +277,19 @@ class Settings(PluginSettings):
             setting["display"] = "hidden"
         return setting
 
+    def _llm_symmetric_windows_setting(self):
+        setting = {
+            "label": "Use Symmetric Windows",
+            "description": "Use symmetric windows (±2m) instead of asymmetric (-3m/+1m). "
+                          "Asymmetric is better when episodes are typically shorter than TMDB predicts. "
+                          "Symmetric is better when TMDB timing is accurate.",
+            "sub_setting": True,
+        }
+        # Only show if LLM precision mode is enabled
+        if not self.get_setting('enable_llm_detection') or not self.get_setting('llm_precision_mode'):
+            setting["display"] = "hidden"
+        return setting
+
     def _llm_post_credits_buffer_setting(self):
         setting = {
             "label": "Post-Credits Buffer (seconds)",
@@ -295,8 +312,24 @@ class Settings(PluginSettings):
             "label": "Boundary Pattern",
             "description": "Specify a pattern to match at episode boundaries. "
                           "Codes: c=credits, l=logo, s=split point. "
-                          "Example: c-l-c-s-l (split before 2nd logo after credits-logo-credits sequence). "
+                          "Only elements in the pattern are considered (others ignored). "
+                          "Example: l-l-s (split after 2nd logo, ignoring credits). "
                           "Leave empty to use Post-Credits Buffer instead.",
+            "sub_setting": True,
+        }
+        # Only show if LLM precision mode is enabled
+        if not self.get_setting('enable_llm_detection') or not self.get_setting('llm_precision_mode'):
+            setting["display"] = "hidden"
+        return setting
+
+    def _llm_pattern_grouping_buffer_setting(self):
+        setting = {
+            "label": "Pattern Grouping Buffer (seconds)",
+            "description": "Group detections within this many seconds into a single block. "
+                          "Helps match patterns when the same logo appears across multiple frames. "
+                          "Example: 10s groups logos 6s apart but separates logos 12s apart.",
+            "input_type": "slider",
+            "slider_options": {"min": 1, "max": 15, "step": 1},
             "sub_setting": True,
         }
         # Only show if LLM precision mode is enabled
@@ -633,12 +666,20 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
     )
 
     if llm_precision_mode:
-        # Override search windows with asymmetric precision windows based on TMDB
-        # Window: -3m to +0.5m around expected boundary
-        # Asymmetric because episodes are typically shorter than TMDB predicts,
-        # and cumulative drift compounds making later boundaries progressively earlier
-        PRECISION_WINDOW_BACKWARD = 180  # 3 minutes before predicted boundary
-        PRECISION_WINDOW_FORWARD = 30    # 0.5 minutes after predicted boundary
+        # Override search windows with precision windows based on TMDB
+        # Asymmetric: -3m/+1m (4m total) - for episodes typically shorter than TMDB predicts
+        # Symmetric: ±2m (4m total) - for accurate TMDB timing
+        use_symmetric = settings.get_setting('llm_precision_symmetric_windows')
+
+        if use_symmetric:
+            PRECISION_WINDOW_BACKWARD = 120  # 2 minutes before predicted boundary
+            PRECISION_WINDOW_FORWARD = 120   # 2 minutes after predicted boundary
+            window_desc = "symmetric (±2m)"
+        else:
+            PRECISION_WINDOW_BACKWARD = 180  # 3 minutes before predicted boundary
+            PRECISION_WINDOW_FORWARD = 60    # 1 minute after predicted boundary
+            window_desc = "asymmetric (-3m/+1m)"
+
         precision_windows = []
         cumulative_runtime = 0
 
@@ -657,7 +698,7 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
             ))
 
         search_windows = precision_windows
-        worker_log.append(f"  LLM Precision Mode: Created {len(search_windows)} asymmetric windows (-3m/+0.5m):")
+        worker_log.append(f"  LLM Precision Mode: Created {len(search_windows)} {window_desc} windows:")
     else:
         worker_log.append(f"  Created {len(search_windows)} search windows:")
 

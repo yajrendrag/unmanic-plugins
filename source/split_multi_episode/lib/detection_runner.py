@@ -354,6 +354,7 @@ def _run_precision_mode(
         # Run detection on this single window
         post_credits_buffer = settings.get('llm_post_credits_buffer', 15)
         precision_pattern = settings.get('llm_precision_pattern', '')
+        pattern_grouping_buffer = settings.get('llm_pattern_grouping_buffer', 10)
 
         # Create progress callback for frame-level updates
         def frame_progress_callback(frames_done, total_frames):
@@ -363,7 +364,8 @@ def _run_precision_mode(
 
         results = detector.detect_precision_in_windows(
             file_path, [adjusted_window], post_credits_buffer, precision_pattern,
-            progress_callback=frame_progress_callback
+            progress_callback=frame_progress_callback,
+            pattern_grouping_buffer=pattern_grouping_buffer
         )
 
         if not results:

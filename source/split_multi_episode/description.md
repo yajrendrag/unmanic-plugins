@@ -69,7 +69,9 @@ For **clean files without commercials** (DVD rips, streaming content), Precision
 
 ### How It Works
 
-1. **Narrow windows** - Uses ±1.1 minute windows centered on TMDB-predicted boundaries
+1. **Window sizing** - 4-minute windows around TMDB-predicted boundaries
+   - Asymmetric (default): -3m/+1m (more backward coverage for cumulative drift)
+   - Symmetric: ±2m (when TMDB runtimes are accurate)
 2. **Dense sampling** - Analyzes frames every 2 seconds (~66 frames per window)
 3. **Sequential processing** - After each boundary, adjusts subsequent windows by the cumulative timing drift
 4. **Logo-centric logic** - Prioritizes network/production logos as boundary markers
@@ -96,6 +98,21 @@ For shows with complex credits/logo sequences, you can specify an exact pattern 
 **Example:** `c-l-c-s-l`
 - Matches: credits → logo → credits → **[SPLIT HERE]** → logo
 - The split occurs right before the second logo
+
+**Ignore Pattern Logic:**
+
+Only detection types mentioned in the pattern are considered. Other detections are filtered out.
+
+**Example:** `l-l-s`
+- Only considers logos; all credits detections are ignored
+- Useful when credits are being falsely detected on non-credit frames
+- Splits after the 2nd logo block
+
+**Pattern Grouping Buffer:**
+
+Detections within the grouping buffer (default 10 seconds) are merged into a single "block".
+
+**Example:** With a 10-second buffer, five logo detections at 48.0m, 48.1m, 48.2m, 48.3m, 48.4m become one logo block. A second group of logos at 49.0m, 49.1m becomes a second block. The pattern `l-l-s` then matches two logo blocks and splits after the second block (at 49.1m).
 
 **Matching behavior:**
 - Full match: If all pattern elements are found in order, splits at the `s` position

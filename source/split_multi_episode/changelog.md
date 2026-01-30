@@ -1,4 +1,29 @@
 
+*<span style="color:#56adda">0.2.2</span>**
+
+- Change: LLM Precision Mode windows widened to 4 minutes total
+  - Asymmetric mode: -3m/+1m (more backward coverage for cumulative drift)
+  - Symmetric mode: ±2m (for accurate TMDB timing)
+  - ~120 frames at 2-second sampling
+
+- Add: "Symmetric Windows" checkbox for LLM Precision Mode
+  - Default (unchecked): asymmetric -3m/+1m windows
+  - Checked: symmetric ±2m windows
+  - Use symmetric when TMDB runtimes closely match actual content
+  - Use asymmetric (default) when episodes tend to run shorter than TMDB predicts
+
+- Add: "Ignore pattern" logic for Boundary Pattern setting
+  - Only detection types mentioned in the pattern are considered
+  - Example: l-l-s means only consider logos, ignore all credits, split after 2nd logo block
+  - Useful when credits are being falsely detected on non-credit frames
+
+- Add: "Pattern Grouping Buffer" setting (1-15 seconds, default 10)
+  - Groups detections within this many seconds into a single "block"
+  - Pattern matching works on blocks, not individual detections
+  - Example: 5 logo detections within 10 seconds become 1 logo block
+  - Helps with intermittent detections (logos that flicker or repeat)
+  - Only visible when LLM Precision Mode is enabled
+
 *<span style="color:#56adda">0.2.1</span>**
 
 - Change: LLM Precision Mode now uses asymmetric windows (-3m/+0.5m instead of ±1.1m)
