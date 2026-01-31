@@ -236,11 +236,11 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
         extract_time = time.time() - extract_start
 
         if not frames:
-            logger.debug(f"  Frame extraction failed at {timestamp/60:.1f}m (took {extract_time:.1f}s)")
+            logger.debug(f"  Frame extraction failed at {timestamp/60:.2f}m (took {extract_time:.1f}s)")
             return None
 
         if extract_time > 5:
-            logger.warning(f"  Slow frame extraction at {timestamp/60:.1f}m: {extract_time:.1f}s for {len(frames)} frames")
+            logger.warning(f"  Slow frame extraction at {timestamp/60:.2f}m: {extract_time:.1f}s for {len(frames)} frames")
 
         # Analyze the middle frame (or first available)
         frame_to_analyze = frames[len(frames) // 2] if len(frames) > 1 else frames[0]
@@ -251,7 +251,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
             llm_time = time.time() - llm_start
 
             if llm_time > 10:
-                logger.warning(f"  Slow LLM response at {timestamp/60:.1f}m: {llm_time:.1f}s")
+                logger.warning(f"  Slow LLM response at {timestamp/60:.2f}m: {llm_time:.1f}s")
 
             if response:
                 return self._parse_response(timestamp, response)
@@ -499,7 +499,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                 FINE_INTERVAL = 1     # Fine sampling when logo detected
 
                 logger.debug(
-                    f"Analyzing window {window.start_time/60:.1f}-{window.end_time/60:.1f}m "
+                    f"Analyzing window {window.start_time/60:.2f}-{window.end_time/60:.2f}m "
                     f"with dynamic sampling (coarse={COARSE_INTERVAL}s, fine={FINE_INTERVAL}s)"
                 )
 
@@ -516,7 +516,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                         # Log all frames to show the full sequence including transitions
                         mode_indicator = "[FINE]" if in_fine_mode else ""
                         logger.debug(
-                            f"  {mode_indicator} Frame at {current_ts/60:.1f}m: credits={analysis.is_credits}, "
+                            f"  {mode_indicator} Frame at {current_ts/60:.2f}m: credits={analysis.is_credits}, "
                             f"outro={analysis.is_outro}, logo={analysis.is_logo}"
                         )
 
@@ -531,7 +531,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                             if not analysis.is_logo:
                                 # Logo no longer detected - found the transition
                                 logger.debug(
-                                    f"  -> Logo ended at {current_ts/60:.1f}m "
+                                    f"  -> Logo ended at {current_ts/60:.2f}m "
                                     f"(was in fine mode for {current_ts - fine_mode_start:.1f}s)"
                                 )
                                 # Stay in fine mode a bit longer to capture post-logo frames
@@ -560,7 +560,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                 if not all_analyses:
                     # No frames could be analyzed - use window center as fallback
-                    logger.debug(f"No frames analyzed in window {window.start_time/60:.1f}-{window.end_time/60:.1f}m")
+                    logger.debug(f"No frames analyzed in window {window.start_time/60:.2f}-{window.end_time/60:.2f}m")
                     results.append((window.center_time, 0.3, {
                         'source': 'llm_fallback',
                         'window_source': window.source,
@@ -573,7 +573,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                 for i, (ts, analysis) in enumerate(all_analyses):
                     if analysis.is_logo:
                         logo_positions.append((i, ts))
-                        logger.debug(f"  LOGO detected at {ts/60:.1f}m")
+                        logger.debug(f"  LOGO detected at {ts/60:.2f}m")
 
                 # Find STRONG transitions: 3+ consecutive credits=True → credits=False
                 # Also track logo proximity for confirmation
@@ -626,8 +626,8 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                                 logger.debug(
                                     f"  STRONG TRANSITION: {run_length} frames of credits=True "
-                                    f"ending at {ts_last_credits/60:.1f}m → credits=False at "
-                                    f"{ts_first_non_credits/60:.1f}m (logo_confirms={logo_confirms})"
+                                    f"ending at {ts_last_credits/60:.2f}m → credits=False at "
+                                    f"{ts_first_non_credits/60:.2f}m (logo_confirms={logo_confirms})"
                                 )
 
                                 # Use first strong transition found
@@ -644,7 +644,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                                 # Weak transition (1-2 frames) - log but don't use unless no strong found
                                 logger.debug(
                                     f"  weak transition: {run_length} frame(s) of credits=True "
-                                    f"at {ts_last_credits/60:.1f}m (ignored - too short)"
+                                    f"at {ts_last_credits/60:.2f}m (ignored - too short)"
                                 )
 
                         # Move past this run
@@ -683,8 +683,8 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                                 logger.debug(
                                     f"  STRONG LOGO: {logo_run_length} consecutive frames "
-                                    f"ending at {ts_last_logo/60:.1f}m → no-logo at "
-                                    f"{ts_first_non_logo/60:.1f}m"
+                                    f"ending at {ts_last_logo/60:.2f}m → no-logo at "
+                                    f"{ts_first_non_logo/60:.2f}m"
                                 )
 
                                 # Use first strong logo transition found
@@ -707,8 +707,8 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     confidence = best_transition['confidence']
 
                     logger.debug(
-                        f"Window {window.start_time/60:.1f}-{window.end_time/60:.1f}m: "
-                        f"strong credits→non-credits transition at {boundary_time/60:.1f}m "
+                        f"Window {window.start_time/60:.2f}-{window.end_time/60:.2f}m: "
+                        f"strong credits→non-credits transition at {boundary_time/60:.2f}m "
                         f"(run={best_transition['run_length']}, logo_confirms={best_transition['logo_confirms']})"
                     )
 
@@ -732,8 +732,8 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     confidence = best_logo_transition['confidence']
 
                     logger.debug(
-                        f"Window {window.start_time/60:.1f}-{window.end_time/60:.1f}m: "
-                        f"strong logo→no-logo transition at {boundary_time/60:.1f}m "
+                        f"Window {window.start_time/60:.2f}-{window.end_time/60:.2f}m: "
+                        f"strong logo→no-logo transition at {boundary_time/60:.2f}m "
                         f"(logo_run={best_logo_transition['logo_run_length']})"
                     )
 
@@ -754,7 +754,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                     if not credit_frames:
                         # No credits at all - use window center
-                        logger.debug(f"No credits detected in window {window.start_time/60:.1f}-{window.end_time/60:.1f}m")
+                        logger.debug(f"No credits detected in window {window.start_time/60:.2f}-{window.end_time/60:.2f}m")
                         results.append((window.center_time, 0.3, {
                             'source': 'llm_fallback',
                             'window_source': window.source,
@@ -770,8 +770,8 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     confidence = 0.54  # Lower confidence without strong transition
 
                     logger.debug(
-                        f"Window {window.start_time/60:.1f}-{window.end_time/60:.1f}m: "
-                        f"no strong transition found, using last credits at {last_credit_ts/60:.1f}m (lower confidence)"
+                        f"Window {window.start_time/60:.2f}-{window.end_time/60:.2f}m: "
+                        f"no strong transition found, using last credits at {last_credit_ts/60:.2f}m (lower confidence)"
                     )
 
                     results.append((boundary_time, confidence, {
@@ -896,7 +896,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                 FINE_INTERVAL = 1
 
                 logger.debug(
-                    f"LLM raw detection in window {window.start_time/60:.1f}-{window.end_time/60:.1f}m"
+                    f"LLM raw detection in window {window.start_time/60:.2f}-{window.end_time/60:.2f}m"
                 )
 
                 # First pass: collect all frame analyses for this window
@@ -915,7 +915,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                         # Log every frame analysis result
                         mode_indicator = "[FINE]" if in_fine_mode else ""
                         logger.debug(
-                            f"  {mode_indicator} Frame at {current_ts/60:.1f}m: credits={analysis.is_credits}, "
+                            f"  {mode_indicator} Frame at {current_ts/60:.2f}m: credits={analysis.is_credits}, "
                             f"outro={analysis.is_outro}, logo={analysis.is_logo}"
                         )
 
@@ -924,7 +924,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                             in_fine_mode = True
                             fine_mode_start = current_ts
                             current_interval = FINE_INTERVAL
-                            logger.debug(f"  -> Logo at {current_ts/60:.1f}m, switching to fine sampling")
+                            logger.debug(f"  -> Logo at {current_ts/60:.2f}m, switching to fine sampling")
                         elif in_fine_mode:
                             if not analysis.is_logo:
                                 if current_ts - fine_mode_start > 10:
@@ -936,7 +936,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     else:
                         # Analysis failed - log and continue with current interval
                         mode_indicator = "[FINE]" if in_fine_mode else ""
-                        logger.debug(f"  {mode_indicator} Frame at {current_ts/60:.1f}m: ANALYSIS FAILED")
+                        logger.debug(f"  {mode_indicator} Frame at {current_ts/60:.2f}m: ANALYSIS FAILED")
                         current_ts += current_interval
 
                 # Second pass: find detections
@@ -990,13 +990,13 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                                     logger.debug(
                                         f"  {source_name} TRANSITION: {run_length} frames "
-                                        f"ending at {ts_last_true/60:.1f}m → False at {ts_first_false/60:.1f}m "
-                                        f"= boundary at {transition_time/60:.1f}m (score={score})"
+                                        f"ending at {ts_last_true/60:.2f}m → False at {ts_first_false/60:.2f}m "
+                                        f"= boundary at {transition_time/60:.2f}m (score={score})"
                                     )
                                 else:
                                     # Weak transition (1-2 frames) - log but don't return
                                     logger.debug(
-                                        f"  {source_name} weak: {run_length} frame(s) at {ts_last_true/60:.1f}m (ignored)"
+                                        f"  {source_name} weak: {run_length} frame(s) at {ts_last_true/60:.2f}m (ignored)"
                                     )
 
                             # Move past this run
@@ -1024,7 +1024,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                         ))
 
                         logger.debug(
-                            f"  llm_logo at {ts/60:.1f}m (score={score})"
+                            f"  llm_logo at {ts/60:.2f}m (score={score})"
                         )
 
         # Count by source type for logging
@@ -1084,11 +1084,11 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
             if analysis:
                 window_analyses.append((current_ts, analysis))
                 logger.debug(
-                    f"  {label}Frame at {current_ts/60:.1f}m: credits={analysis.is_credits}, "
+                    f"  {label}Frame at {current_ts/60:.2f}m: credits={analysis.is_credits}, "
                     f"outro={analysis.is_outro}, logo={analysis.is_logo}"
                 )
             else:
-                logger.debug(f"  {label}Frame at {current_ts/60:.1f}m: ANALYSIS FAILED")
+                logger.debug(f"  {label}Frame at {current_ts/60:.2f}m: ANALYSIS FAILED")
 
             current_ts += interval
 
@@ -1116,7 +1116,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     credits_transitions.append((ts_last_credits, run_length))
                     logger.debug(
                         f"  {label}Credits transition: {run_length} frame(s), "
-                        f"last credits at {ts_last_credits/60:.1f}m"
+                        f"last credits at {ts_last_credits/60:.2f}m"
                     )
                 i = j
             else:
@@ -1172,7 +1172,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                 if excluded_logos:
                     logger.debug(
                         f"  Filtered out {len(excluded_logos)} logos (>{post_credits_buffer}s after credits) "
-                        f"(likely next episode intro): {[f'{t/60:.1f}m' for t in excluded_logos]}"
+                        f"(likely next episode intro): {[f'{t/60:.2f}m' for t in excluded_logos]}"
                     )
             else:
                 # No credits boundary - detect clumps and use only first clump
@@ -1193,7 +1193,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     logger.debug(
                         f"  Found {len(clumps)} logo clumps - using first clump "
                         f"({len(boundary_logos)} logos), excluding later clumps "
-                        f"({len(excluded_logos)} logos): {[f'{t/60:.1f}m' for t in excluded_logos]}"
+                        f"({len(excluded_logos)} logos): {[f'{t/60:.2f}m' for t in excluded_logos]}"
                     )
                 else:
                     boundary_logos = logo_timestamps
@@ -1210,7 +1210,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
             logger.debug(
                 f"  {expansion_label}LOGO-BASED: {len(boundary_logos)} logos (of {len(logo_timestamps)} total), "
-                f"last logo at {boundary_time/60:.1f}m (confidence={confidence:.2f})"
+                f"last logo at {boundary_time/60:.2f}m (confidence={confidence:.2f})"
             )
 
             return (boundary_time, confidence, {
@@ -1236,7 +1236,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                 confidence = confidence * 0.95
 
             logger.debug(
-                f"  {expansion_label}CREDITS-BASED: transition at {boundary_time/60:.1f}m "
+                f"  {expansion_label}CREDITS-BASED: transition at {boundary_time/60:.2f}m "
                 f"(run_length={run_length}, confidence={confidence:.2f})"
             )
 
@@ -1283,13 +1283,107 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
         return tokens_without_split, split_index, types_in_pattern
 
+    def _find_natural_blocks(
+        self,
+        detections: List[Tuple[float, str]],  # List of (timestamp, type)
+        required_blocks: int,
+        min_gap_threshold: float = 10.0,  # minimum gap (seconds) to consider a "real" break
+    ) -> Tuple[List[Tuple[float, str, List[float]]], float]:
+        """
+        Find natural groupings in detections based on gaps.
+
+        Instead of using a fixed buffer, finds the largest gaps to split
+        detections into the required number of blocks. This automatically
+        adapts to the data rather than requiring user to guess buffer size.
+
+        Args:
+            detections: List of (timestamp, type) tuples, sorted by timestamp
+            required_blocks: How many blocks the pattern needs
+            min_gap_threshold: Minimum gap (seconds) to consider a real break
+
+        Returns:
+            Tuple of (blocks, effective_buffer):
+            - blocks: List of (representative_timestamp, type, all_timestamps) tuples
+            - effective_buffer: The gap threshold that was used (for logging)
+        """
+        if not detections:
+            return [], 0.0
+
+        # Sort by timestamp
+        sorted_dets = sorted(detections, key=lambda x: x[0])
+
+        if len(sorted_dets) == 1:
+            return [(sorted_dets[0][0], sorted_dets[0][1], [sorted_dets[0][0]])], 0.0
+
+        # Calculate gaps between consecutive detections
+        gaps = []
+        for i in range(1, len(sorted_dets)):
+            gap = sorted_dets[i][0] - sorted_dets[i - 1][0]
+            gaps.append((gap, i))  # (gap_size, split_index)
+
+        # Sort gaps by size, largest first
+        sorted_gaps = sorted(gaps, reverse=True, key=lambda x: x[0])
+
+        # We need (required_blocks - 1) splits to get required_blocks blocks
+        num_splits_needed = required_blocks - 1
+
+        # Take the N largest gaps that exceed threshold
+        valid_splits = []
+        effective_buffer = 0.0
+        for gap, idx in sorted_gaps:
+            if gap >= min_gap_threshold:
+                valid_splits.append(idx)
+                # Track the smallest gap we used (this becomes the effective buffer)
+                if len(valid_splits) == num_splits_needed:
+                    effective_buffer = gap
+                    break
+
+        # Log what we found
+        if valid_splits:
+            logger.debug(
+                f"  Auto-grouping: found {len(valid_splits)} natural gap(s) >= {min_gap_threshold}s, "
+                f"effective buffer = {effective_buffer:.1f}s"
+            )
+        else:
+            # No valid splits - all detections form one block
+            logger.debug(
+                f"  Auto-grouping: no gaps >= {min_gap_threshold}s found, treating as single block"
+            )
+
+        # Sort split indices for block building
+        valid_splits.sort()
+
+        # Build blocks
+        blocks = []
+        prev_idx = 0
+        for split_idx in valid_splits:
+            block_dets = sorted_dets[prev_idx:split_idx]
+            if block_dets:
+                blocks.append((
+                    block_dets[-1][0],  # last timestamp
+                    block_dets[0][1],   # type
+                    [d[0] for d in block_dets]
+                ))
+            prev_idx = split_idx
+
+        # Last block
+        block_dets = sorted_dets[prev_idx:]
+        if block_dets:
+            blocks.append((
+                block_dets[-1][0],
+                block_dets[0][1],
+                [d[0] for d in block_dets]
+            ))
+
+        return blocks, effective_buffer
+
     def _group_detections(
         self,
         detections: List[Tuple[float, str]],  # List of (timestamp, type)
         grouping_buffer: float,
     ) -> List[Tuple[float, str, List[float]]]:
         """
-        Group nearby detections of the same type into blocks.
+        Group nearby detections of the same type into blocks (legacy fixed-buffer method).
 
         Detections within `grouping_buffer` seconds of each other (of the same type)
         are merged into a single block. The block's timestamp is the LAST detection
@@ -1366,7 +1460,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
             f"{'-'.join(pattern_tokens)} (split at index {split_index})"
         )
         logger.debug(
-            f"  Blocks: {[(f'{ts/60:.1f}m', typ, len(all_ts)) for ts, typ, all_ts in blocks]}"
+            f"  Blocks: {[(f'{ts/60:.2f}m', typ, len(all_ts)) for ts, typ, all_ts in blocks]}"
         )
 
         # Try to match the full pattern
@@ -1390,7 +1484,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     split_ts = split_block[2][0]  # First timestamp in the block
                     logger.debug(
                         f"  PATTERN FULL MATCH: split before block {split_index} "
-                        f"at {split_ts/60:.1f}m (block has {len(split_block[2])} detections)"
+                        f"at {split_ts/60:.2f}m (block has {len(split_block[2])} detections)"
                     )
                     return (split_ts, {
                         'match_type': 'full',
@@ -1401,7 +1495,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     # Split is at the end (after last block)
                     split_ts = blocks[-1][0]
                     logger.debug(
-                        f"  PATTERN FULL MATCH: split after last block at {split_ts/60:.1f}m"
+                        f"  PATTERN FULL MATCH: split after last block at {split_ts/60:.2f}m"
                     )
                     return (split_ts, {
                         'match_type': 'full_end',
@@ -1420,20 +1514,49 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     split_ts = all_ts[0]
                     logger.debug(
                         f"  PATTERN PARTIAL MATCH: credits→logo transition, "
-                        f"split before logo at {split_ts/60:.1f}m"
+                        f"split before logo at {split_ts/60:.2f}m"
                     )
                     return (split_ts, {
                         'match_type': 'partial_c_to_l',
                     })
 
         # For logo-only patterns (like l-l-s), if we don't have enough blocks,
-        # we can't match - return None
+        # check for single-block midpoint fallback
         if len(block_sequence) < len(pattern_tokens):
-            logger.debug(
-                f"  PATTERN NO MATCH: need {len(pattern_tokens)} blocks, "
-                f"only have {len(block_sequence)}"
-            )
-            return None
+            # Single-block midpoint fallback: if we need 2 blocks but only have 1,
+            # and the single block has sufficient detections, split at the midpoint
+            MIN_DETECTIONS_FOR_MIDPOINT = 4
+
+            if len(pattern_tokens) == 2 and len(blocks) == 1:
+                single_block = blocks[0]
+                all_ts = single_block[2]
+
+                if len(all_ts) >= MIN_DETECTIONS_FOR_MIDPOINT:
+                    # Split at midpoint of the block
+                    mid_idx = len(all_ts) // 2
+                    split_ts = all_ts[mid_idx]
+                    logger.debug(
+                        f"  SINGLE-BLOCK MIDPOINT: {len(all_ts)} detections in one block, "
+                        f"splitting at midpoint (index {mid_idx}) = {split_ts/60:.2f}m"
+                    )
+                    return (split_ts, {
+                        'match_type': 'single_block_midpoint',
+                        'total_detections': len(all_ts),
+                        'midpoint_index': mid_idx,
+                    })
+                else:
+                    logger.debug(
+                        f"  PATTERN NO MATCH: need {len(pattern_tokens)} blocks, "
+                        f"only have 1 with {len(all_ts)} detections "
+                        f"(need >= {MIN_DETECTIONS_FOR_MIDPOINT} for midpoint fallback)"
+                    )
+                    return None
+            else:
+                logger.debug(
+                    f"  PATTERN NO MATCH: need {len(pattern_tokens)} blocks, "
+                    f"only have {len(block_sequence)}"
+                )
+                return None
 
         return None
 
@@ -1444,7 +1567,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
         post_credits_buffer: int = 15,  # seconds to look for logos after credits
         precision_pattern: str = "",  # Pattern like "c-l-c-s-l" or "l-l-s"
         progress_callback: Optional[callable] = None,  # callback(frames_done, total_frames)
-        pattern_grouping_buffer: float = 10.0,  # seconds to group detections into blocks
+        min_gap_threshold: float = 10.0,  # minimum gap (seconds) to split blocks
     ) -> List[Tuple[float, float, dict]]:
         """
         LLM Precision Mode: Dense sampling in narrow windows for logo-focused detection.
@@ -1460,7 +1583,8 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
         Pattern Mode (when precision_pattern is set):
         - "Ignore pattern" logic: only detection types in the pattern are considered
         - e.g., "l-l-s" means only consider logos, ignore credits entirely
-        - Detections within pattern_grouping_buffer seconds are grouped into blocks
+        - Automatic gap detection finds natural breaks in detections
+        - Single-block midpoint fallback when pattern needs 2 blocks but only 1 exists
         - Pattern is matched against grouped blocks, not individual detections
 
         Args:
@@ -1471,7 +1595,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                               Only detection types in the pattern are considered.
                               If pattern doesn't match, expands once then fails.
             progress_callback: Optional callback(frames_done, total_frames) for progress
-            pattern_grouping_buffer: Seconds within which to group detections into blocks
+            min_gap_threshold: Minimum gap (seconds) to consider a natural break between blocks
 
         Returns:
             List of (boundary_time, confidence, metadata) tuples, one per window
@@ -1502,20 +1626,38 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     logger.info(
                         f"Pattern mode: '{precision_pattern}' -> tokens={pattern_tokens}, "
                         f"split at index {pattern_split_index}, "
-                        f"types={pattern_types} (grouping buffer={pattern_grouping_buffer}s)"
+                        f"types={pattern_types} (auto-grouping with min gap=5s)"
                     )
 
-        with tempfile.TemporaryDirectory(prefix='split_llm_precision_') as temp_dir:
-            for window in search_windows:
-                logger.debug(
-                    f"LLM Precision Mode: window {window.start_time/60:.1f}-{window.end_time/60:.1f}m "
-                    f"({PRECISION_INTERVAL}s intervals)"
-                )
+        # Track if previous window needed expansion (carry forward)
+        previous_window_expanded = False
 
-                # Primary scan of the original window
+        with tempfile.TemporaryDirectory(prefix='split_llm_precision_') as temp_dir:
+            for window_idx, window in enumerate(search_windows):
+                # Expansion carry-forward: if previous window needed expansion,
+                # start this window expanded too (drift likely accumulated)
+                started_expanded = previous_window_expanded
+                if started_expanded:
+                    effective_start = max(0, window.start_time - EXPANSION_DURATION)
+                    effective_end = window.end_time + EXPANSION_DURATION
+                    logger.debug(
+                        f"LLM Precision Mode: window {window_idx+1} STARTING EXPANDED "
+                        f"(previous window needed expansion): "
+                        f"{effective_start/60:.2f}-{effective_end/60:.2f}m "
+                        f"(original: {window.start_time/60:.2f}-{window.end_time/60:.2f}m)"
+                    )
+                else:
+                    effective_start = window.start_time
+                    effective_end = window.end_time
+                    logger.debug(
+                        f"LLM Precision Mode: window {window.start_time/60:.2f}-{window.end_time/60:.2f}m "
+                        f"({PRECISION_INTERVAL}s intervals)"
+                    )
+
+                # Primary scan of the (possibly expanded) window
                 window_analyses, logo_timestamps, credits_timestamps, credits_transitions = \
                     self._scan_precision_range(
-                        file_path, window.start_time, window.end_time,
+                        file_path, effective_start, effective_end,
                         temp_dir, PRECISION_INTERVAL, "",
                         progress_callback=progress_callback
                     )
@@ -1547,14 +1689,19 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                     logger.debug(
                         f"  Pattern mode: {len(all_detections)} filtered detections "
-                        f"(types={pattern_types}): {[(f'{t/60:.1f}m', d) for t, d in all_detections]}"
+                        f"(types={pattern_types}): {[(f'{t/60:.2f}m', d) for t, d in all_detections]}"
                     )
 
-                    # Group detections into blocks using the grouping buffer
-                    grouped_blocks = self._group_detections(all_detections, pattern_grouping_buffer)
+                    # Use automatic gap detection to find natural blocks
+                    # min_gap_threshold=10s ensures we don't split on tiny frame-to-frame
+                    # gaps from 2-second sampling (6s gaps are normal, 10s+ indicates real break)
+                    required_blocks = len(pattern_tokens)
+                    grouped_blocks, effective_buffer = self._find_natural_blocks(
+                        all_detections, required_blocks, min_gap_threshold=min_gap_threshold
+                    )
                     logger.debug(
-                        f"  Grouped into {len(grouped_blocks)} blocks (buffer={pattern_grouping_buffer}s): "
-                        f"{[(f'{ts/60:.1f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks]}"
+                        f"  Auto-grouped into {len(grouped_blocks)} blocks: "
+                        f"{[(f'{ts/60:.2f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks]}"
                     )
 
                     # Try to match pattern against grouped blocks
@@ -1562,14 +1709,38 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                     if match_result is not None:
                         split_ts, match_metadata = match_result
-                        results.append((split_ts, 0.90, {
-                            'source': 'llm_precision_pattern',
+                        # If we started expanded, keep carrying forward
+                        # (we found the boundary in expanded range, drift continues)
+                        if started_expanded:
+                            previous_window_expanded = True
+                        results.append((split_ts, 0.90 if not started_expanded else 0.88, {
+                            'source': 'llm_precision_pattern' + ('_carried' if started_expanded else ''),
                             'window_source': window.source,
                             'pattern': precision_pattern,
                             'detection_count': len(all_detections),
                             'block_count': len(grouped_blocks),
-                            'grouping_buffer': pattern_grouping_buffer,
+                            'effective_buffer': effective_buffer,
+                            'started_expanded': started_expanded,
                             **match_metadata,
+                        }))
+                        continue
+
+                    # Pattern didn't match - check if we already started expanded
+                    if started_expanded:
+                        # Already started with expanded window, don't expand further
+                        logger.warning(
+                            f"  PATTERN MATCH FAILED: Could not match pattern '{precision_pattern}' "
+                            f"in window {window.center_time/60:.2f}m (already started expanded). "
+                            f"Blocks found: {[(f'{ts/60:.2f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks]}"
+                        )
+                        results.append((window.center_time, 0.0, {
+                            'source': 'llm_precision_pattern_failed',
+                            'window_source': window.source,
+                            'failed': True,
+                            'pattern': precision_pattern,
+                            'error': f"Pattern '{precision_pattern}' did not match (started expanded)",
+                            'blocks_found': [(f'{ts/60:.2f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks],
+                            'started_expanded': True,
                         }))
                         continue
 
@@ -1584,7 +1755,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                     if backward_start < backward_end:
                         logger.debug(
-                            f"  Pattern expansion BACKWARD: {backward_start/60:.1f}-{backward_end/60:.1f}m"
+                            f"  Pattern expansion BACKWARD: {backward_start/60:.2f}-{backward_end/60:.2f}m"
                         )
 
                         exp_analyses, _, _, _ = self._scan_precision_range(
@@ -1603,24 +1774,27 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                                 combined_detections.append((ts, 'l'))
                         combined_detections.sort(key=lambda x: x[0])
 
-                        # Group combined detections
-                        grouped_blocks = self._group_detections(combined_detections, pattern_grouping_buffer)
+                        # Use automatic gap detection
+                        grouped_blocks, effective_buffer = self._find_natural_blocks(
+                            combined_detections, required_blocks, min_gap_threshold=min_gap_threshold
+                        )
                         logger.debug(
                             f"  Combined after backward expansion: {len(grouped_blocks)} blocks: "
-                            f"{[(f'{ts/60:.1f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks]}"
+                            f"{[(f'{ts/60:.2f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks]}"
                         )
 
                         match_result = self._match_pattern(grouped_blocks, pattern_tokens, pattern_split_index)
 
                         if match_result is not None:
                             split_ts, match_metadata = match_result
+                            previous_window_expanded = True  # Carry forward
                             results.append((split_ts, 0.85, {
                                 'source': 'llm_precision_pattern_expanded',
                                 'window_source': window.source,
                                 'pattern': precision_pattern,
                                 'detection_count': len(combined_detections),
                                 'block_count': len(grouped_blocks),
-                                'grouping_buffer': pattern_grouping_buffer,
+                                'effective_buffer': effective_buffer,
                                 'from_expansion': True,
                                 **match_metadata,
                             }))
@@ -1631,7 +1805,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     forward_end = window.end_time + EXPANSION_DURATION
 
                     logger.debug(
-                        f"  Pattern expansion FORWARD: {forward_start/60:.1f}-{forward_end/60:.1f}m"
+                        f"  Pattern expansion FORWARD: {forward_start/60:.2f}-{forward_end/60:.2f}m"
                     )
 
                     exp_analyses, _, _, _ = self._scan_precision_range(
@@ -1659,24 +1833,27 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                             combined_detections.append((ts, 'l'))
                     combined_detections.sort(key=lambda x: x[0])
 
-                    # Group final combined detections
-                    grouped_blocks = self._group_detections(combined_detections, pattern_grouping_buffer)
+                    # Use automatic gap detection
+                    grouped_blocks, effective_buffer = self._find_natural_blocks(
+                        combined_detections, required_blocks, min_gap_threshold=min_gap_threshold
+                    )
                     logger.debug(
                         f"  Combined after all expansions: {len(grouped_blocks)} blocks: "
-                        f"{[(f'{ts/60:.1f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks]}"
+                        f"{[(f'{ts/60:.2f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks]}"
                     )
 
                     match_result = self._match_pattern(grouped_blocks, pattern_tokens, pattern_split_index)
 
                     if match_result is not None:
                         split_ts, match_metadata = match_result
+                        previous_window_expanded = True  # Carry forward
                         results.append((split_ts, 0.80, {
                             'source': 'llm_precision_pattern_expanded',
                             'window_source': window.source,
                             'pattern': precision_pattern,
                             'detection_count': len(combined_detections),
                             'block_count': len(grouped_blocks),
-                            'grouping_buffer': pattern_grouping_buffer,
+                            'effective_buffer': effective_buffer,
                             'from_expansion': True,
                             **match_metadata,
                         }))
@@ -1685,8 +1862,8 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                     # Pattern mode failed - no normal mode fallback
                     logger.warning(
                         f"  PATTERN MATCH FAILED: Could not match pattern '{precision_pattern}' "
-                        f"in window {window.center_time/60:.1f}m (even after expansion). "
-                        f"Blocks found: {[(f'{ts/60:.1f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks]}"
+                        f"in window {window.center_time/60:.2f}m (even after expansion). "
+                        f"Blocks found: {[(f'{ts/60:.2f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks]}"
                     )
                     results.append((window.center_time, 0.0, {
                         'source': 'llm_precision_pattern_failed',
@@ -1694,21 +1871,42 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                         'failed': True,
                         'pattern': precision_pattern,
                         'error': f"Pattern '{precision_pattern}' did not match detections",
-                        'blocks_found': [(f'{ts/60:.1f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks],
-                        'grouping_buffer': pattern_grouping_buffer,
+                        'blocks_found': [(f'{ts/60:.2f}m', typ, len(all_ts)) for ts, typ, all_ts in grouped_blocks],
+                        'min_gap_threshold': min_gap_threshold,
                     }))
                     continue
 
                 # Non-pattern mode: use buffer-based logic
-                # Try to find boundary in primary window
+                # Try to find boundary in primary (possibly expanded) window
                 result = self._process_precision_detections(
                     window_analyses, logo_timestamps, credits_timestamps,
-                    credits_transitions, window.source, "",
+                    credits_transitions, window.source,
+                    "carried_expansion" if started_expanded else "",
                     post_credits_buffer
                 )
 
                 if result:
+                    # If we started expanded, keep carrying forward
+                    if started_expanded:
+                        previous_window_expanded = True
                     results.append(result)
+                    continue
+
+                # No detections - check if we already started expanded
+                if started_expanded:
+                    # Already started with expanded window, don't expand further
+                    logger.warning(
+                        f"  DETECTION FAILED: No transitions or logos found in window "
+                        f"{window.center_time/60:.2f}m (already started expanded). "
+                        f"Cannot determine reliable split point."
+                    )
+                    results.append((window.center_time, 0.0, {
+                        'source': 'llm_precision_failed',
+                        'window_source': window.source,
+                        'failed': True,
+                        'error': 'No transitions or logos found (started expanded)',
+                        'started_expanded': True,
+                    }))
                     continue
 
                 # No detections in primary window - try expansion
@@ -1723,7 +1921,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                 if backward_start < backward_end:
                     logger.debug(
-                        f"  Expanding BACKWARD: {backward_start/60:.1f}-{backward_end/60:.1f}m"
+                        f"  Expanding BACKWARD: {backward_start/60:.2f}-{backward_end/60:.2f}m"
                     )
 
                     _, logo_ts, credits_ts, credits_trans = self._scan_precision_range(
@@ -1740,6 +1938,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                     if result:
                         logger.debug(f"  Found boundary in backward expansion!")
+                        previous_window_expanded = True  # Carry forward
                         results.append(result)
                         continue
 
@@ -1748,7 +1947,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                 forward_end = window.end_time + EXPANSION_DURATION
 
                 logger.debug(
-                    f"  Expanding FORWARD: {forward_start/60:.1f}-{forward_end/60:.1f}m"
+                    f"  Expanding FORWARD: {forward_start/60:.2f}-{forward_end/60:.2f}m"
                 )
 
                 _, logo_ts, credits_ts, credits_trans = self._scan_precision_range(
@@ -1765,6 +1964,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                 if result:
                     logger.debug(f"  Found boundary in forward expansion!")
+                    previous_window_expanded = True  # Carry forward
                     results.append(result)
                     continue
 
@@ -1794,7 +1994,7 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
                 # Scan far backward region
                 if far_backward_start < far_backward_end:
                     logger.debug(
-                        f"  Normal mode FAR BACKWARD: {far_backward_start/60:.1f}-{far_backward_end/60:.1f}m"
+                        f"  Normal mode FAR BACKWARD: {far_backward_start/60:.2f}-{far_backward_end/60:.2f}m"
                     )
 
                     _, logo_ts, credits_ts, credits_trans = self._scan_precision_range(
@@ -1811,13 +2011,14 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                     if result:
                         logger.debug(f"  Found boundary in normal mode far backward!")
+                        previous_window_expanded = True  # Carry forward
                         results.append(result)
                         continue
 
                 # Scan far forward region
                 if far_forward_start < far_forward_end:
                     logger.debug(
-                        f"  Normal mode FAR FORWARD: {far_forward_start/60:.1f}-{far_forward_end/60:.1f}m"
+                        f"  Normal mode FAR FORWARD: {far_forward_start/60:.2f}-{far_forward_end/60:.2f}m"
                     )
 
                     _, logo_ts, credits_ts, credits_trans = self._scan_precision_range(
@@ -1834,13 +2035,14 @@ CONFIDENCE: HIGH/MEDIUM/LOW"""
 
                     if result:
                         logger.debug(f"  Found boundary in normal mode far forward!")
+                        previous_window_expanded = True  # Carry forward
                         results.append(result)
                         continue
 
                 # All detection attempts failed - return failure
                 logger.warning(
                     f"  DETECTION FAILED: No transitions or logos found in window "
-                    f"{window.center_time/60:.1f}m (searched ±5 minutes). "
+                    f"{window.center_time/60:.2f}m (searched ±5 minutes). "
                     f"Cannot determine reliable split point."
                 )
                 results.append((window.center_time, 0.0, {

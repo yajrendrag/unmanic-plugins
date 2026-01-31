@@ -12,5 +12,5 @@
         "on_postprocessor_task_results": 0
     },
     "tags": "video,mkv,split,episode,ffmpeg,chapters,silence,detection",
-    "version": "0.2.3"
+    "version": "0.2.4"
 }

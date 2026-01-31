@@ -324,15 +324,15 @@ class Settings(PluginSettings):
 
     def _llm_pattern_grouping_buffer_setting(self):
         setting = {
-            "label": "Pattern Grouping Buffer (seconds)",
-            "description": "Group detections within this many seconds into a single block. "
-                          "Helps match patterns when the same logo appears across multiple frames. "
-                          "Example: 10s groups logos 6s apart but separates logos 12s apart.",
+            "label": "Minimum Gap Threshold (seconds)",
+            "description": "Minimum gap between detections to consider a natural break between blocks. "
+                          "Gaps smaller than this are ignored (detections stay in same block). "
+                          "Default 10s works well with 2-second sampling (6s frame gaps don't split blocks).",
             "input_type": "slider",
-            "slider_options": {"min": 1, "max": 15, "step": 1},
+            "slider_options": {"min": 5, "max": 30, "step": 1},
             "sub_setting": True,
         }
-        # Only show if LLM precision mode is enabled
+        # Only show if LLM precision mode is enabled and pattern is set
         if not self.get_setting('enable_llm_detection') or not self.get_setting('llm_precision_mode'):
             setting["display"] = "hidden"
         return setting

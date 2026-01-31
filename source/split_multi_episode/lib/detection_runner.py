@@ -231,7 +231,7 @@ def run_phase2_detection(args: Dict[str, Any], progress) -> Dict[str, Any]:
 
             sources = metadata.get('sources', [])
             progress.log(
-                f"  Window {i+1}: boundary at {boundary_time/60:.1f}m "
+                f"  Window {i+1}: boundary at {boundary_time/60:.2f}m "
                 f"(conf={confidence:.2f}, sources={sources})"
             )
         else:
@@ -240,7 +240,7 @@ def run_phase2_detection(args: Dict[str, Any], progress) -> Dict[str, Any]:
                 'fallback': True,
                 'window_source': window.source,
             }]
-            progress.log(f"  Window {i+1}: no detections, using center {window.center_time/60:.1f}m")
+            progress.log(f"  Window {i+1}: no detections, using center {window.center_time/60:.2f}m")
 
     # Convert to serializable format
     serializable_boundaries = {
@@ -336,7 +336,7 @@ def _run_precision_mode(
         if abs(cumulative_drift) > 1:
             progress.log(
                 f"  Window {i+1}: adjusted by {cumulative_drift:.1f}s drift "
-                f"({window.center_time/60:.1f}m → {adjusted_center/60:.1f}m)"
+                f"({window.center_time/60:.2f}m → {adjusted_center/60:.2f}m)"
             )
 
         # Create adjusted window for detection
@@ -354,7 +354,7 @@ def _run_precision_mode(
         # Run detection on this single window
         post_credits_buffer = settings.get('llm_post_credits_buffer', 15)
         precision_pattern = settings.get('llm_precision_pattern', '')
-        pattern_grouping_buffer = settings.get('llm_pattern_grouping_buffer', 10)
+        min_gap_threshold = settings.get('llm_pattern_grouping_buffer', 10)
 
         # Create progress callback for frame-level updates
         def frame_progress_callback(frames_done, total_frames):
@@ -365,7 +365,7 @@ def _run_precision_mode(
         results = detector.detect_precision_in_windows(
             file_path, [adjusted_window], post_credits_buffer, precision_pattern,
             progress_callback=frame_progress_callback,
-            pattern_grouping_buffer=pattern_grouping_buffer
+            min_gap_threshold=min_gap_threshold
         )
 
         if not results:
@@ -408,22 +408,22 @@ def _run_precision_mode(
         if 'logo' in source:
             logo_count = metadata.get('logo_count', 0)
             progress.log(
-                f"  Window {i+1}: {boundary_time/60:.1f}m via {logo_count} logos "
+                f"  Window {i+1}: {boundary_time/60:.2f}m via {logo_count} logos "
                 f"(conf={confidence:.2f}){from_expansion}{drift_info}"
             )
         elif 'credits' in source:
             progress.log(
-                f"  Window {i+1}: {boundary_time/60:.1f}m via credits transition "
+                f"  Window {i+1}: {boundary_time/60:.2f}m via credits transition "
                 f"(conf={confidence:.2f}){from_expansion}{drift_info}"
             )
         elif 'pattern' in source:
             progress.log(
-                f"  Window {i+1}: {boundary_time/60:.1f}m via pattern match "
+                f"  Window {i+1}: {boundary_time/60:.2f}m via pattern match "
                 f"(conf={confidence:.2f}){from_expansion}{drift_info}"
             )
         else:
             progress.log(
-                f"  Window {i+1}: {boundary_time/60:.1f}m fallback "
+                f"  Window {i+1}: {boundary_time/60:.2f}m fallback "
                 f"(conf={confidence:.2f}){drift_info}"
             )
 

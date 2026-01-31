@@ -168,8 +168,10 @@ Dependencies are automatically installed via `init.d/install-deps.sh`:
 | Ollama Host | `http://localhost:11434` | URL of Ollama API endpoint. Can be a remote server (e.g., `http://192.168.1.100:11434`) |
 | LLM Model | `qwen2.5vl:3b` | Vision model to use |
 | LLM Precision Mode | Off | Use narrow windows with dense sampling for clean files |
+| Symmetric Windows | Off | Use ±2m windows instead of -3m/+1m (only in Precision Mode) |
 | Post-Credits Buffer | 15 sec | How far after credits to include logos as boundary markers (5-60 sec) |
-| Boundary Pattern | (empty) | Sequence pattern for complex boundaries (e.g., "c-l-c-s-l") |
+| Boundary Pattern | (empty) | Sequence pattern for complex boundaries (e.g., "c-l-c-s-l" or "l-l-s") |
+| Minimum Gap Threshold | 10 sec | Minimum gap to consider a natural break between detection blocks (5-30 sec) |
 
 #### LLM Detection Details
 

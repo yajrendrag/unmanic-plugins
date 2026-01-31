@@ -1,9 +1,40 @@
 
+*<span style="color:#56adda">0.2.4</span>**
+- Add: Automatic gap detection for pattern mode
+  - Replaces fixed grouping buffer with automatic gap detection
+  - Finds the largest natural gaps in detections to split into required blocks
+  - Adapts to the data rather than requiring user-specified buffer size
+  - Minimum gap threshold of 10 seconds (6s gaps from 2-second sampling don't count as real breaks)
+  - Logs effective buffer used for each window
+
+- Add: Single-block midpoint fallback for pattern mode
+  - When pattern needs 2 blocks but only 1 continuous block exists
+  - If the single block has 4+ detections, splits at the midpoint
+  - Handles cases where episode boundary falls within a continuous logo run
+  - Logs when midpoint fallback is used
+
+- Add: Expansion carry-forward for LLM Precision Mode
+  - If a window requires expansion to find boundary, subsequent windows start expanded
+  - Avoids repeatedly discovering drift in each window
+  - Cumulative drift compounds across episodes, so expansion state propagates
+  - Windows that start expanded skip further expansion if pattern doesn't match
+
+- Change: "Pattern Grouping Buffer" renamed to "Minimum Gap Threshold"
+  - Now controls the minimum gap (seconds) to consider a natural break between blocks
+  - Default changed from 10s to configurable range 5-30s
+  - Gaps smaller than this threshold are ignored (detections stay in same block)
+  - If no gaps exceed threshold, single-block midpoint fallback triggers
+  - Only visible when LLM Precision Mode is enabled
+
+- Improve: Log display precision increased from 1 decimal to 2 decimals
+  - Timestamps now show as "180.63m" instead of "180.6m"
+  - Better visibility into actual frame timestamps and gap sizes
+  - Helps diagnose gap detection behavior (6s vs 12s gaps now distinguishable)
+
 *<span style="color:#56adda">0.2.3</span>**
 - move llm_detector.py to lib/detection
 
 *<span style="color:#56adda">0.2.2</span>**
-
 - Change: LLM Precision Mode windows widened to 4 minutes total
   - Asymmetric mode: -3m/+1m (more backward coverage for cumulative drift)
   - Symmetric mode: ±2m (for accurate TMDB timing)
@@ -28,7 +59,6 @@
   - Only visible when LLM Precision Mode is enabled
 
 *<span style="color:#56adda">0.2.1</span>**
-
 - Change: LLM Precision Mode now uses asymmetric windows (-3m/+0.5m instead of ±1.1m)
   - More backward coverage since episodes are typically shorter than TMDB predicts
   - Cumulative drift compounds across episodes, making later boundaries progressively earlier
