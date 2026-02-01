@@ -47,8 +47,8 @@ class EpisodeNamer:
     """
 
     # Default naming pattern
-    # Available variables: {title}, {season}, {episode}, {year}, {quality}, {ext}
-    DEFAULT_PATTERN = "S{season:02d}E{episode:02d} - {basename}"
+    # Available variables: {title}, {title_with_year}, {season}, {episode}, {year}, {quality}, {ext}
+    DEFAULT_PATTERN = "{title_with_year} - S{season:02d}E{episode:02d}"
 
     def __init__(
         self,
@@ -65,6 +65,41 @@ class EpisodeNamer:
         self.naming_pattern = naming_pattern or self.DEFAULT_PATTERN
         self.preserve_quality_info = preserve_quality_info
 
+    def _normalize_for_parsing(self, filename: str) -> str:
+        """
+        Normalize filename to improve parsing of episode ranges.
+
+        Handles:
+        - "S1 E01 - E08" -> "S1E01-E08" (spaces between S and E)
+        - "[E01-E08]" -> "E01-E08" (brackets around range)
+        - "E01_08" or "E01 _ 08" -> "E01-08" (underscore separator)
+        - "combined" keyword removal
+
+        Args:
+            filename: Original filename
+
+        Returns:
+            Normalized filename for parsing
+        """
+        result = filename
+
+        # Normalize "S1 E01" -> "S1E01" (space between season and episode)
+        result = re.sub(r'[Ss](\d+)\s+[Ee](\d+)', r'S\1E\2', result)
+
+        # Normalize bracket notation: "[E01-E08]" -> "E01-E08"
+        result = re.sub(r'\[([Ee]\d+\s*[-–_]\s*[Ee]?\d+)\]', r'\1', result)
+
+        # Normalize underscore separator in ranges: E01_08 -> E01-08
+        result = re.sub(r'([Ee]\d+)\s*[_]\s*(\d+)', r'\1-\2', result)
+
+        # Remove word "combined" (case insensitive)
+        result = re.sub(r'\s*\bcombined\b\s*', ' ', result, flags=re.IGNORECASE)
+
+        # Clean up multiple spaces
+        result = re.sub(r'\s+', ' ', result)
+
+        return result
+
     def parse_filename(self, file_path: str) -> ParsedFilename:
         """
         Parse a video filename to extract series information.
@@ -78,10 +113,14 @@ class EpisodeNamer:
         basename = os.path.basename(file_path)
         name, ext = os.path.splitext(basename)
 
-        # Try PTN first
+        # Normalize filename for better parsing of episode ranges
+        normalized_basename = self._normalize_for_parsing(basename)
+        normalized_name = self._normalize_for_parsing(name)
+
+        # Try PTN first (with normalized filename)
         if PTN_AVAILABLE:
             try:
-                parsed = PTN.parse(basename)
+                parsed = PTN.parse(normalized_basename)
                 # PTN may return a list for episode ranges (e.g., [5, 6, 7, 8] for E5-8)
                 episode = parsed.get('episode')
                 if isinstance(episode, list):
@@ -105,8 +144,8 @@ class EpisodeNamer:
             except Exception as e:
                 logger.debug(f"PTN parsing failed: {e}")
 
-        # Fallback regex parsing
-        return self._parse_with_regex(name, ext, basename)
+        # Fallback regex parsing (use normalized name for better range detection)
+        return self._parse_with_regex(normalized_name, ext, basename)
 
     def _parse_with_regex(self, name: str, ext: str, basename: str) -> ParsedFilename:
         """
@@ -274,7 +313,13 @@ class EpisodeNamer:
         start_ep = start_episode_override if start_episode_override is not None else (parsed.episode or 1)
         episode = start_ep + episode_number - 1
 
-        # Build basename (title with optional quality info)
+        # Build title with year (if available)
+        if parsed.year:
+            title_with_year = f"{parsed.title} ({parsed.year})"
+        else:
+            title_with_year = parsed.title
+
+        # Build basename (title with optional quality info) - kept for backward compatibility
         basename_parts = [parsed.title]
         if self.preserve_quality_info:
             if parsed.quality:
@@ -290,6 +335,7 @@ class EpisodeNamer:
         try:
             filename = self.naming_pattern.format(
                 title=parsed.title,
+                title_with_year=title_with_year,
                 season=season,
                 episode=episode,
                 year=parsed.year or '',
@@ -301,7 +347,7 @@ class EpisodeNamer:
             )
         except KeyError as e:
             logger.warning(f"Invalid naming pattern key: {e}")
-            filename = f"S{season:02d}E{episode:02d} - {basename}"
+            filename = f"{title_with_year} - S{season:02d}E{episode:02d}"
 
         # Ensure we have the correct extension
         if not filename.endswith(parsed.extension):
@@ -397,6 +443,24 @@ class EpisodeNamer:
 
         return names
 
+    def get_parent_folder_name(self, file_path: str) -> str:
+        """
+        Get the parent folder name based on source filename.
+
+        The parent folder is the source filename minus extension.
+        Example: "Series Name (2005) S1 E01 - E08 - HEVC - 1080p.mkv"
+              -> "Series Name (2005) S1 E01 - E08 - HEVC - 1080p"
+
+        Args:
+            file_path: Path to the source video file
+
+        Returns:
+            Folder name (source filename without extension)
+        """
+        basename = os.path.basename(file_path)
+        name, _ = os.path.splitext(basename)
+        return self._sanitize_filename(name)
+
     def detect_episode_range(self, file_path: str) -> Tuple[Optional[int], Optional[int]]:
         """
         Detect if the filename indicates a range of episodes.
@@ -411,12 +475,15 @@ class EpisodeNamer:
         """
         basename = os.path.basename(file_path)
 
+        # Normalize the filename for better range detection
+        normalized = self._normalize_for_parsing(basename)
+
         # Pattern: S01E01-E03 or S01E01-03
         range_pattern = re.compile(
             r'[Ss](\d+)[Ee](\d+)\s*[-–]\s*[Ee]?(\d+)',
             re.IGNORECASE
         )
-        match = range_pattern.search(basename)
+        match = range_pattern.search(normalized)
 
         if match:
             start_ep = int(match.group(2))

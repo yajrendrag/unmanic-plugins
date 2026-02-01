@@ -216,11 +216,32 @@ Speech detection listens for episode-end phrases like "Stay tuned", "Next time o
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Output Naming Pattern | `S{season:02d}E{episode:02d} - {basename}` | Pattern for episode filenames |
+| Output Naming Pattern | `{title_with_year} - S{season:02d}E{episode:02d}` | Pattern for episode filenames. Variables: `{title}`, `{title_with_year}`, `{season}`, `{episode}`, `{basename}`, `{ext}`. Use `{title_with_year}` to include year when available, or `{title}` for no year. |
 | Lossless Stream Copy | On | Use FFmpeg `-c copy` for fast lossless extraction |
-| Create Season Directory | Off | Create a season subdirectory for split episodes |
+| Create Output Folder Hierarchy | Off | Create a folder hierarchy (Parent Folder/Season XX/) for episodes. If disabled, episodes are placed in the same directory as the source file. |
+| Parent Folder Pattern | `{original_filename}` | Pattern for parent folder name. Variables: `{original_filename}`, `{title}`, `{title_with_year}`, `{season}` |
 | Season Directory Pattern | `Season {season:02d}` | Pattern for season directory name |
 | Delete Source After Split | Off | Delete source file after successful split. **Destructive!** |
+
+**Folder Structure (when Create Output Folder Hierarchy is enabled):**
+
+Example for source file `Series Name (2005) S1 E01 - E08 - HEVC - 1080p.mkv`:
+
+With default `{original_filename}` parent pattern:
+```
+Series Name (2005) S1 E01 - E08 - HEVC - 1080p/
+└── Season 01/
+    ├── Series Name (2005) - S01E01.mkv
+    └── ...
+```
+
+With `{title_with_year}` parent pattern:
+```
+Series Name (2005)/
+└── Season 01/
+    ├── Series Name (2005) - S01E01.mkv
+    └── ...
+```
 
 ### TMDB Settings (when enabled)
 

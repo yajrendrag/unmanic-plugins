@@ -103,9 +103,10 @@ class Settings(PluginSettings):
         "min_file_duration_minutes": 30,
 
         # Output Settings
-        "output_naming_pattern": "S{season:02d}E{episode:02d} - {basename}",
+        "output_naming_pattern": "{title_with_year} - S{season:02d}E{episode:02d}",
         "copy_streams_lossless": True,
-        "create_season_directory": False,
+        "create_output_folder_hierarchy": False,
+        "parent_folder_pattern": "{original_filename}",
         "season_directory_pattern": "Season {season:02d}",
         "delete_source_after_split": False,
     }
@@ -218,15 +219,19 @@ class Settings(PluginSettings):
             # Output Settings
             "output_naming_pattern": {
                 "label": "Output Naming Pattern",
-                "description": "Pattern for episode filenames. Variables: {title}, {season}, {episode}, {basename}, {ext}",
+                "description": "Pattern for episode filenames. Variables: {title}, {title_with_year}, {season}, {episode}, {basename}, {ext}. Use {title_with_year} to include year when available.",
             },
             "copy_streams_lossless": {
                 "label": "Lossless Stream Copy",
                 "description": "Use FFmpeg stream copy (-c copy) for fast lossless extraction",
             },
-            "create_season_directory": {
-                "label": "Create Season Directory",
-                "description": "Create a season subdirectory (e.g., 'Season 01') in the source directory for split episodes. If disabled, episodes are placed in the same directory as the source file.",
+            "create_output_folder_hierarchy": {
+                "label": "Create Output Folder Hierarchy",
+                "description": "Create a folder hierarchy for episodes (Parent Folder/Season XX/). If disabled, episodes are placed in the same directory as the source file.",
+            },
+            "parent_folder_pattern": {
+                "label": "Parent Folder Pattern",
+                "description": "Pattern for the parent folder name. Variables: {original_filename}, {title}, {title_with_year}, {season}",
             },
             "season_directory_pattern": {
                 "label": "Season Directory Pattern",
@@ -944,7 +949,7 @@ def _run_splitting_phase(data, settings, file_in, original_file_path, worker_log
     # Set up naming
     namer = EpisodeNamer(
         naming_pattern=settings.get_setting('output_naming_pattern'),
-        preserve_quality_info=True
+        preserve_quality_info=False,  # Clean names without quality info
     )
     naming_func = namer.get_naming_function(original_file_path)
     output_filename = naming_func(episode_num)
@@ -952,35 +957,53 @@ def _run_splitting_phase(data, settings, file_in, original_file_path, worker_log
     # Determine output directory
     source_dir = os.path.dirname(original_file_path)
 
-    if settings.get_setting('create_season_directory'):
-        # Create season subdirectory
-        season_pattern = settings.get_setting('season_directory_pattern')
+    if settings.get_setting('create_output_folder_hierarchy'):
+        # Create folder hierarchy: Parent Folder / Season XX /
         season_num = parsed_info.get('season', 1)
         title = parsed_info.get('title', '')
+        year = parsed_info.get('year')
+        title_with_year = f"{title} ({year})" if year else title
+        original_filename = namer.get_parent_folder_name(original_file_path)
 
+        # Build parent folder name from pattern
+        parent_pattern = settings.get_setting('parent_folder_pattern')
+        try:
+            parent_folder_name = parent_pattern.format(
+                original_filename=original_filename,
+                title=title,
+                title_with_year=title_with_year,
+                season=season_num,
+            )
+        except KeyError:
+            # Fallback to original filename
+            parent_folder_name = original_filename
+
+        parent_folder_path = os.path.join(source_dir, parent_folder_name)
+
+        # Build season folder name from pattern
+        season_pattern = settings.get_setting('season_directory_pattern')
         try:
             season_dir_name = season_pattern.format(
                 season=season_num,
                 title=title
             )
         except KeyError:
-            # Fallback if pattern has invalid variables
             season_dir_name = f"Season {season_num:02d}"
 
-        output_dir = os.path.join(source_dir, season_dir_name)
+        output_dir = os.path.join(parent_folder_path, season_dir_name)
 
         # Create directory if it doesn't exist (only on first episode)
         if current_episode == 0 and not os.path.exists(output_dir):
             try:
                 os.makedirs(output_dir, exist_ok=True)
-                worker_log.append(f"Created season directory: {output_dir}")
-                logger.info(f"Created season directory: {output_dir}")
+                worker_log.append(f"Created output directory: {output_dir}")
+                logger.info(f"Created output directory: {output_dir}")
             except Exception as e:
-                worker_log.append(f"WARNING: Failed to create season directory, using source directory: {e}")
-                logger.warning(f"Failed to create season directory {output_dir}: {e}")
+                worker_log.append(f"WARNING: Failed to create output directory, using source directory: {e}")
+                logger.warning(f"Failed to create output directory {output_dir}: {e}")
                 output_dir = source_dir
     else:
-        # Use same directory as source file
+        # No folder hierarchy - episodes go in same directory as source
         output_dir = source_dir
 
     output_path = os.path.join(output_dir, output_filename)

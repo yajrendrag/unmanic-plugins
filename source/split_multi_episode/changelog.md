@@ -1,4 +1,32 @@
 
+*<span style="color:#56adda">0.2.5</span>**
+- Change: New default output filename format
+  - Now: `{title_with_year} - S{season:02d}E{episode:02d}` (e.g., "Series Name (2005) - S01E01.mkv")
+  - Before: `S{season:02d}E{episode:02d} - {basename}` (e.g., "S01E01 - Series Name 1080p HEVC.mkv")
+  - Clean names without quality/codec info by default
+
+- Change: "Create Season Directory" replaced with "Create Output Folder Hierarchy"
+  - OFF (default): Episodes placed in same directory as source file (original behavior)
+  - ON: Creates Parent Folder / Season XX / hierarchy
+  - Parent folder name is configurable via pattern
+
+- Add: "Parent Folder Pattern" setting
+  - Pattern for the parent folder name when folder hierarchy is enabled
+  - Default: `{original_filename}` (source filename without extension)
+  - Variables: `{original_filename}`, `{title}`, `{title_with_year}`, `{season}`
+  - Example: `{title_with_year}` would create "Series Name (2005)/" instead of full filename
+
+- Add: Enhanced episode range parsing
+  - Now handles spaces between season and episode: "S1 E01 - E08"
+  - Now handles brackets around ranges: "[E01-E08]"
+  - Now handles underscore separators: "E01_08"
+  - Now removes "combined" keyword from filenames
+  - Pre-processes filename before PTN and regex parsing
+
+- Add: `{title_with_year}` variable for naming patterns
+  - Outputs "Series Name (2005)" when year is present and setting enabled
+  - Falls back to just "Series Name" when no year or setting disabled
+
 *<span style="color:#56adda">0.2.4</span>**
 - Add: Automatic gap detection for pattern mode
   - Replaces fixed grouping buffer with automatic gap detection

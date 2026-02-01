@@ -212,6 +212,41 @@ class TMDBValidator:
             commercial_adjusted=has_commercials,
         )
 
+    def _normalize_for_parsing(self, filename: str) -> str:
+        """
+        Normalize filename to improve parsing of episode ranges.
+
+        Handles:
+        - "S1 E01 - E08" -> "S1E01-E08" (spaces between S and E)
+        - "[E01-E08]" -> "E01-E08" (brackets around range)
+        - "E01_08" or "E01 _ 08" -> "E01-08" (underscore separator)
+        - "combined" keyword removal
+
+        Args:
+            filename: Original filename
+
+        Returns:
+            Normalized filename for parsing
+        """
+        result = filename
+
+        # Normalize "S1 E01" -> "S1E01" (space between season and episode)
+        result = re.sub(r'[Ss](\d+)\s+[Ee](\d+)', r'S\1E\2', result)
+
+        # Normalize bracket notation: "[E01-E08]" -> "E01-E08"
+        result = re.sub(r'\[([Ee]\d+\s*[-–_]\s*[Ee]?\d+)\]', r'\1', result)
+
+        # Normalize underscore separator in ranges: E01_08 -> E01-08
+        result = re.sub(r'([Ee]\d+)\s*[_]\s*(\d+)', r'\1-\2', result)
+
+        # Remove word "combined" (case insensitive)
+        result = re.sub(r'\s*\bcombined\b\s*', ' ', result, flags=re.IGNORECASE)
+
+        # Clean up multiple spaces
+        result = re.sub(r'\s+', ' ', result)
+
+        return result
+
     def _parse_filename(self, file_path: str) -> Optional[Dict]:
         """
         Parse series information from filename.
@@ -224,9 +259,12 @@ class TMDBValidator:
         """
         basename = os.path.basename(file_path)
 
+        # Normalize filename for better parsing of episode ranges
+        normalized_basename = self._normalize_for_parsing(basename)
+
         if PTN_AVAILABLE:
             try:
-                parsed = PTN.parse(basename)
+                parsed = PTN.parse(normalized_basename)
                 if parsed.get('title'):
                     return {
                         'title': parsed.get('title', ''),
@@ -236,13 +274,14 @@ class TMDBValidator:
             except Exception as e:
                 logger.debug(f"PTN parsing failed: {e}")
 
-        # Fallback: regex parsing
+        # Fallback: regex parsing (use normalized name for better range detection)
         name = os.path.splitext(basename)[0]
+        normalized_name = self._normalize_for_parsing(name)
 
         # Pattern 1: Episode range with title before OR after
         # e.g., "S1E1-3 Cambridge Spies" or "Cambridge Spies S1E1-3"
         range_pattern = re.compile(r'[Ss](\d+)[Ee](\d+)\s*[-–]\s*[Ee]?(\d+)', re.IGNORECASE)
-        range_match = range_pattern.search(name)
+        range_match = range_pattern.search(normalized_name)
 
         if range_match:
             season = int(range_match.group(1))
@@ -250,8 +289,9 @@ class TMDBValidator:
 
             # Title is typically BEFORE the episode info (S##E##)
             # The content AFTER is usually quality/codec/source metadata
-            before = name[:range_match.start()].strip(' ._-')
-            after = name[range_match.end():].strip(' ._-')
+            # Use original name for title extraction to preserve formatting
+            before = normalized_name[:range_match.start()].strip(' ._-')
+            after = normalized_name[range_match.end():].strip(' ._-')
 
             # Prefer the "before" part as the title (standard naming convention)
             # Only use "after" if "before" is empty or very short (< 3 chars)
@@ -269,15 +309,15 @@ class TMDBValidator:
 
         # Pattern 2: Standard S01E01 with title before OR after
         se_pattern = re.compile(r'[Ss](\d+)[Ee](\d+)', re.IGNORECASE)
-        se_match = se_pattern.search(name)
+        se_match = se_pattern.search(normalized_name)
 
         if se_match:
             season = int(se_match.group(1))
             episode = int(se_match.group(2))
 
             # Title is typically BEFORE the episode info (S##E##)
-            before = name[:se_match.start()].strip(' ._-')
-            after = name[se_match.end():].strip(' ._-')
+            before = normalized_name[:se_match.start()].strip(' ._-')
+            after = normalized_name[se_match.end():].strip(' ._-')
 
             # Prefer the "before" part as the title (standard naming convention)
             if before and len(before) >= 3:
@@ -294,15 +334,15 @@ class TMDBValidator:
 
         # Pattern 3: 1x01 format
         x_pattern = re.compile(r'(\d+)[Xx](\d+)')
-        x_match = x_pattern.search(name)
+        x_match = x_pattern.search(normalized_name)
 
         if x_match:
             season = int(x_match.group(1))
             episode = int(x_match.group(2))
 
             # Title is typically BEFORE the episode info
-            before = name[:x_match.start()].strip(' ._-')
-            after = name[x_match.end():].strip(' ._-')
+            before = normalized_name[:x_match.start()].strip(' ._-')
+            after = normalized_name[x_match.end():].strip(' ._-')
 
             # Prefer the "before" part as the title (standard naming convention)
             if before and len(before) >= 3:
