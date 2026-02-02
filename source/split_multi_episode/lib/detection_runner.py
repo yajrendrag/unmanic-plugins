@@ -294,18 +294,32 @@ def _run_precision_mode(
     """
     from split_multi_episode.lib.detection import LLMDetector
     from split_multi_episode.lib.detection.search_window import SearchWindow
+    from split_multi_episode.lib.detection.black_frame_detector import BlackFrameDetector
 
     min_ep_length = settings['min_episode_length']
     max_ep_length = settings['max_episode_length']
     num_windows = len(search_windows)
 
+    precision_pattern = settings.get('llm_precision_pattern', '')
+    use_black_frames = settings.get('llm_precision_use_black_frames', True) and not precision_pattern
+
+    # Create black frame detector if needed (uses fast windowed detection)
+    black_detector = None
+    if use_black_frames:
+        black_detector = BlackFrameDetector(
+            min_black_duration=0.5,  # Short duration for precision
+            min_episode_length=min_ep_length,
+            max_episode_length=max_ep_length,
+        )
+
     # Precision mode only uses LLM
     progress.set_methods(['llm_precision'])
     progress.start_method('llm_precision', num_windows)
 
-    precision_pattern = settings.get('llm_precision_pattern', '')
     if precision_pattern:
         progress.log(f"LLM Precision Mode: {num_windows} windows, pattern matching '{precision_pattern}'")
+    elif use_black_frames:
+        progress.log(f"LLM Precision Mode: {num_windows} windows, 2-second sampling + black frame refinement")
     else:
         progress.log(f"LLM Precision Mode: {num_windows} windows, 2-second sampling, sequential with drift adjustment")
 
@@ -382,6 +396,39 @@ def _run_precision_mode(
 
         boundary_time, confidence, metadata = results[0]
 
+        # Refine with black frame detection if enabled and LLM found something
+        if black_detector and not metadata.get('failed'):
+            # Search for black frames in a narrow window around the LLM boundary
+            search_radius = 4  # seconds each direction
+            search_start = max(0, boundary_time - search_radius)
+            search_duration = search_radius * 2
+
+            blacks = black_detector._detect_black_in_window(
+                file_path, search_start, search_duration
+            )
+
+            if blacks:
+                # Find the black frame closest to the LLM boundary
+                best_black = min(
+                    blacks,
+                    key=lambda b: abs((b.start_time + b.end_time) / 2 - boundary_time)
+                )
+                black_midpoint = (best_black.start_time + best_black.end_time) / 2
+                distance = abs(black_midpoint - boundary_time)
+
+                # Only use if within 2 seconds of LLM detection
+                if distance <= 2.0:
+                    original_boundary = boundary_time
+                    boundary_time = black_midpoint
+                    metadata['black_frame_refined'] = True
+                    metadata['black_frame_distance'] = round(distance, 2)
+                    metadata['original_llm_boundary'] = original_boundary
+                    confidence = min(confidence + 0.05, 0.95)
+                    logger.debug(
+                        f"Black frame refined: {original_boundary/60:.2f}m -> {boundary_time/60:.2f}m "
+                        f"(distance={distance:.2f}s)"
+                    )
+
         # Store result
         window_boundaries[i] = [boundary_time, confidence, metadata]
 
@@ -404,16 +451,17 @@ def _run_precision_mode(
         source = metadata.get('source', 'unknown')
         from_expansion = ' (from expansion)' if metadata.get('from_expansion') else ''
         drift_info = f", drift={window_drift:+.1f}s" if abs(window_drift) > 1 else ""
+        black_info = ' +black' if metadata.get('black_frame_refined') else ''
 
         if 'logo' in source:
             logo_count = metadata.get('logo_count', 0)
             progress.log(
-                f"  Window {i+1}: {boundary_time/60:.2f}m via {logo_count} logos "
+                f"  Window {i+1}: {boundary_time/60:.2f}m via {logo_count} logos{black_info} "
                 f"(conf={confidence:.2f}){from_expansion}{drift_info}"
             )
         elif 'credits' in source:
             progress.log(
-                f"  Window {i+1}: {boundary_time/60:.2f}m via credits transition "
+                f"  Window {i+1}: {boundary_time/60:.2f}m via credits{black_info} "
                 f"(conf={confidence:.2f}){from_expansion}{drift_info}"
             )
         elif 'pattern' in source:

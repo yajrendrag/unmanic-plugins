@@ -1,4 +1,13 @@
 
+*<span style="color:#56adda">0.2.6</span>**
+- Add: "Refine with Black Frames" for LLM Precision Mode (no pattern)
+  - After LLM detects a credits/logo boundary, searches for nearby black frames
+  - If a black frame is found within 2 seconds, uses it as the exact split point
+  - Provides more precise cuts at natural transition points
+  - Only active when no pattern is specified (pattern mode has its own logic)
+  - Default: enabled; can be disabled if causing issues
+  - Logs show "+black" suffix when black frame refinement was used
+
 *<span style="color:#56adda">0.2.5</span>**
 - Change: New default output filename format
   - Now: `{title_with_year} - S{season:02d}E{episode:02d}` (e.g., "Series Name (2005) - S01E01.mkv")

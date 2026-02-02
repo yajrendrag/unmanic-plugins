@@ -172,6 +172,7 @@ Dependencies are automatically installed via `init.d/install-deps.sh`:
 | Post-Credits Buffer | 15 sec | How far after credits to include logos as boundary markers (5-60 sec) |
 | Boundary Pattern | (empty) | Sequence pattern for complex boundaries (e.g., "c-l-c-s-l" or "l-l-s") |
 | Minimum Gap Threshold | 10 sec | Minimum gap to consider a natural break between detection blocks (5-30 sec) |
+| Refine with Black Frames | On | After LLM detects boundary, look for nearby black frame for exact split point (no-pattern mode only) |
 
 #### LLM Detection Details
 

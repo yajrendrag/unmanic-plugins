@@ -87,6 +87,7 @@ class Settings(PluginSettings):
         "llm_post_credits_buffer": 15,
         "llm_precision_pattern": "",
         "llm_pattern_grouping_buffer": 10,
+        "llm_precision_use_black_frames": True,
 
         # Speech Detection + options
         "enable_speech_detection": False,
@@ -177,6 +178,7 @@ class Settings(PluginSettings):
             "llm_post_credits_buffer": self._llm_post_credits_buffer_setting(),
             "llm_precision_pattern": self._llm_precision_pattern_setting(),
             "llm_pattern_grouping_buffer": self._llm_pattern_grouping_buffer_setting(),
+            "llm_precision_use_black_frames": self._llm_precision_black_frames_setting(),
 
             # Speech Detection + options
             "enable_speech_detection": {
@@ -339,6 +341,20 @@ class Settings(PluginSettings):
         }
         # Only show if LLM precision mode is enabled and pattern is set
         if not self.get_setting('enable_llm_detection') or not self.get_setting('llm_precision_mode'):
+            setting["display"] = "hidden"
+        return setting
+
+    def _llm_precision_black_frames_setting(self):
+        setting = {
+            "label": "Refine with Black Frames",
+            "description": "After LLM detects a credits/logo boundary, look for a nearby black frame "
+                          "and use that as the exact split point. Only active when no pattern is specified.",
+            "sub_setting": True,
+        }
+        # Only show if LLM precision mode is enabled and NO pattern specified
+        if not self.get_setting('enable_llm_detection') or not self.get_setting('llm_precision_mode'):
+            setting["display"] = "hidden"
+        elif self.get_setting('llm_precision_pattern'):
             setting["display"] = "hidden"
         return setting
 
@@ -744,6 +760,7 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
             'llm_precision_mode': llm_precision_mode,
             'llm_post_credits_buffer': settings.get_setting('llm_post_credits_buffer'),
             'llm_precision_pattern': settings.get_setting('llm_precision_pattern'),
+            'llm_precision_use_black_frames': settings.get_setting('llm_precision_use_black_frames'),
             'silence_threshold_db': settings.get_setting('silence_threshold_db'),
             'silence_min_duration': settings.get_setting('silence_min_duration'),
             'black_min_duration': settings.get_setting('black_min_duration'),
