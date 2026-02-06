@@ -1,4 +1,17 @@
 
+*<span style="color:#56adda">0.2.7</span>**
+- Fix: LLM Precision Mode now uses adjusted window centers
+  - Previously, precision windows were calculated from raw TMDB runtimes
+  - Now uses the already-adjusted centers from SearchWindowDeterminer
+  - Fixes incorrect window placement when file duration differs from TMDB total
+  - Example: 170m file with 430m TMDB total now gets windows scaled to fit
+
+- Add: Safety checks for severe TMDB vs file duration mismatch
+  - Skips processing if file duration is less than 50% of TMDB expected total
+  - Skips processing if any window center is past the end of the file
+  - Prevents wasted LLM calls on files with wrong episode count or TMDB mismatch
+  - Clear error messages in worker log explaining why file was skipped
+
 *<span style="color:#56adda">0.2.6</span>**
 - Add: "Refine with Black Frames" for LLM Precision Mode (no pattern)
   - After LLM detects a credits/logo boundary, searches for nearby black frames

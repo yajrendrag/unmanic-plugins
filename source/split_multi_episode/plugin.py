@@ -678,6 +678,40 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
         data['worker_log'] = worker_log
         return data
 
+    # Safety check: Detect severe TMDB vs file duration mismatch
+    # This catches cases like a file claiming 8 episodes but only being 3 episodes long
+    if expected_runtimes:
+        tmdb_total_sec = sum(expected_runtimes) * 60
+        duration_ratio = total_duration / tmdb_total_sec if tmdb_total_sec > 0 else 1.0
+
+        # Check for extreme mismatch (file is less than 50% of TMDB expected duration)
+        if duration_ratio < 0.5:
+            worker_log.append(
+                f"ERROR: Severe duration mismatch - file is {total_duration/60:.1f}m but "
+                f"TMDB expects {tmdb_total_sec/60:.1f}m for {expected_episode_count} episodes "
+                f"(ratio: {duration_ratio:.2f}). File may have wrong episode count or TMDB mismatch."
+            )
+            logger.warning(
+                f"Skipping file due to severe TMDB mismatch: {total_duration/60:.1f}m file vs "
+                f"{tmdb_total_sec/60:.1f}m TMDB total ({duration_ratio:.1%})"
+            )
+            data['worker_log'] = worker_log
+            return data
+
+    # Safety check: Ensure no windows extend past file end
+    windows_past_eof = [w for w in search_windows if w.center_time > total_duration]
+    if windows_past_eof:
+        worker_log.append(
+            f"ERROR: {len(windows_past_eof)} window(s) have centers past file end "
+            f"({total_duration/60:.1f}m). Episode count or TMDB data may be incorrect."
+        )
+        logger.warning(
+            f"Skipping file: {len(windows_past_eof)} windows past EOF "
+            f"(first at {windows_past_eof[0].center_time/60:.1f}m, file ends at {total_duration/60:.1f}m)"
+        )
+        data['worker_log'] = worker_log
+        return data
+
     # Check for LLM Precision Mode
     llm_precision_mode = (
         settings.get_setting('llm_precision_mode') and
@@ -687,7 +721,8 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
     )
 
     if llm_precision_mode:
-        # Override search windows with precision windows based on TMDB
+        # Override search windows with precision windows based on adjusted centers
+        # The search_windows already have centers adjusted for file duration vs TMDB mismatch
         # Asymmetric: -3m/+1m (4m total) - for episodes typically shorter than TMDB predicts
         # Symmetric: ±2m (4m total) - for accurate TMDB timing
         use_symmetric = settings.get_setting('llm_precision_symmetric_windows')
@@ -702,20 +737,19 @@ def _run_analysis_phase(data, settings, file_in, worker_log):
             window_desc = "asymmetric (-3m/+1m)"
 
         precision_windows = []
-        cumulative_runtime = 0
 
-        for i, runtime in enumerate(expected_runtimes[:-1]):  # Don't need window after last episode
-            cumulative_runtime += runtime * 60  # Convert to seconds
-            center = cumulative_runtime
+        # Use the already-adjusted centers from search_windows, not raw TMDB runtimes
+        for i, sw in enumerate(search_windows):
+            center = sw.center_time  # Already adjusted for file duration
             precision_windows.append(SearchWindow(
-                start_time=center - PRECISION_WINDOW_BACKWARD,
-                end_time=center + PRECISION_WINDOW_FORWARD,
+                start_time=max(0, center - PRECISION_WINDOW_BACKWARD),
+                end_time=min(total_duration, center + PRECISION_WINDOW_FORWARD),
                 center_time=center,
-                confidence=0.8,
+                confidence=sw.confidence,
                 source='tmdb_precision',
-                episode_before=i + 1,
-                episode_after=i + 2,
-                metadata={},
+                episode_before=sw.episode_before,
+                episode_after=sw.episode_after,
+                metadata=sw.metadata,
             ))
 
         search_windows = precision_windows
