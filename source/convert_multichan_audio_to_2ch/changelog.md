@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.25</span>**
+- try installing langcodes with requirements.txt
+
 **<span style="color:#56adda">0.0.24</span>**
 - allow a prioritized list of language codes to be specified for marking the default audio stream
 - finds the 2 channel stream that has a language matching the highest priority (assumes list is sorted from highest to lowest priority) language from the list of default audio languages
