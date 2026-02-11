@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.26</span>**
+- correct errored name in call to function find_def_lang_stream
+
 **<span style="color:#56adda">0.0.25</span>**
 - try installing langcodes with requirements.txt
 
