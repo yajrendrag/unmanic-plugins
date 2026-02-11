@@ -136,7 +136,7 @@ def streams_to_stereo_encode(probe_streams):
                 streams.append(audio_stream)
                 langs.append(probe_streams[i]['tags']['language'])
 
-    langs.append(stereo_streams)
+    langs.extend(stereo_streams)
     return streams, langs
 
 def streams_to_aac_encode(probe_streams, streams, keep_mc):
@@ -282,6 +282,8 @@ def on_worker_process(data):
     normalize_2_channel_stream = settings.get_setting('normalize_2_channel_stream')
 
     streams, langs = streams_to_stereo_encode(probe_streams)
+    logger.debug(f"langs: {langs}")
+    logger.debug(f"def_langs: {def_langs}")
     def_lang = find_def_lang_stream(def_langs, langs)
     encode_all_2_aac = settings.get_setting('encode_all_2_aac')
     streams_2_aac_encode = []

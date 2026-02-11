@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.28</span>**
+- correct langs.append to langs.extend in streams_to_stereo_encode
+
 **<span style="color:#56adda">0.0.27</span>**
 - remove list type from def2chlang.split(',') - it's already a list
 
