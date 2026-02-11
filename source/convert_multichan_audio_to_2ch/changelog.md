@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.27</span>**
+- remove list type from def2chlang.split(',') - it's already a list
+
 **<span style="color:#56adda">0.0.26</span>**
 - correct errored name in call to function find_def_lang_stream
 

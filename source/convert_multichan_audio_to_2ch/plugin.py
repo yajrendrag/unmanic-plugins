@@ -276,7 +276,7 @@ def on_worker_process(data):
     keep_mc = settings.get_setting('keep_mc')
     defaudio2ch = settings.get_setting('set_2ch_stream_as_default')
     def2chlang = settings.get_setting('default_lang')
-    def_langs = list(def2chlang.split(','))
+    def_langs = def2chlang.split(',')
     def_langs = [def_langs[i].strip() for i in range(0,len(def_langs))]
     encode_all_2_aac = settings.get_setting('encode_all_2_aac')
     normalize_2_channel_stream = settings.get_setting('normalize_2_channel_stream')
