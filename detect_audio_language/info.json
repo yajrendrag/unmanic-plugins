@@ -1,0 +1,20 @@
+{
+    "author": "yajrendrag",
+    "compatibility": [
+        1,
+        2
+    ],
+    "description": "Detect each audio stream language and tag stream with results",
+    "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/detect_audio_language/icon.png",
+    "id": "detect_audio_language",
+    "name": "Detect audio stream language",
+    "platform": [
+        "all"
+    ],
+    "priorities": {
+        "on_library_management_file_test": 99,
+        "on_worker_process": 1
+    },
+    "tags": "audio",
+    "version": "0.1.4"
+}

@@ -1,0 +1,19 @@
+{
+    "author": "yajrendrag, NicholasFlamy",
+    "compatibility": [
+        2
+    ],
+    "description": "Encode all audio streams in an audio file based on the configured encoder and options",
+    "icon": "https://raw.githubusercontent.com/Unmanic/plugin.encoder_audio_aac/master/icon.png",
+    "id": "asad_audio_encoder",
+    "name": "ASAD Audio Encoder",
+    "platform": [
+        "all"
+    ],
+    "priorities": {
+        "on_library_management_file_test": 99,
+        "on_worker_process": 0
+    },
+    "tags": "audio,encoder,ffmpeg,library file test",
+    "version": "0.1.0"
+}

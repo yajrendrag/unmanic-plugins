@@ -1,0 +1,730 @@
+{
+    "repo": {
+        "id": "repository.yajrendrag",
+        "name": "Jays Private Unmanic Repo",
+        "icon": "",
+        "repo_data_directory": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/repo/",
+        "repo_data_url": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/repo/repo.json"
+    },
+    "plugins": [
+        {
+            "author": "Josh.5, yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "This plugin will reset the current working file to the original source if it is outside the configure size range of the original source.",
+            "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.reject_files_larger_than_original/master/icon.png",
+            "id": "reject_files_outside_pct_range_of_original",
+            "name": "Reject files if outside percentage range of original",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 2,
+                "on_worker_process": 2,
+                "on_postprocessor_file_movement": 5
+            },
+            "tags": "library file test",
+            "version": "0.0.2"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Converts truehd, dts, or eac3 multichannel audio to aac or ac3",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.encoder_audio_aac/master/icon.png",
+            "id": "convert_multichannel_audio_keep_one_codec",
+            "name": "Convert multichannel audio and keep one codec",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 0
+            },
+            "tags": "audio,encoder,ffmpeg,library file test",
+            "version": "0.0.9"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Specify maximum number of audio channels per stream.",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.remove_stream_by_language/master/icon.png",
+            "id": "remove_audio_stream_by_channels",
+            "name": "Remove audio stream by channels",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 1
+            },
+            "tags": "audio,ffmpeg,library file test",
+            "version": "0.0.1"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Creates an extra multichannel audio stream from existing multichannel, DD+ or TrueHD stream",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.encoder_audio_aac/master/icon.png",
+            "id": "add_extra_multichannel_audio",
+            "name": "Add extra multichannel audio",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 0
+            },
+            "tags": "audio,encoder,ffmpeg,library file test",
+            "version": "0.0.20"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "partial pex library update based on folder with changed files.",
+            "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.notify_plex/master/icon.png",
+            "id": "notify_plex_partial",
+            "name": "Notify Plex Partial",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_postprocessor_task_results": 0
+            },
+            "tags": "post-processor",
+            "version": "0.0.7"
+        },
+        {
+            "author": "Josh.5",
+            "compatibility": [
+                2
+            ],
+            "description": "Only include files that do not end with specified extensions.",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.limit_library_search_by_file_extension/master/icon.png",
+            "id": "ignore_files_based_on_extension",
+            "name": "Ignore files based on extension",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 1
+            },
+            "tags": "library file test",
+            "version": "0.0.1"
+        },
+        {
+            "author": "Josh.5, yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Ignore files containing specified value in the Mediainfo data.",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.limit_library_search_by_ffprobe_data/master/icon.png",
+            "id": "ignore_files_based_on_mediainfo_data",
+            "name": "Ignore Files based on by Mediainfo Data",
+            "priorities": {
+                "on_library_management_file_test": 0
+            },
+            "tags": "audio,video,ffmpeg",
+            "version": "0.0.3"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Keeps only audio and video streams",
+            "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.reorder_audio_streams_by_language/master/icon.png",
+            "id": "keep_only_video_and_audio_streams",
+            "name": "Keep only video and audio streams",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 2
+            },
+            "tags": "audio,ffmpeg,library file test",
+            "version": "0.0.8"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Creates an extra stereo libfdk stereo audio stream from existing audio stream",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.encoder_audio_aac/master/icon.png",
+            "id": "convert_multichan_audio_to_2ch",
+            "name": "Convert multichannel audio to 2 channel",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 0
+            },
+            "tags": "audio,encoder,ffmpeg,library file test",
+            "version": "0.0.28"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Arrange streams in video file and sort audio by channels and language",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.remove_stream_by_language/master/icon.png",
+            "id": "stream_arranger",
+            "name": "Stream arranger",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 1
+            },
+            "tags": "audio, ffmpeg,library file test",
+            "version": "0.0.4"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Instructs Jellyfin to do a library scan",
+            "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/notify_jellyfin/icon.png",
+            "id": "notify_jellyfin",
+            "name": "Notify Jellyfin",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_postprocessor_task_results": 0
+            },
+            "tags": "post-processor",
+            "version": "0.0.2"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Delays worker until inotify events on file end",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.encoder_audio_aac/master/icon.png",
+            "id": "inotify_delay",
+            "name": "inotify delay",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_worker_process": 0
+            },
+            "tags": "worker process",
+            "version": "0.0.1"
+        },
+        {
+            "author": "Josh.5, SenorSmartyPants, yajrendrag",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Specify lists of audio and subtitle languages to keep",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.remove_stream_by_language/master/icon.png",
+            "id": "keep_stream_by_language",
+            "name": "Keep stream by language",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 1
+            },
+            "tags": "audio,subtitle, ffmpeg,library file test",
+            "version": "0.1.9"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Detects and splits multi-episode MKV files into individual episode files using a multi-technique detection pipeline including chapter markers, silence/black frame detection, perceptual hashing, audio fingerprinting, and optional LLM vision analysis",
+            "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/split_multi_episode/icon.png",
+            "id": "split_multi_episode",
+            "name": "Split Multi-Episode Files",
+            "priorities": {
+                "on_library_management_file_test": 0,
+                "on_worker_process": 0,
+                "on_postprocessor_file_movement": 0,
+                "on_postprocessor_task_results": 0
+            },
+            "tags": "video,mkv,split,episode,ffmpeg,chapters,silence,detection",
+            "version": "0.2.7"
+        },
+        {
+            "author": "yajrendrag, NicholasFlamy",
+            "compatibility": [
+                2
+            ],
+            "description": "Encode all audio streams in an audio file based on the configured encoder and options",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.encoder_audio_aac/master/icon.png",
+            "id": "asad_audio_encoder",
+            "name": "ASAD Audio Encoder",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 0
+            },
+            "tags": "audio,encoder,ffmpeg,library file test",
+            "version": "0.1.0"
+        },
+        {
+            "author": "Josh.5, yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Ignore files containing specified value in the Mediainfo data.",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.limit_library_search_by_ffprobe_data/master/icon.png",
+            "id": "ignore_files_with_matching_ffprobe_data",
+            "name": "Ignore files containing matching ffprobe data",
+            "priorities": {
+                "on_library_management_file_test": 0
+            },
+            "tags": "audio,video,ffmpeg",
+            "version": "0.0.4"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Set first audio stream to  original audio language, or reorder multiple audio languages or both",
+            "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.reorder_audio_streams_by_language/master/icon.png",
+            "id": "reorder_by_original_language",
+            "name": "Reorder by original language",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 2
+            },
+            "tags": "audio,ffmpeg,library file test",
+            "version": "0.2.0"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Ignore files containing specific metadata.",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.limit_library_search_by_file_extension/master/icon.png",
+            "id": "remove_streams_based_on_ffprobe_data",
+            "name": "Remove streams based on ffprobe data",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_worker_process": 1
+            },
+            "tags": "worker process",
+            "version": "0.0.8"
+        },
+        {
+            "author": "Josh.5",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Removes data streams identified by metadata codec_type = data &/or codec_name = bin_data.",
+            "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.remove_image_subtitles/master/icon.png",
+            "id": "remove_data_streams",
+            "name": "Remove data streams",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 50,
+                "on_worker_process": 1
+            },
+            "tags": "subtitle,data,ffmpeg,library file test",
+            "version": "0.0.9"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Converts dts audio to eac3",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.encoder_audio_aac/master/icon.png",
+            "id": "convert_dts_to_eac3",
+            "name": "Convert DTS to eac3",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 0
+            },
+            "tags": "audio,encoder,ffmpeg,library file test",
+            "version": "0.0.2"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "adds or updates mkv track-statistics-tags to an mkv file",
+            "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/mkv_track_stats/icon.png",
+            "id": "mkv_track_stats",
+            "name": "MKV Track Stats",
+            "priorities": {
+                "on_postprocessor_task_results": 0
+            },
+            "tags": "tracks, streams, tags, mkv",
+            "version": "0.0.1"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Renames file after processing by adding data from ffrobe fields to the name",
+            "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/rename_file/icon.png",
+            "id": "rename_file",
+            "name": "Rename file",
+            "priorities": {
+                "on_postprocessor_task_results": 0
+            },
+            "tags": "rename, postprocessor",
+            "version": "0.0.15"
+        },
+        {
+            "author": "Josh.5, yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Only look for files containing specified value in the Mediainfo data.",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.limit_library_search_by_ffprobe_data/master/icon.png",
+            "id": "limit_library_search_by_mediainfo_data",
+            "name": "Limit Library Search by Mediainfo Data",
+            "priorities": {
+                "on_library_management_file_test": 0
+            },
+            "tags": "audio,video,ffmpeg",
+            "version": "0.0.3"
+        },
+        {
+            "author": "Josh.5",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Use regex to specify paths for Unmanic to accept within your library.",
+            "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.path_ignore/master/icon.png",
+            "id": "path_accept",
+            "name": "Path Accept",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 1
+            },
+            "tags": "library file test",
+            "version": "0.0.1"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Converts truehd, dts, or eac3 multichannel audio to aac or ac3",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.encoder_audio_aac/master/icon.png",
+            "id": "convert_multichannel_audio_to_aac_or_ac3",
+            "name": "Convert multichannel audio to aac or ac3",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 0
+            },
+            "tags": "audio,encoder,ffmpeg,library file test",
+            "version": "0.0.5"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Set first audio stream to  original audio language, or reorder multiple audio languages or both",
+            "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.reorder_audio_streams_by_language/master/icon.png",
+            "id": "reorder_audio_streams2",
+            "name": "Reorder audio streams2",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 2
+            },
+            "tags": "audio,ffmpeg,library file test",
+            "version": "0.0.25"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Set original audio language to be the first audio stream",
+            "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.reorder_audio_streams_by_language/master/icon.png",
+            "id": "add_srt_to_video",
+            "name": "Add SRT to video",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 2
+            },
+            "tags": "subtitle,ffmpeg,library file test",
+            "version": "0.0.15"
+        },
+        {
+            "author": "Josh.5",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Normalise the audio of Libfdk AAC audio streams. This plugin will only process files with libfdk_aac streams.",
+            "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.normalise_aac/master/icon.png",
+            "id": "normalise_libfdk_aac",
+            "name": "Normalise Libfdk_AAC Audio Streams",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 0
+            },
+            "tags": "audio,ffmpeg,library file test",
+            "version": "0.0.4"
+        },
+        {
+            "author": "Josh.5",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Removes all image streams (if any exist) from video streams.",
+            "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.strip_image_streams/master/icon.png",
+            "id": "strip_image_streams2",
+            "name": "Strip all image streams from file - PR'd lib/ffmpeg",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 1
+            },
+            "tags": "video,ffmpeg,library file test",
+            "version": "0.0.10"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Adds custom metadata fields to an mkv or mp4 file",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.encoder_audio_aac/master/icon.png",
+            "id": "add_custom_metadata",
+            "name": "Add custom metadata",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_worker_process": 0
+            },
+            "tags": "metadata,ffmpeg,worker process test",
+            "version": "0.0.2"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Sync subtitle file to designated audio stream.",
+            "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.extract_srt_subtitles_to_files/master/icon.png",
+            "id": "subtitle_sync",
+            "name": "Sync subtitle file to audio",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_worker_process": 2
+            },
+            "tags": "subtitle",
+            "version": "0.0.13"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Forces a file to be added to the processing queue without any library testing",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.encoder_audio_aac/master/icon.png",
+            "id": "force_processing",
+            "name": "Force processing",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99
+            },
+            "tags": "library file test",
+            "version": "0.0.1"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Detect each audio stream language and tag stream with results",
+            "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/detect_audio_language/icon.png",
+            "id": "detect_audio_language",
+            "name": "Detect audio stream language",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 1
+            },
+            "tags": "audio",
+            "version": "0.1.4"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Create text subtitle from designated audio stream.",
+            "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.extract_srt_subtitles_to_files/master/icon.png",
+            "id": "subtitle_from_audio",
+            "name": "Create srt subtitle file from audio stream",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_worker_process": 2
+            },
+            "tags": "subtitle",
+            "version": "0.1.6"
+        },
+        {
+            "author": "Josh.5",
+            "compatibility": [
+                2
+            ],
+            "description": "Ensure all audio streams are encoded with the AAC codec using the libfdk_aac encoder.",
+            "icon": "https://raw.githubusercontent.com/Unmanic/plugin.encoder_audio_aac/master/icon.png",
+            "id": "encoder_audio_libfdk_aac",
+            "name": "Audio Encoder libfdk_aac",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 0
+            },
+            "tags": "audio,encoder,ffmpeg,library file test",
+            "version": "0.0.10"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Runs ffmpeg's crop detect and if black borders are found adds the file to the task list",
+            "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/detect_bars/icon.png",
+            "id": "detect_bars",
+            "name": "Detect Bars",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99
+            },
+            "tags": "library file test",
+            "version": "0.0.5"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "adds a file back to the task queue of a selected library",
+            "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/reprocess_file/icon.png",
+            "id": "reprocess_file",
+            "name": "Reprocess File",
+            "priorities": {
+                "on_postprocessor_task_results": 0
+            },
+            "tags": "task, queue",
+            "version": "0.0.3"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                1,
+                2
+            ],
+            "description": "Set original audio language to be the first audio stream",
+            "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.reorder_audio_streams_by_language/master/icon.png",
+            "id": "set_only_audio_to_original_language",
+            "name": "Set only audio to original language",
+            "platform": [
+                "all"
+            ],
+            "priorities": {
+                "on_library_management_file_test": 99,
+                "on_worker_process": 2
+            },
+            "tags": "audio,ffmpeg,library file test",
+            "version": "0.0.3"
+        },
+        {
+            "author": "yajrendrag",
+            "compatibility": [
+                2
+            ],
+            "description": "Notify of task success/failure using Apprise",
+            "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/task_notifier/icon.png",
+            "id": "task_notifier",
+            "name": "Task notifier",
+            "priorities": {
+                "on_postprocessor_task_results": 0
+            },
+            "tags": "notify",
+            "version": "0.0.7"
+        }
+    ]
+}
