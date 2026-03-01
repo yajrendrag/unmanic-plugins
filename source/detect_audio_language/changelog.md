@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.1.5</span>**
+- update init.d/install_whisper.sh to install newer version of torch compatible with other plugins using torch
+- changed the init.d installer file name to install_deps.sh
+
 **<span style="color:#56adda">0.1.4</span>**
 - add python_command variable to make installer script universal
 

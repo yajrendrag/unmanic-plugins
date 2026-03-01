@@ -17,10 +17,5 @@ else
     echo "**** whisper already installed ****"
 fi
 
-#mpy=$(python3 -m pip list | grep moviepy)
-#if [ ! "$mpy" ]; then 
-#    echo "**** Installing moviepy ****"
-#    python3 -m pip install moviepy==2.1.2
-#else
-#    echo "**** moviepy already installed ****"
-#fi
+tch=$("${python_command}" -m pip list | grep "^torch ")
+[[ ! $tch ]] && "$python_command" -m pip install torch
