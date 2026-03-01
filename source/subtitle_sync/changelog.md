@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.14</span>**
+- updated init.d installer script
+
 **<span style="color:#56adda">0.0.13</span>**
 - use a python_command variable to make init.d script work on venv and non-venv systems
 

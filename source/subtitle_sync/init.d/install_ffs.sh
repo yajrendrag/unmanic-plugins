@@ -14,7 +14,7 @@ fi
 ffspy=$("${python_command}" -m pip list | grep ffsubsync)
 if [ ! "$ffspy" ]; then
     echo "**** Installing ffsubsync ****"
-    "python_command" -m pip install ffsubsync
+    "$python_command" -m pip install ffsubsync
 else
     echo "**** ffsubsync already installed ****"
 fi
