@@ -1,19 +1,16 @@
 {
     "author": "yajrendrag",
     "compatibility": [
-        1,
         2
     ],
-    "description": "Create text subtitle from designated audio stream.",
+    "description": "Create SRT subtitle file from audio using WhisperX with word-level alignment and optional speaker diarization.",
     "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.extract_srt_subtitles_to_files/master/icon.png",
     "id": "subtitle_from_audio",
-    "name": "Create srt subtitle file from audio stream",
-    "platform": [
-        "all"
-    ],
+    "name": "Create SRT Subtitles from Audio (WhisperX)",
     "priorities": {
+        "on_library_management_file_test": 10,
         "on_worker_process": 2
     },
-    "tags": "subtitle",
-    "version": "0.1.6"
+    "tags": "subtitle,whisper,whisperx,transcription,srt",
+    "version": "0.2.0"
 }

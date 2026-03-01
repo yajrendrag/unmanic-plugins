@@ -1,4 +1,13 @@
 
+*<span style="color:#56adda">0.2.0</span>**
+- refactored version based on WhisperX transcription with word-level forced alignment
+- VAD pre-segmentation to eliminate hallucinations
+- Optional speaker diarization with configurable label formats
+- Commercial chapter skipping
+- VRAM-aware model fallback
+- 3rd party packages installed via pip at plugin installation time.  See NOTICES.md
+- code generation by Claude
+
 *<span style="color:#56adda">0.1.6</span>**
 - use a python_command variable to make init.d script work on venv and non-venv systems
 
