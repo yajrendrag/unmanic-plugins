@@ -1,4 +1,7 @@
 
+*<span style="color:#56adda">0.2.3</span>**
+- write srt file to source file location
+
 *<span style="color:#56adda">0.2.2</span>**
 - fix another whisperx api issue
 

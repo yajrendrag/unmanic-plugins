@@ -952,8 +952,10 @@ def on_worker_process(data, **kwargs):
         logger.info("SRT already exists for '{}', skipping.".format(original_file_path))
         return data
 
-    # Determine output SRT path — write alongside the cache file_in
-    output_srt_path = str(os.path.splitext(abspath)[0] + '.srt')
+    # Determine output SRT path — write alongside the original source file
+    # so the SRT persists after cache cleanup (file_in may be a cache path
+    # when other plugins run before this one)
+    output_srt_path = str(os.path.splitext(original_file_path)[0] + '.srt')
 
     # Run the WhisperX pipeline in a child process
     proc = PluginChildProcess(plugin_id="subtitle_from_audio", data=data)
@@ -1018,12 +1020,13 @@ def on_postprocessor_task_results(data, **kwargs):
     cache_path = data.get('final_cache_path', '')
     cache_srt = os.path.splitext(cache_path)[0] + '.srt' if cache_path else ''
 
-    # Determine which source SRT exists
+    # Determine which source SRT exists (prefer source location since
+    # worker now writes alongside the original file, not the cache)
     srt_source = None
-    if cache_srt and os.path.isfile(cache_srt):
-        srt_source = cache_srt
-    elif os.path.isfile(source_srt):
+    if os.path.isfile(source_srt):
         srt_source = source_srt
+    elif cache_srt and os.path.isfile(cache_srt):
+        srt_source = cache_srt
 
     if not srt_source:
         logger.error("No SRT file found to copy (checked '{}' and '{}').".format(cache_srt, source_srt))
