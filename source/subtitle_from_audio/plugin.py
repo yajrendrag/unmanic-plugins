@@ -6,7 +6,7 @@
     Date:                     1 March 2026
 
     Copyright:
-        Unmanic plugin code Copyright (C) 2025,2026 Jay Gardner
+        Unmanic plugin code Copyright (C) 2026 Jay Gardner
 
         This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
         Public License as published by the Free Software Foundation, version 3.
@@ -92,6 +92,7 @@ class Settings(PluginSettings):
                 {"value": "medium",   "label": "medium (~5 GB VRAM)"},
                 {"value": "large-v2", "label": "large-v2 (~10 GB VRAM)"},
                 {"value": "large-v3", "label": "large-v3 (~10 GB VRAM)"},
+                {"value": "turbo",    "label": "turbo (~6 GB VRAM, faster)"},
             ],
         }
 
@@ -504,7 +505,7 @@ def set_model(settings):
     device = settings.get_setting('device')
     batch_size = settings.get_setting('batch_size')
 
-    model_order = ['tiny', 'base', 'small', 'medium', 'large-v2', 'large-v3']
+    model_order = ['tiny', 'base', 'small', 'medium', 'turbo', 'large-v2', 'large-v3']
     try:
         model_index = model_order.index(model_name)
     except ValueError:
@@ -839,7 +840,8 @@ def run_whisperx_pipeline(data, settings, file_path, output_srt_path, log_queue,
             if hf_token:
                 log_queue.put("=== Performing speaker diarization ===")
                 try:
-                    diarize_model = whisperx.DiarizationPipeline(
+                    from whisperx.diarize import DiarizationPipeline
+                    diarize_model = DiarizationPipeline(
                         use_auth_token=hf_token,
                         device=device,
                     )

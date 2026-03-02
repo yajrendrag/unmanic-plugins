@@ -12,5 +12,5 @@
         "on_worker_process": 2
     },
     "tags": "subtitle,whisper,whisperx,transcription,srt",
-    "version": "0.2.0"
+    "version": "0.2.1"
 }

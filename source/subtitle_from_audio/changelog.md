@@ -1,4 +1,8 @@
 
+*<span style="color:#56adda">0.2.1</span>**
+- fixed an issue with whisperx diarization library
+- added turbo model
+
 *<span style="color:#56adda">0.2.0</span>**
 - refactored version based on WhisperX transcription with word-level forced alignment
 - VAD pre-segmentation to eliminate hallucinations
