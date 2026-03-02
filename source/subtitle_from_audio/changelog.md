@@ -1,4 +1,7 @@
 
+*<span style="color:#56adda">0.2.2</span>**
+- fix another whisperx api issue
+
 *<span style="color:#56adda">0.2.1</span>**
 - fixed an issue with whisperx diarization library
 - added turbo model

@@ -842,7 +842,7 @@ def run_whisperx_pipeline(data, settings, file_path, output_srt_path, log_queue,
                 try:
                     from whisperx.diarize import DiarizationPipeline
                     diarize_model = DiarizationPipeline(
-                        use_auth_token=hf_token,
+                        token=hf_token,
                         device=device,
                     )
                     diarize_segments = diarize_model(tmp_audio_path)
