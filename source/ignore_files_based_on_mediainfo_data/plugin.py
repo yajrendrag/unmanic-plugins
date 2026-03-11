@@ -141,8 +141,5 @@ def on_library_management_file_test(data):
             "File '%s' should not be added to task list. "
             "File contains specified mediainfo data.", abspath)
     elif not in_disallowed_values:
-        #  Force this file to have a pending task created
-        data['add_file_to_pending_tasks'] = True
         logger.debug(
-            "File '%s' should be added to task list. "
-            "File does not contain specified mediainfo data.", abspath)
+            "File '%s' does not contain specified mediainfo data - let subsequent plugins test to determine if file should be added to queue.", abspath)
