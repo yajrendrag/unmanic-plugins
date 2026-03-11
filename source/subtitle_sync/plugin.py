@@ -310,7 +310,7 @@ def on_worker_process(data):
     ffs_args = [video_file, '-i', abspath, '--refstream', f"a:{preferred_audio_stream}", '--no-fix-framerate', '-o', file_out]
 
     # Apply ffmpeg args to command
-    data['exec_command'] = ['ffs']
+    data['exec_command'] = ['/opt/venv/bin/ffs']
     data['exec_command'] += ffs_args
 
     logger.debug(f"command: {data['exec_command']}")

@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.15</span>**
+- fix data['exec_command'] to refer to correct location of the ffsubsync command in the venv for unmanic v0.4.x
+
 **<span style="color:#56adda">0.0.14</span>**
 - updated init.d installer script
 
