@@ -23,6 +23,9 @@
 import logging
 import threading
 import time
+import subprocess
+import json
+import os
 from pathlib import Path
 
 from unmanic.libs.unplugins.settings import PluginSettings
@@ -63,6 +66,7 @@ class Settings(PluginSettings):
         "target_library": "Select",
         "reprocess_based_on_task_status": True,
         "status_that_adds_file_to_queue": "Failed",
+        "diagnostic_script": "",
         "change_suffix": True,
         "new_suffix": "",
         "modify_path": True,
@@ -77,6 +81,7 @@ class Settings(PluginSettings):
                 "label": "Check this option to only add the file back to the queue if it's completion status matches your configured result.  Otherwise the file is always added back to the task queue",
             },
             "status_that_adds_file_to_queue": self.__set_status_that_adds_file_to_queue_form_settings(),
+            "diagnostic_script": self.__set_diagnostic_script_form_settings(),
             "change_suffix":  {
                 "label": "Check this option to process a file with the same name, but a different suffix - after checking this you'll be able to enter a new suffix",
             },
@@ -111,6 +116,16 @@ class Settings(PluginSettings):
                     "label": "Failed",
                 },
             ],
+        }
+        if not self.get_setting('reprocess_based_on_task_status'):
+            values["display"] = 'hidden'
+        return values
+
+    def __set_diagnostic_script_form_settings(self):
+        values = {
+            "label": "Enter the path to a shell script to run that returns true or false, e.g., /config/reprocess_script.sh",
+            "description": "If the script returns true, the file will be reprocessed.  if left empty, this test will be ignored.  This option is only available when reprocessing by task status",
+            "input_type": "textarea",
         }
         if not self.get_setting('reprocess_based_on_task_status'):
             values["display"] = 'hidden'
@@ -190,6 +205,7 @@ def on_postprocessor_task_results(data):
 
     if not reprocess_all:
         reprocess_which = settings.get_setting("status_that_adds_file_to_queue")
+        script_path = settings.get_setting('diagnostic_script')
 
     if reprocess_all or (reprocess_which == "failed" and not data.get("task_processing_success")) or (reprocess_which == "success" and data.get("task_processing_success")):
 
@@ -201,6 +217,7 @@ def on_postprocessor_task_results(data):
         if change_suffix:
             abspath = abspath.with_suffix(new_suffix)
 
+        # create new path to use for the reprocessed file by substituting new path parts for the old path  parts in abspath
         if modify_path:
             abspath_parts_list = list(abspath.parts)
             old_path_parts = list(Path(path_map.split(':')[0]).parts)
@@ -208,9 +225,25 @@ def on_postprocessor_task_results(data):
             new_parts_list = new_path_parts + abspath_parts_list[len(old_path_parts):]
             abspath = Path(*new_parts_list)
 
+        # if not reprocessing all files and if a script path is provided run the script_path and get the results
+        # if not reprocessing all files and no script path is provided, set the script_results to 0 (success) so 
+        # the reprocess still happens (this handles the case of the user simply wanting to reprocess on success or failure
+        # without further testing.
+        # input=json.dumps(data) passes the entire data object to the script for use by the script.
+
+        if not reprocess_all and script_path and os.path.isfile(script_path) and abspath:
+            result = subprocess.run(
+                [script_path],input=json.dumps(data),
+                capture_output=True, text=True, timeout=30
+            )
+            script_results = result.returncode
+            logger.debug(f"script_results: {script_results}")
+        else:
+            script_results = 0
+
         logger.debug(f"abspath: {abspath}")
 
-        if target_library_id and abspath:
+        if target_library_id and abspath and script_results == 0:
 
             # Add source file to the target library's queue using a background thread.
             # This is necessary because the current task still exists in the database

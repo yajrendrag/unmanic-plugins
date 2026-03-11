@@ -14,6 +14,10 @@ you reprocess the file with another library stack to process it with other plugi
 Unless you use options below to change the suffix &/or perform a path translation, the path of the file for reprocessing is identical to the original file,
 so the library that is reprocessing the file should be defined over the same set of media folders as the original library.
 
+Starting with version 0.1.0 the plugin has an optional script input that can be used when reprocess_based_on_task_stauts is true.  this is a user supplied
+script that can perform further tests on the file to determine if you really wish to reprocess the file.  For example, possibly you may only want to test
+a failed file based on the particular failure and need to parse the failure message.  The entire post-processor data object is passed to the script by the
+plugin, so your script will need to parse it.  See script.md for an example with documentation.
 ---
 
 #### Config description:
@@ -24,6 +28,9 @@ Select the library that will be used to reprocess the file.  This library needs 
 ##### <span style="color:DeepSkyBlue">"reprocess_based_on_task_status"</span>
 Check or uncheck this option.  If checked, you will see the option below and you will configure the plugin to either reprocess the file if the task
 was successful or unsuccessful.  If this option is unchecked, it means always reprocess the file regardless of task processing success or failure.
+
+##### <span style="color:DeepSkyBlue">"diagnostic_script"</span>
+Path to the script that will run to perform futher testing on the succcess or failure to determine if you want to reprocess the file. e.g., /config/colorspace.sh
 
 ##### <span style="color:DeepSkyBlue">"status_that_adds_file_to_queue"</span>
 Select "Success" or "Failed".  A selection of "Success" means that the file will be reprocessed ONLY if task processing was successful.  A selection of "Failed"
