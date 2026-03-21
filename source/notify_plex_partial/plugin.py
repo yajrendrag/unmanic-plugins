@@ -57,8 +57,8 @@ def get_section(media_dir, plex_url, plex_token):
 def update_plex(plex_url, plex_token, media_dir, section_id):
     # Call to Plex to trigger an update
     logger.debug(f"media_dir: {media_dir}, section_id: {section_id}"
-    logger.debug(f"plex_url: {plex_url}")
     plex_url = plex_url + '/library/sections/' + str(section_id) + '/refresh/?path=' + urllib.parse.quote(media_dir, safe='') + '&X-Plex-Token=' + plex_token
+    logger.debug(f"plex_url: {plex_url}")
     response = requests.get(plex_url)
     if response.status_code == 200:
         logger.info("Notifying Plex ({}) to update its library.".format(plex_url))
