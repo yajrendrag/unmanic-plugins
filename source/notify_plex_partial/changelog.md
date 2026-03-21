@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.8</span>**
+- add debug output to update_plex
+
 **<span style="color:#56adda">0.0.7</span>**
 - modified analyze to comment out the year filter with an explanatory note in case an example comes up where it's needed
 
