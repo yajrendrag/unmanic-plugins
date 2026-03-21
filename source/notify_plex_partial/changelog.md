@@ -1,4 +1,10 @@
 
+**<span style="color:#56adda">0.0.9</span>**
+- added more debug output
+- added better error messaging especially related to unauthorized errors from plexapi
+- fixed unmanic_dir and host_dir variable definitions which were reversed
+- added BeautifulSoup4 to parse text output from requests results
+
 **<span style="color:#56adda">0.0.8</span>**
 - add debug output to update_plex
 
