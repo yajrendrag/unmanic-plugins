@@ -133,14 +133,14 @@ def on_postprocessor_task_results(data):
     lib_map = settings.get_setting('Unmanic Library Mapping')
     logger.debug(f"lib_map: {lib_map}")
 
-    host_dir=re.search(r'.*:(.*$)', lib_map)
+    host_dir=re.search(r'(.*:)', lib_map)
     if host_dir:
         host_dir = host_dir.group(1)
     else:
         logger.error("unable to find identify host dir from mapping: '{}'".format(lib_map))
         return data
 
-    unmanic_dir=re.search(r'(.*):', lib_map)
+    unmanic_dir=re.search(r'.*:(.*$)', lib_map)
     if unmanic_dir:
         unmanic_dir = unmanic_dir.group(1)
     else:

@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.12</span>**
+- reversed again unmanic_dir and host_dir variable definitions - below reversal in v0.0.9 was an error
+
 **<span style="color:#56adda">0.0.11</span>**
 - add a deep_refresh option - to allow refreshing just the parent folder of a media file
 
