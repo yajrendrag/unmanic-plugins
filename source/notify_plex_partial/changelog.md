@@ -1,7 +1,7 @@
 
 **<span style="color:#56adda">0.0.10</span>**
-- fixed incorrect section_id calculation
-- refactored update_plex to include section_id calculation
+- fixed incorrect section_id lookup
+- refactored update_plex to include section_id lookup
 
 **<span style="color:#56adda">0.0.9</span>**
 - added more debug output
