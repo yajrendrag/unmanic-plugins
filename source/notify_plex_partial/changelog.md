@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.0.10</span>**
+- fixed incorrect section_id calculation
+- refactored update_plex to include section_id calculation
+
 **<span style="color:#56adda">0.0.9</span>**
 - added more debug output
 - added better error messaging especially related to unauthorized errors from plexapi
