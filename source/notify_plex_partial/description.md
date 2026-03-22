@@ -14,6 +14,8 @@ These two approaches will likely yield different tokens, but both should work.
   You should have a unique mapping for each library in which this plugin is deployed, e.g., TVShows, Movies, etc.
 - Enter True or False for whether this plugin should run an update if the task for the file failed.
 - Enter True or False for whether this plugin should run an analyze on the media file
+- Enter True or False for whether Deep Refresh should be performed.  Setting Deep Refresh to False, will refresh the entire library section where the file resides.  Setting
+  Deep refresh to True will perform the refresh on only the parent folder of the media file in the library.
 
 :::note
 If you are not running Unmanic in docker, then for the above library mapping, just enter the mapping to be identical on both sides of the colon, e.g., /media/TVShows:/media/TVShows

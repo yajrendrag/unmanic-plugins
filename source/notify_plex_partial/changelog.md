@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.11</span>**
+- add a deep_refresh option - to allow refreshing just the parent folder of a media file
+
 **<span style="color:#56adda">0.0.10</span>**
 - fixed incorrect section_id lookup
 - refactored update_plex to include section_id lookup

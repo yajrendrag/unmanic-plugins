@@ -42,9 +42,10 @@ class Settings(PluginSettings):
         'Unmanic Library Mapping':	'',
         'Notify on Task Failure?': False,
         'Analyze Video':           False,
+        'Deep Refresh':            False,
     }
 
-def update_plex(plex_url, plex_token, file_path):
+def update_plex(plex_url, plex_token, file_path, deep_refresh):
     libs_url = f'{plex_url}/library/sections?X-Plex-Token={plex_token}'
     response = requests.get(libs_url, headers={'Accept': 'application/json'})
     data = response.json()
@@ -52,8 +53,14 @@ def update_plex(plex_url, plex_token, file_path):
         for location in section.get('Location', []):
             if file_path.startswith(location['path']):
                 section_key = section['key']
-                logger.info(f"Matched section key={section_key} title={section['title']}")
-                refresh_url = f'{plex_url}/library/sections/{section_key}/refresh?X-Plex-Token={plex_token}'
+                # Use the file's parent directory for targeted refresh
+                if deep_refresh:
+                    refresh_path = os.path.dirname(file_path)
+                    logger.info(f"Matched section key={section_key}, refreshing path={refresh_path}")
+                    refresh_url = f'{plex_url}/library/sections/{section_key}/refresh?path={refresh_path}&X-Plex-Token={plex_token}'
+                else:
+                    print(f"Matched section key={section_key} title={section['title']}")
+                    refresh_url = f'{plex_url}/library/sections/{section_key}/refresh?X-Plex-Token={plex_token}'
                 response = requests.get(refresh_url)
                 logger.info(f"Refresh status: {response.status_code}")
                 return True
@@ -119,6 +126,7 @@ def on_postprocessor_task_results(data):
        return data
 
     analyze = settings.get_setting('Analyze Video')
+    deep_refresh = settings.get_setting('Deep Refresh')
 
     # Get host mapping of library folder
     logger.debug(f"media_dir: {media_dir}")
@@ -155,7 +163,7 @@ def on_postprocessor_task_results(data):
     logger.debug(f"media_dir: {media_dir}")
 
     # Update Plex
-    if not update_plex(plex_url, plex_token, media_dir):
+    if not update_plex(plex_url, plex_token, media_dir, deep_refresh):
         logger.error(f"unable to update plex")
 
     # Analyze Video
