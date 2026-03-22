@@ -15,7 +15,9 @@ These two approaches will likely yield different tokens, but both should work.
 - Enter True or False for whether this plugin should run an update if the task for the file failed.
 - Enter True or False for whether this plugin should run an analyze on the media file
 - Enter True or False for whether Deep Refresh should be performed.  Setting Deep Refresh to False, will refresh the entire library section where the file resides.  Setting
-  Deep refresh to True will perform the refresh on only the parent folder of the media file in the library.
+  Deep refresh to True will perform the refresh on only the parent folder of the media file in the library.  This mainly makes sense for TVShows.  It may work for movies if your movie library
+  has a consistent structure where the video file is contained in a parent folder below the Plex movie library, e.g. library folder: /library/Movies and each movie is contained in a folder
+  something like /library/Movies/Movie_Name.
 
 :::note
 If you are not running Unmanic in docker, then for the above library mapping, just enter the mapping to be identical on both sides of the colon, e.g., /media/TVShows:/media/TVShows
