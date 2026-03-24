@@ -1,4 +1,10 @@
 
+**<span style="color:#56adda">0.2.4</span>**
+- Fix linked instance producing 0 subtitles: extract plugin settings to a plain dict before spawning child process so the database-backed Settings object no longer needs to survive pickling across instanc>
+- Fix speaker diarization separation: force subtitle cue breaks on speaker changes even when speaker_label_format is "none", preventing different speakers' text from merging into a single subtitle entry
+- Clean up PyTorch torch.jit temp directories (_remote_module_non_scriptable.py) left in /tmp/unmanic after pipeline runs
+- Add diagnostic logging: config dump, audio file size validation, and transcription segment count
+
 *<span style="color:#56adda">0.2.3</span>**
 - write srt file to source file location
 

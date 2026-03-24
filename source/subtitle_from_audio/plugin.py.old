@@ -492,18 +492,18 @@ def extract_audio(file_path, output_audio_path, language, fallback):
         raise
 
 
-def set_model(config):
+def set_model(settings):
     """
     Try loading the configured model on CUDA with VRAM fallback.
     Returns (model_name, compute_type, device).
-    config is a plain dict of settings.
     """
     import torch
     import whisperx
 
-    model_name = config['whisper_model']
-    compute_type = config['compute_type']
-    device = config['device']
+    model_name = settings.get_setting('whisper_model')
+    compute_type = settings.get_setting('compute_type')
+    device = settings.get_setting('device')
+    batch_size = settings.get_setting('batch_size')
 
     model_order = ['tiny', 'base', 'small', 'medium', 'turbo', 'large-v2', 'large-v3']
     try:
@@ -573,21 +573,20 @@ def split_subtitle_lines(text, max_chars_per_line=42):
     return "{}\n{}".format(line1, line2)
 
 
-def build_subtitle_cues(word_segments, speaker_map, config, commercial_segments):
+def build_subtitle_cues(word_segments, speaker_map, settings, commercial_segments):
     """
     Build subtitle cues from word-level aligned data.
 
     Each word in word_segments has: {'word': str, 'start': float, 'end': float, 'speaker': str (optional)}
-    config is a plain dict of settings.
 
     Returns a list of cue dicts: {'start': float, 'end': float, 'text': str, 'speaker': str or None}
     """
-    max_chars = config['max_chars_per_line']
-    max_duration = config['max_subtitle_duration']
-    min_duration = config['min_subtitle_duration']
-    skip_commercials = config['skip_commercials']
-    enable_diarization = config['enable_diarization']
-    label_format = config['speaker_label_format']
+    max_chars = settings.get_setting('max_chars_per_line')
+    max_duration = settings.get_setting('max_subtitle_duration')
+    min_duration = settings.get_setting('min_subtitle_duration')
+    skip_commercials = settings.get_setting('skip_commercials')
+    enable_diarization = settings.get_setting('enable_diarization')
+    label_format = settings.get_setting('speaker_label_format')
     max_chars_total = max_chars * 2  # 2 lines
 
     # Sentence-ending punctuation
@@ -625,25 +624,32 @@ def build_subtitle_cues(word_segments, speaker_map, config, commercial_segments)
 
         # Apply speaker labels
         display_text = text
-        cue_speaker = current_words[0].get('speaker', current_speaker) if enable_diarization else None
         if enable_diarization and speaker_map and label_format != 'none':
-            if label_format == 'numbered' and cue_speaker:
+            speaker = current_words[0].get('speaker', current_speaker)
+            if label_format == 'numbered' and speaker:
                 # Map SPEAKER_XX to a simple number
-                speaker_num = speaker_map.get(cue_speaker, cue_speaker)
+                speaker_num = speaker_map.get(speaker, speaker)
                 display_text = "[Speaker {}]: {}".format(speaker_num, text)
             elif label_format == 'em_dash':
                 # Add em-dash if speaker changed from previous cue
-                if cues and cue_speaker:
+                if cues and speaker:
                     prev_speaker = cues[-1].get('_speaker')
-                    if prev_speaker and prev_speaker != cue_speaker:
+                    if prev_speaker and prev_speaker != speaker:
                         display_text = "\u2014 {}".format(text)
 
-        cues.append({
-            'start':    cue_start,
-            'end':      cue_end,
-            'text':     display_text,
-            '_speaker': cue_speaker,
-        })
+            cues.append({
+                'start':    cue_start,
+                'end':      cue_end,
+                'text':     display_text,
+                '_speaker': current_words[0].get('speaker', current_speaker),
+            })
+        else:
+            cues.append({
+                'start':    cue_start,
+                'end':      cue_end,
+                'text':     display_text,
+                '_speaker': None,
+            })
 
         current_words = []
         current_text = ""
@@ -667,17 +673,14 @@ def build_subtitle_cues(word_segments, speaker_map, config, commercial_segments)
         candidate_duration = w_end - (current_words[0]['start'] if current_words else w_start)
 
         should_break = False
+        break_reason = None
 
         if len(candidate_text) > max_chars_total:
             should_break = True
+            break_reason = 'chars'
         elif candidate_duration > max_duration:
             should_break = True
-
-        # Force a cue break when the speaker changes (diarization enabled)
-        if enable_diarization and current_words and not should_break:
-            word_speaker = word_info.get('speaker')
-            if word_speaker and current_speaker and word_speaker != current_speaker:
-                should_break = True
+            break_reason = 'duration'
 
         if should_break and current_words:
             flush_cue()
@@ -723,27 +726,26 @@ def generate_srt(cues, output_srt_path, max_chars_per_line):
     logger.info("SRT saved with {} subtitles.".format(len(cues)))
 
 
-def run_whisperx_pipeline(data, config, file_path, output_srt_path, log_queue, prog_queue):
+def run_whisperx_pipeline(data, settings, file_path, output_srt_path, log_queue, prog_queue):
     """
     Main WhisperX pipeline: extract audio, transcribe, align, diarize, generate SRT.
     Runs inside a PluginChildProcess.
-    config is a plain dict of settings (not the Settings object, to survive pickling).
     """
     import torch
     import whisperx
 
-    model_name = config['whisper_model']
-    compute_type = config['compute_type']
-    device = config['device']
-    audio_language = config['audio_language']
-    fallback = config['fallback_no_lang_stream']
-    skip_commercials = config['skip_commercials']
-    enable_diarization = config['enable_diarization']
-    batch_size = config['batch_size']
-    beam_size = config['beam_size']
-    max_chars = config['max_chars_per_line']
-    vad_onset = config['vad_onset']
-    vad_offset = config['vad_offset']
+    model_name = settings.get_setting('whisper_model')
+    compute_type = settings.get_setting('compute_type')
+    device = settings.get_setting('device')
+    audio_language = settings.get_setting('audio_language')
+    fallback = settings.get_setting('fallback_no_lang_stream')
+    skip_commercials = settings.get_setting('skip_commercials')
+    enable_diarization = settings.get_setting('enable_diarization')
+    batch_size = settings.get_setting('batch_size')
+    beam_size = settings.get_setting('beam_size')
+    max_chars = settings.get_setting('max_chars_per_line')
+    vad_onset = settings.get_setting('vad_onset')
+    vad_offset = settings.get_setting('vad_offset')
 
     tmp_audio_path = None
     try:
@@ -762,16 +764,11 @@ def run_whisperx_pipeline(data, config, file_path, output_srt_path, log_queue, p
         tmp_fd, tmp_audio_path = tempfile.mkstemp(suffix='.wav', dir=tmp_dir)
         os.close(tmp_fd)
         task, lang_found = extract_audio(file_path, tmp_audio_path, audio_language, fallback)
-        audio_size = os.path.getsize(tmp_audio_path)
-        log_queue.put("Extracted audio: {} bytes ({:.1f} MB)".format(audio_size, audio_size / 1048576))
-        if audio_size == 0:
-            log_queue.put("ERROR: Extracted audio file is empty!")
-            return
         prog_queue.put(10)
 
         # Step 2: Determine model with VRAM fallback
         log_queue.put("=== Loading WhisperX model ===")
-        model_name, compute_type, device = set_model(config)
+        model_name, compute_type, device = set_model(settings)
         log_queue.put("Using model='{}', compute='{}', device='{}'".format(model_name, compute_type, device))
         prog_queue.put(15)
 
@@ -800,11 +797,7 @@ def run_whisperx_pipeline(data, config, file_path, output_srt_path, log_queue, p
 
         result = model.transcribe(audio, **transcribe_kwargs)
         detected_language = result.get("language", audio_language)
-        seg_count = len(result.get("segments", []))
-        log_queue.put("Transcription complete. Detected language: {}, segments: {}".format(
-            detected_language, seg_count))
-        if seg_count == 0:
-            log_queue.put("WARNING: Transcription returned 0 segments!")
+        log_queue.put("Transcription complete. Detected language: {}".format(detected_language))
         prog_queue.put(45)
 
         # Free transcription model
@@ -898,7 +891,7 @@ def run_whisperx_pipeline(data, config, file_path, output_srt_path, log_queue, p
         prog_queue.put(85)
 
         # Step 7: Build subtitle cues
-        cues = build_subtitle_cues(all_words, speaker_map, config, commercial_segments)
+        cues = build_subtitle_cues(all_words, speaker_map, settings, commercial_segments)
         log_queue.put("Built {} subtitle cues.".format(len(cues)))
         prog_queue.put(90)
 
@@ -911,17 +904,6 @@ def run_whisperx_pipeline(data, config, file_path, output_srt_path, log_queue, p
         if tmp_audio_path and os.path.exists(tmp_audio_path):
             os.remove(tmp_audio_path)
             log_queue.put("Temporary audio file cleaned up.")
-
-        # Clean up PyTorch torch.jit temp directories (_remote_module_non_scriptable.py)
-        tmp_dir = '/tmp/unmanic'
-        if os.path.isdir(tmp_dir):
-            for entry in os.listdir(tmp_dir):
-                entry_path = os.path.join(tmp_dir, entry)
-                if os.path.isdir(entry_path) and entry.startswith('tmp'):
-                    try:
-                        shutil.rmtree(entry_path)
-                    except OSError:
-                        pass
 
 
 def on_worker_process(data, **kwargs):
@@ -965,14 +947,6 @@ def on_worker_process(data, **kwargs):
     else:
         settings = Settings()
 
-    # Extract all settings to a plain dict so the child process doesn't need
-    # to pickle the database-backed Settings object (fails on linked instances
-    # where the library_id from the primary may not exist in the local DB)
-    config = {}
-    for key in Settings.settings:
-        config[key] = settings.get_setting(key)
-    logger.info("Plugin config: {}".format(json.dumps(config, default=str)))
-
     # Check if SRT already exists for the original file
     if srt_already_created(original_file_path):
         logger.info("SRT already exists for '{}', skipping.".format(original_file_path))
@@ -987,7 +961,7 @@ def on_worker_process(data, **kwargs):
     proc = PluginChildProcess(plugin_id="subtitle_from_audio", data=data)
 
     def child_work(log_queue, prog_queue):
-        run_whisperx_pipeline(data, config, abspath, output_srt_path, log_queue, prog_queue)
+        run_whisperx_pipeline(data, settings, abspath, output_srt_path, log_queue, prog_queue)
 
     success = proc.run(child_work)
 
