@@ -6,10 +6,14 @@
 MODELS_DIR="/config/.unmanic/models/syncnet"
 mkdir -p "${MODELS_DIR}"
 
-# --- Install syncnet-python into the global venv (--no-deps) ----------
-# syncnet-python depends on torch, which is already in the container.
-# Installing with --no-deps avoids pulling a conflicting CPU-only torch.
-/opt/venv/bin/python3 -m pip install --no-deps syncnet-python 2>/dev/null || true
+# --- Ensure torch ecosystem is in the global venv --------------------
+# These are expected in the container image; install if missing.
+/opt/venv/bin/python3 -c "import torch" 2>/dev/null || \
+    /opt/venv/bin/python3 -m pip install torch 2>/dev/null || true
+/opt/venv/bin/python3 -c "import torchvision" 2>/dev/null || \
+    /opt/venv/bin/python3 -m pip install torchvision 2>/dev/null || true
+/opt/venv/bin/python3 -c "import torchaudio" 2>/dev/null || \
+    /opt/venv/bin/python3 -m pip install torchaudio 2>/dev/null || true
 
 # --- System dependencies for OpenCV ----------------------------------
 [[ "${__apt_updated:-false}" == 'false' ]] && apt-get update && __apt_updated=true
