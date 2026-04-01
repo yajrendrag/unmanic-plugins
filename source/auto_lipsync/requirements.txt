@@ -1,4 +1,1 @@
-opencv-contrib-python>=4.8.0
-python-speech-features>=0.6
-scenedetect[opencv]>=0.6.0
-ffmpeg-python>=0.2.0
+
