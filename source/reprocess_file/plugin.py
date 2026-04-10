@@ -21,6 +21,7 @@
 """
 
 import logging
+import re
 import threading
 import time
 import subprocess
@@ -71,6 +72,7 @@ class Settings(PluginSettings):
         "new_suffix": "",
         "modify_path": True,
         "path_map": "",
+        "use_regex_path_map": False,
     }
 
     def __init__(self, *args, **kwargs):
@@ -90,6 +92,7 @@ class Settings(PluginSettings):
                 "label": "Check this option to replace a component in the file path - after checking this you'll enter a mapping of old leading path:new leading path",
             },
             "path_map": self.__set_path_map_form_settings(),
+            "use_regex_path_map": self.__set_use_regex_path_map_form_settings(),
         }
 
     def __set_target_library_form_settings(self):
@@ -142,10 +145,35 @@ class Settings(PluginSettings):
         return values
 
     def __set_path_map_form_settings(self):
+        use_regex = self.get_setting('use_regex_path_map')
+        if use_regex:
+            description = (
+                "Enter a regex pattern and replacement separated by a colon. "
+                "The pattern is matched against the full file path using re.sub(). "
+                "Use capture groups and backreferences (\\1, \\2) in the replacement. "
+                "For example, to change 'video_file' to 'video_file2' anywhere in the path, "
+                "enter: (video_file):\\g<1>2 — or to swap a season folder, "
+                "enter: (Season )\\d+:\\g<1>99"
+            )
+        else:
+            description = (
+                "for example, if you want to map /library/TVShows in a path like "
+                "/library/TVShows/Showname/Season X/Showname - SXEY - Episode Title.mp4 "
+                "to /Moved Shows, enter the map as /library/TVShows:/Moved Shows here"
+            )
         values = {
             "label": "Specify a path map translation to be made",
-            "description": "for example, if you want to map /library/TVShows in a path like /library/TVShows/Showname/Season X/Showname - SXEY - Episode Title.mp4 to /Moved Shows, enter the map as /library/TVShows:/Moved Shows here",
+            "description": description,
             "input_type": "textarea",
+        }
+        if not self.get_setting('modify_path'):
+            values["display"] = 'hidden'
+        return values
+
+    def __set_use_regex_path_map_form_settings(self):
+        values = {
+            "label": "Use regex patterns in path map",
+            "description": "When enabled, the path map uses regex: the left side of the colon is a regex pattern and the right side is the replacement (supports backreferences like \\1, \\g<1>)",
         }
         if not self.get_setting('modify_path'):
             values["display"] = 'hidden'
@@ -217,13 +245,26 @@ def on_postprocessor_task_results(data):
         if change_suffix:
             abspath = abspath.with_suffix(new_suffix)
 
-        # create new path to use for the reprocessed file by substituting new path parts for the old path  parts in abspath
+        # create new path to use for the reprocessed file by substituting new path parts for the old path parts in abspath
         if modify_path:
-            abspath_parts_list = list(abspath.parts)
-            old_path_parts = list(Path(path_map.split(':')[0]).parts)
-            new_path_parts = list(Path(path_map.split(':')[1]).parts)
-            new_parts_list = new_path_parts + abspath_parts_list[len(old_path_parts):]
-            abspath = Path(*new_parts_list)
+            use_regex = settings.get_setting("use_regex_path_map")
+            if use_regex:
+                # Split on the first colon: left is regex pattern, right is replacement
+                colon_idx = path_map.index(':')
+                pattern = path_map[:colon_idx]
+                replacement = path_map[colon_idx + 1:]
+                try:
+                    new_path = re.sub(pattern, replacement, str(abspath))
+                    abspath = Path(new_path)
+                    logger.debug(f"Regex path map applied: pattern='{pattern}', replacement='{replacement}', result='{abspath}'")
+                except re.error as e:
+                    logger.error(f"Invalid regex pattern in path_map: {e}")
+            else:
+                abspath_parts_list = list(abspath.parts)
+                old_path_parts = list(Path(path_map.split(':')[0]).parts)
+                new_path_parts = list(Path(path_map.split(':')[1]).parts)
+                new_parts_list = new_path_parts + abspath_parts_list[len(old_path_parts):]
+                abspath = Path(*new_parts_list)
 
         # if not reprocessing all files and if a script path is provided run the script_path and get the results
         # if not reprocessing all files and no script path is provided, set the script_results to 0 (success) so 

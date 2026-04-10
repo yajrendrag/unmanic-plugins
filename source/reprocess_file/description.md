@@ -18,6 +18,8 @@ Starting with version 0.1.0 the plugin has an optional script input that can be 
 script that can perform further tests on the file to determine if you really wish to reprocess the file.  For example, possibly you may only want to test
 a failed file based on the particular failure and need to parse the failure message.  The entire post-processor data object is passed to the script by the
 plugin, so your script will need to parse it.  See script.md for an example with documentation.
+
+Version 0.1.1 adds a new option that allows the path map to be specified as a regex pattern.
 ---
 
 #### Config description:
@@ -49,11 +51,17 @@ Enabling this option allows you to modify the path of the file you want to proce
 it has a leading path that is different than the original file, you can perform a path map translation to calculate the name of the file to be processed by your other library.  Specify the 
 path map translation below.
 
+##### <span style="color:DeepSkyBlue">"use_regex_path_map"</span>
+If this is enabled, the path map is specified as a regex pattern - see below.
+
 ##### <span style="color:DeepSkyBlue">"path_map"</span>
-The path map must be of the form /old-leading/path/components:/new-leading/path/components.  The components do not have to be the same length, but after these old and new components,
+If the "use_regex_path_map" option is disabled, the path map must be of the form /old-leading/path/components:/new-leading/path/components.  The components do not have to be the same length, but after these old and new components,
 the remainder of the path in both locations must have the same components. This can be combined with the change_suffix option so that you can, for example, process the original file of 
 "/path/to/original/video_file.mp4" and use this plugin to add a task to another library for a file name of "/some/new/path/to/original/video_file.srt".  The path map you would use in this
 instance would be /path:/some/new/path.
+
+If the "use_regex_path_map" option is enabled, the path map is a regex pattern.  The configuration option is still specified with a : separating the left and right sides of the configuration but here the left 
+side is interpretted as a regex pattern and the right side is interpretted as a python re.sub() replacement string supporting backreferences (\1, \g<1>, etc.). 
 
 :::note
 This plugin is a post processing plugin so is only executed by a main instance of unmanic.  If you are using linked instances it is not needed to put this file

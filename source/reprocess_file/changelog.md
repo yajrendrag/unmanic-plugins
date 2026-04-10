@@ -1,4 +1,9 @@
 
+**<span style="color:#56adda">0.1.1</span>**
+- added an option to make the path_map configuration use regex
+- made the description config labels dynamnic based on the selection of path_map regex option
+- handle invalid regex patterns
+
 **<span style="color:#56adda">0.1.0</span>**
 - added new capability to run a user supplied script to evaluate whether to reprocess the file 
 - only used when plugin is running in a mode to reprocess based on success or failure - not on all files
