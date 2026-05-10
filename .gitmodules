@@ -79,3 +79,6 @@
 [submodule "source/split_multi_episode/lib/ffmpeg"]
 	path = source/split_multi_episode/lib/ffmpeg
 	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/convert_audio_to_libopus/lib/ffmpeg"]
+	path = source/convert_audio_to_libopus/lib/ffmpeg
+	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
