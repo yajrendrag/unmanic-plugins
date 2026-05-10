@@ -26,7 +26,7 @@ import os
 
 from unmanic.libs.unplugins.settings import PluginSettings
 
-from convert_audio_tolibopus.lib.ffmpeg import Probe, Parser
+from convert_audio_to_libopus.lib.ffmpeg import Probe, Parser
 
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.convert_audio_to_libopus")
@@ -168,6 +168,9 @@ def on_worker_process(data):
                     stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac:a:'+str(i), str(n_channels), '-b:a:'+str(i), bit_rate, '-mapping_family', '1', '-af', '"channelmap=FL-FL|FR-FR|FC-FC|LFE-LFE|SL-BL|SR-BR:5.1"']
                 elif n_channels == 8:
                     stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac:a:'+str(i), str(n_channels), '-b:a:'+str(i), bit_rate, '-mapping_family', '1', '-af', '"aformat=channel_layouts=7.1"']
+            else:
+                if probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == 'opus':
+                    stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), 'copy']
 
         logger.debug(f"stream_map (before subs, data, att): {stream_map}")
 
