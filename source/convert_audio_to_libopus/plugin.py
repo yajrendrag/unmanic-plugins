@@ -148,7 +148,7 @@ def on_worker_process(data):
     br = int(br[:-1])
     encoder = 'libopus'
 
-    logger.debug("streams_to_encode: '{}'".format(stream_to_encode))
+    logger.debug("streams_to_encode: '{}'".format(streams_to_encode))
 
     if streams_to_encode:
 
@@ -158,19 +158,25 @@ def on_worker_process(data):
         # set stream maps
         stream_map = ['-map', '0:v', '-c:v', 'copy']
 
+        astream = 0
         for i in range(len(probe_streams)):
-            if probe_streams[i] in streams_to_encode:
+            if probe_streams[i]['codec_type'] == 'audio':
+                logger.debug(f"stream: {i}, audio: {probe_streams[i]['codec_name']}, channels: {probe_streams[i]['channels']}")
+            if probe_streams[i]["index"] in streams_to_encode:
                 n_channels = probe_streams[i]["channels"]
                 bit_rate = str(n_channels*br)+'k'
+                logger.debug(f"channels: {n_channels}, type: {type(n_channels)}, bit_rate: {bit_rate}")
                 if n_channels == 2:
-                    stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac:a:'+str(i), str(n_channels), '-b:a:'+str(i), bit_rate]
+                    stream_map += ['-map', '0:a:'+str(astream), '-c:a:'+str(astream), encoder, '-ac:a:'+str(astream), str(n_channels), '-b:a:'+str(astream), bit_rate]
                 elif n_channels == 6:
-                    stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac:a:'+str(i), str(n_channels), '-b:a:'+str(i), bit_rate, '-mapping_family', '1', '-af', '"channelmap=FL-FL|FR-FR|FC-FC|LFE-LFE|SL-BL|SR-BR:5.1"']
+                    stream_map += ['-map', '0:a:'+str(astream), '-c:a:'+str(astream), encoder, '-ac:a:'+str(astream), str(n_channels), '-b:a:'+str(astream), bit_rate, '-mapping_family', '1', '-af', 'channelmap=FL-FL|FR-FR|FC-FC|LFE-LFE|SL-BL|SR-BR:5.1']
                 elif n_channels == 8:
-                    stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), encoder, '-ac:a:'+str(i), str(n_channels), '-b:a:'+str(i), bit_rate, '-mapping_family', '1', '-af', '"aformat=channel_layouts=7.1"']
+                    stream_map += ['-map', '0:a:'+str(astream), '-c:a:'+str(astream), encoder, '-ac:a:'+str(astream), str(n_channels), '-b:a:'+str(astream), bit_rate, '-mapping_family', '1', '-af', 'aformat=channel_layouts=7.1']
+                astream += 1
             else:
                 if probe_streams[i]["codec_type"] == 'audio' and probe_streams[i]["codec_name"] == 'opus':
-                    stream_map += ['-map', '0:a:'+str(i), '-c:a:'+str(i), 'copy']
+                    stream_map += ['-map', '0:a:'+str(astream), '-c:a:'+str(astream), 'copy']
+                    astream += 1
 
         logger.debug(f"stream_map (before subs, data, att): {stream_map}")
 
