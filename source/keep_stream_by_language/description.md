@@ -8,6 +8,15 @@ this option enabled, all of the audio streams will be removed.  This is an optio
 
 This plugin will remove all audio or subtitle streams if the configured languages do not match any audio or any subtitle streams, respectively, unless the fail-safe option is checked.
 
+---
+
+##### Documentation:
+
+For information on the The Movie Database (tmdb):
+- [The Movie Database (tmdb)](https://www.themoviedb.org/)
+
+---
+
 ##### Configuration Options
 
 - Enter a comma delimited list of audio language codes and a comma delimited list of subtitle language codes to search for during library scans and new file event triggers - only streams matching these langauges are kept - all other streams are removed.
@@ -18,7 +27,10 @@ This plugin will remove all audio or subtitle streams if the configured language
 intersection of configured languages and actual stream languages to be null, the file will be skipped.  If a given stream type is configured to keep all languages (* setting) OR the file doesn't contain any of a particular stream type, that stream type will 
 not trigger the fail safe.  If you checked the fail safe, it's also recommended to check the keep undefined option too.
 - reorder_kept - if checked, this will reorder the kept audio streams by making the first stream(s) in the file, those streams that match the first audio language listed above; audio stream 0 will also have default disposition set.
-- Set Multichannel or 2 channel - this option is only visible if reordering kept streams.  Specify if you prefer 2 channel or multichannel to be the default audio when the file has more than one stream that matches the first language tag in the list of audio languages.
+- Set Multichannel or 2 channel - this option is only visible if reordering kept streams.  Specify if you prefer 2 channel or multichannel to be the default audio when the file has more than one stream that matches the first language tag in the list of audio languages
+- keep_original_audio - this option, if enabled, will keep the original language even if you don't specify it in the list of languages.  however, you cannot leave the configured list of audio languages empty. this option will cause the next 2 options to display and you will need to configure the plugin with (free) TMDB API credentials. 
+- tmdb_api_key - your tmdb API key
+- tmdb_api_read_access_token - your tmdb read access token
 
 :::note
 Plugin now uses Python's langcodes module to check for valid language codes.  langcodes uses BCP 47 (IETF RFC 5646) to identify language codes - this subsumes ISO 639, which the plugin used prior to langcodes.  langcodes has a 
@@ -28,7 +40,7 @@ larger set of language  codes recognized by IETF.  You do not need to list both 
 
 #### Examples:
 
-###### <span style="color:magenta">Keep English Audio and Spanish Subtitles, remove all commentary streams, remove any untagged language streams, do not use fail-safe.  reorder audio streams to put English audio first and if there are more than one english audio streams, prefer the 2 channel to be the first and default audio stream</span>
+###### <span style="color:magenta">Keep English Audio and Spanish Subtitles, remove all commentary streams, remove any untagged language streams, do not use fail-safe.  reorder audio streams to put English audio first and if there are more than one english audio streams, prefer the 2 channel to be the first and default audio stream; do not do a lookup to find original audio and add it to the list of audio languages to keep.</span>
 ```
 eng
 spa
@@ -37,5 +49,6 @@ Keep Undefined - unchecked
 fail_safe - unchecked
 reorder_kept - checked
 2 channel preferred
+keep_original_audio - unchecked
 ```
 

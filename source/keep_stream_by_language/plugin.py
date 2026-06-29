@@ -31,10 +31,12 @@ from unmanic.libs.unplugins.settings import PluginSettings
 from unmanic.libs.directoryinfo import UnmanicDirectoryInfo
 
 from keep_stream_by_language.lib.ffmpeg import StreamMapper, Probe, Parser
+from keep_stream_by_language.lib.tmdb_original import get_original_language
 
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.keep_stream_by_language")
 
+ALCL = ""
 
 class Settings(PluginSettings):
     settings = {
@@ -45,7 +47,9 @@ class Settings(PluginSettings):
         "fail_safe":             True,
         "reorder_kept":          True,
         "prefer_2_or_mc":        "2",
-
+        "keep_original_audio":   False,
+        "tmdb_api_key":    "",
+        "tmdb_api_read_access_token":    "",
     }
 
 
@@ -72,6 +76,12 @@ class Settings(PluginSettings):
                 "label": "reorder kept audio languages",
             },
             "prefer_2_or_mc": self.__set_audio_default_prefs_form_settings(),
+            "keep_original_audio":   {
+                "description": "if checked, this will perform a lookup in tmdb (the movie database) and also add the original audio language tag to the list of audio languages to keep",
+                "label": "Keep Original Audio Language",
+            },
+            "tmdb_api_key": self.__set_tmdb_api_key_form_settings(),
+            "tmdb_api_read_access_token": self.__set_tmdb_api_read_access_token_form_settings(),
         }
 
     def __set_audio_default_prefs_form_settings(self):
@@ -94,7 +104,23 @@ class Settings(PluginSettings):
             values["display"] = 'hidden'
         return values
 
+    def __set_tmdb_api_read_access_token_form_settings(self):
+        values = {
+            "label":      "enter your tmdb (the movie database) api read access token",
+            "input_type": "textarea",
+        }
+        if not self.get_setting('keep_original_audio'):
+            values["display"] = 'hidden'
+        return values
 
+    def __set_tmdb_api_key_form_settings(self):
+        values = {
+            "label":      "enter your tmdb (the movie database) api key",
+            "input_type": "textarea",
+        }
+        if not self.get_setting('keep_original_audio'):
+            values["display"] = 'hidden'
+        return values
 
 class PluginStreamMapper(StreamMapper):
     def __init__(self):
@@ -105,7 +131,8 @@ class PluginStreamMapper(StreamMapper):
         self.settings = settings
 
     def null_streams(self, streams):
-        alcl, audio_streams_list = streams_list(self.settings.get_setting('audio_languages'), streams, 'audio')
+        logger.debug(f"ALCL: {ALCL}")
+        alcl, audio_streams_list = streams_list(ALCL, streams, 'audio')
         # slcl, subtitle_streams_list = streams_list(self.settings.get_setting('subtitle_languages'), streams, 'subtitle')
         # This change in the line below results in the fail-safe to only apply to audio streams
         alcl = [standardize_tag(l) if l != '*' else '*' for l in alcl]
@@ -116,7 +143,7 @@ class PluginStreamMapper(StreamMapper):
         return False
 
     def same_streams_or_no_work(self, streams, keep_undefined):
-        alcl, audio_streams_list = streams_list(self.settings.get_setting('audio_languages'), streams, 'audio')
+        alcl, audio_streams_list = streams_list(ALCL, streams, 'audio')
         slcl, subtitle_streams_list = streams_list(self.settings.get_setting('subtitle_languages'), streams, 'subtitle')
 #        if not audio_streams_list or not subtitle_streams_list:
 #            return False
@@ -228,9 +255,7 @@ def streams_list(languages, streams, stream_type):
     return lcl,streams_list
 
 def kept_streams(settings):
-    al = settings.get_setting('audio_languages')
-    if not al:
-        al = settings.settings.get('audio_languages')
+    al = ALCL
     sl = settings.get_setting('subtitle_languages')
     if not sl:
         sl = settings.settings.get('subtitle_languages')
@@ -266,6 +291,29 @@ def file_streams_already_kept(settings, path):
     # Default to...
     return False
 
+def add_original_to_alcl(path,settings):
+    global ALCL
+    filename = os.path.basename(path)
+    tmdb_api_key = settings.get_setting('tmdb_api_key')
+    tmdb_read_access_token = settings.get_setting('tmdb_read_access_token')
+    langs = settings.get_setting('audio_languages')
+    ALCL = langs
+    logger.debug(f"langs: {langs}")
+    original_language = get_original_language(filename, tmdb_api_key, tmdb_read_access_token)
+    logger.debug(f"original language {original_language}")
+    if original_language:
+        original_language = str(original_language[0])
+        cl = [standardize_tag(p.strip()) for p in langs.split(',')] if langs else []
+        logger.debug(f"cl: {cl}")
+        new = standardize_tag(original_language.strip())
+        logger.debug(f"new: {new}")
+        if new and new not in cl:
+            cl.append(new)
+#        settings.set_setting('audio_languages',','.join(cl))
+    logger.debug(f"alcl: {cl}")
+    ALCL = ','.join(cl)
+    logger.debug(f"ALCL: {ALCL}")
+
 def on_library_management_file_test(data):
     """
     Runner function - enables additional actions during the library management file tests.
@@ -292,6 +340,11 @@ def on_library_management_file_test(data):
 
     # Get the path to the file
     abspath = data.get('path')
+
+    # Add original language to audio language config list if keep_original_audio is True
+    keep_original_lang = settings.get_setting('keep_original_audio')
+    if "keep_original_lang":
+        add_original_to_alcl(abspath,settings)
 
     # Get file probe
     probe = Probe(logger, allowed_mimetypes=['video'])
@@ -454,6 +507,18 @@ def on_worker_process(data):
     # Get the path to the file
     abspath = data.get('file_in')
 
+    # Configure settings object (maintain compatibility with v1 plugins)
+    if data.get('library_id'):
+        settings = Settings(library_id=data.get('library_id'))
+    else:
+        settings = Settings()
+
+    # Add original language to audio language config list if keep_original_audio is True
+    keep_original_lang = settings.get_setting('keep_original_audio')
+    if "keep_original_lang":
+        path = data.get('original_file_path')
+        add_original_to_alcl(path,settings)
+
     # Get file probe
     probe = Probe(logger, allowed_mimetypes=['video'])
     if not probe.file(abspath):
@@ -461,12 +526,6 @@ def on_worker_process(data):
         return data
     else:
         probe_streams = probe.get_probe()["streams"]
-
-    # Configure settings object (maintain compatibility with v1 plugins)
-    if data.get('library_id'):
-        settings = Settings(library_id=data.get('library_id'))
-    else:
-        settings = Settings()
 
     keep_undefined_lang_tags = settings.get_setting('keep_undefined')
     keep_commentary = settings.get_setting('keep_commentary')
@@ -508,8 +567,8 @@ def on_worker_process(data):
 
             # keep specific language streams if present
             if not keep_all_audio:
-                keep_languages(mapper, 'audio', settings.get_setting('audio_languages'), probe_streams, keep_undefined_lang_tags, keep_commentary)
-                def_lang = settings.get_setting('audio_languages')
+                keep_languages(mapper, 'audio', ALCL, probe_streams, keep_undefined_lang_tags, keep_commentary)
+                def_lang = ALCL
                 if reorder_kept and def_lang != '*':
                     lcl = list(def_lang.split(','))
                     lcl = [lcl[i].strip() for i in range(0,len(lcl))]
