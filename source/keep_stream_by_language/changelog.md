@@ -1,6 +1,10 @@
 
+**<span style="color:#56adda">0.2.1</span>**
+- size the tmdb attribution logo
+
 **<span style="color:#56adda">0.2.0</span>**
 - add options to keep original language via a tmdb lookup
+- add tmdb attribution logo assets and NOTICES.md file
 
 **<span style="color:#56adda">0.1.9</span>**
 - fix directoryinfo path reference in worker process - it needed to use original file path not file_in as that could be a cache file which would have no directory info
