@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.2.2</span>**
+- fix add_original_to_alcl function - debug lines at wrong indent
+
 **<span style="color:#56adda">0.2.1</span>**
 - size the tmdb attribution logo
 

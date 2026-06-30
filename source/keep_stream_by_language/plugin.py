@@ -310,9 +310,11 @@ def add_original_to_alcl(path,settings):
         if new and new not in cl:
             cl.append(new)
 #        settings.set_setting('audio_languages',','.join(cl))
-    logger.debug(f"alcl: {cl}")
-    ALCL = ','.join(cl)
-    logger.debug(f"ALCL: {ALCL}")
+        logger.debug(f"alcl: {cl}")
+        ALCL = ','.join(cl)
+        logger.debug(f"ALCL: {ALCL}")
+    else:
+        logger.info(f"no original language returned for {filename}; alcl consist only of configured languages")
 
 def on_library_management_file_test(data):
     """
