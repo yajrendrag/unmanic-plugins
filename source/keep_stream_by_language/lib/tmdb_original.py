@@ -11,9 +11,10 @@ import unicodedata
 
 import requests
 import PTN
+import logging
 
 TMDB_BASE = "https://api.themoviedb.org/3"
-
+logger = logging.getLogger("Unmanic.Plugin.keep_stream_by_language.tmdb_lib")
 
 def _normalize(text):
     """Casefold + strip accents + collapse non-alphanumerics for comparison."""
@@ -69,7 +70,7 @@ def get_original_language(filename, tmdb_api_key, tmdb_read_access_token, media_
     info = PTN.parse(filename)
     title = info.get("title")
     if not title:
-        print(f"[original-language] could not parse a title from: {filename!r}")
+        logger.info(f"[original-language] could not parse a title from: {filename!r}")
         return []
     year = info.get("year")
 
@@ -78,7 +79,7 @@ def get_original_language(filename, tmdb_api_key, tmdb_read_access_token, media_
         media_type = "tv" if ("season" in info or "episode" in info) else "movie"
     media_type = media_type.lower()
     if media_type not in ("movie", "tv"):
-        print(f"[original-language] unknown media_type {media_type!r} (expected 'movie' or 'tv')")
+        logger.info(f"[original-language] unknown media_type {media_type!r} (expected 'movie' or 'tv')")
         return []
 
     # --- 3. Build auth (Bearer token preferred, api_key as fallback) ----------
@@ -89,7 +90,7 @@ def get_original_language(filename, tmdb_api_key, tmdb_read_access_token, media_
     elif tmdb_api_key:
         params["api_key"] = tmdb_api_key
     else:
-        print("[original-language] no TMDB credentials supplied")
+        logger.info("[original-language] no TMDB credentials supplied")
         return []
 
     if year:
@@ -106,14 +107,14 @@ def get_original_language(filename, tmdb_api_key, tmdb_read_access_token, media_
         resp.raise_for_status()
         results = resp.json().get("results", [])
     except requests.RequestException as exc:
-        print(f"[original-language] TMDB request failed: {exc}")
+        logger.info(f"[original-language] TMDB request failed: {exc}")
         return []
     except ValueError:
-        print("[original-language] TMDB returned a non-JSON response")
+        logger.info("[original-language] TMDB returned a non-JSON response")
         return []
 
     if not results:
-        print(f"[original-language] video title not found on TMDB: {title!r} ({media_type})")
+        logger.info(f"[original-language] video title not found on TMDB: {title!r} ({media_type})")
         return []
 
     # --- 5. Keep only exact title matches -------------------------------------
@@ -130,10 +131,10 @@ def get_original_language(filename, tmdb_api_key, tmdb_read_access_token, media_
             exact = by_year
 
     if not exact:
-        print(f"[original-language] no exact title match for {title!r} ({media_type})")
+        logger.info(f"[original-language] no exact title match for {title!r} ({media_type})")
         return []
     if len(exact) > 1:
-        print(
+        logger.info(
             f"[original-language] can't find a unique match for {title!r} "
             f"({media_type}); {len(exact)} titles matched exactly"
         )
@@ -142,7 +143,7 @@ def get_original_language(filename, tmdb_api_key, tmdb_read_access_token, media_
     # --- 6. Extract original_language -----------------------------------------
     lang = exact[0].get("original_language")
     if not lang:
-        print(f"[original-language] no original language identified for {title!r}")
+        logger.info(f"[original-language] no original language identified for {title!r}")
         return []
 
     return [lang]

@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.2.3</span>**
+- change print statements in lib/tmdb_original.py to logger.info
+
 **<span style="color:#56adda">0.2.2</span>**
 - fix add_original_to_alcl function - debug lines at wrong indent
 
