@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.2.1</span>**
+- add TMDB attribution
+
 **<span style="color:#56adda">0.2.0</span>**
 - Replace hardcoded lang_codes list with langcodes Python package
 - Support both 2-letter (ISO 639-1) and 3-letter (ISO 639-2/3) language codes for additional languages configuration
