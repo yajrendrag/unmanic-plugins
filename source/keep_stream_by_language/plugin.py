@@ -36,7 +36,6 @@ from keep_stream_by_language.lib.tmdb_original import get_original_language
 # Configure plugin logger
 logger = logging.getLogger("Unmanic.Plugin.keep_stream_by_language")
 
-ALCL = ""
 
 class Settings(PluginSettings):
     settings = {
@@ -50,6 +49,7 @@ class Settings(PluginSettings):
         "keep_original_audio":   False,
         "tmdb_api_key":    "",
         "tmdb_api_read_access_token":    "",
+        "tmdb_language_overrides":    'cn=zh',
     }
 
 
@@ -82,6 +82,7 @@ class Settings(PluginSettings):
             },
             "tmdb_api_key": self.__set_tmdb_api_key_form_settings(),
             "tmdb_api_read_access_token": self.__set_tmdb_api_read_access_token_form_settings(),
+            "tmdb_language_overrides": self.__set_tmdb_language_overrides_form_settings(),
         }
 
     def __set_audio_default_prefs_form_settings(self):
@@ -122,17 +123,35 @@ class Settings(PluginSettings):
             values["display"] = 'hidden'
         return values
 
+    def __set_tmdb_language_overrides_form_settings(self):
+        values = {
+            "label":      "TMDB original-language code substitutions",
+            "description": "Some TMDB original-language codes are not valid ISO language tags and will not match "
+                           "any audio stream (they get dropped, and the original stream is not kept). Enter "
+                           "comma-separated substitutions as code=replacement. TMDB uses 'cn' for Cantonese: map "
+                           "it to 'zh' (default) to match streams tagged chi/zho/zh, or to 'yue' to match only "
+                           "streams tagged yue. Use 'code=' with an empty replacement to drop a code entirely "
+                           "(e.g. 'xx='). Whenever a substitution fires it is logged at INFO level.",
+            "input_type": "textarea",
+        }
+        if not self.get_setting('keep_original_audio'):
+            values["display"] = 'hidden'
+        return values
+
 class PluginStreamMapper(StreamMapper):
     def __init__(self):
         super(PluginStreamMapper, self).__init__(logger, ['audio','subtitle'])
         self.settings = None
+        # Per-file audio language list (configured languages, optionally augmented with the
+        # file's original language). Set per file test by the runner; never a module global.
+        self.alcl = ''
 
     def set_settings(self, settings):
         self.settings = settings
 
     def null_streams(self, streams):
-        logger.debug(f"ALCL: {ALCL}")
-        alcl, audio_streams_list = streams_list(ALCL, streams, 'audio')
+        logger.debug(f"alcl: {self.alcl}")
+        alcl, audio_streams_list = streams_list(self.alcl, streams, 'audio')
         # slcl, subtitle_streams_list = streams_list(self.settings.get_setting('subtitle_languages'), streams, 'subtitle')
         # This change in the line below results in the fail-safe to only apply to audio streams
         alcl = [standardize_tag(l) if l != '*' else '*' for l in alcl]
@@ -143,7 +162,7 @@ class PluginStreamMapper(StreamMapper):
         return False
 
     def same_streams_or_no_work(self, streams, keep_undefined):
-        alcl, audio_streams_list = streams_list(ALCL, streams, 'audio')
+        alcl, audio_streams_list = streams_list(self.alcl, streams, 'audio')
         slcl, subtitle_streams_list = streams_list(self.settings.get_setting('subtitle_languages'), streams, 'subtitle')
 #        if not audio_streams_list or not subtitle_streams_list:
 #            return False
@@ -225,18 +244,28 @@ class PluginStreamMapper(StreamMapper):
             'stream_encoding': [],
         }
 
+def is_valid_lang(code):
+    # True only for codes langcodes both parses and considers valid. Anything else
+    # (empty, malformed, or syntactically-fine-but-unassigned like TMDB's 'cn') is invalid.
+    if not code:
+        return False
+    try:
+        return Language.get(code).is_valid()
+    except LanguageTagError:
+        return False
+
 def streams_list(languages, streams, stream_type):
     language_config_list = languages
-    lcl = list(language_config_list.split(','))
-    lcl = [lcl[i].strip() for i in range(0,len(lcl))]
+    lcl = [c.strip() for c in language_config_list.split(',') if c.strip()]
     lcl.sort()
-    if lcl == ['']: lcl = []
     if '*' not in lcl and lcl:
-        try:
-            lcl = [lcl[i] if Language.get(lcl[i]).is_valid() else "" for i in range(len(lcl))]
-        except LanguageTagError as e:
-            e.args += ("config list: " + str(lcl),)
-            raise
+        # Drop invalid codes rather than blanking them to '' — a '' element crashes the
+        # standardize_tag() pass in null_streams/same_streams_or_no_work. An invalid code
+        # here can't match a stream anyway, so dropping it is the correct no-op.
+        invalid = [c for c in lcl if not is_valid_lang(c)]
+        if invalid:
+            logger.warning("ignoring invalid {} language code(s) in config: {}".format(stream_type, invalid))
+        lcl = [c for c in lcl if is_valid_lang(c)]
 
     try:
         streams_list = [streams[i]["tags"]["language"] for i in range(0, len(streams)) if "codec_type" in streams[i] and streams[i]["codec_type"] == stream_type and "tags" in streams[i] and "language" in streams[i]["tags"] and
@@ -246,16 +275,19 @@ def streams_list(languages, streams, stream_type):
         streams_list = []
         logger.info("no '{}' tags in file".format(stream_type))
     if streams_list:
-        try:
-            streams_list = [streams_list[i] if Language.get(streams_list[i]).is_valid() else "" for i in range(len(streams_list))]
-        except LanguageTagError as e:
-            e.args += ("invalid stream language: " + str(streams_list[i]),)
-            raise
+        # Same reasoning on the stream side: a stream tagged with an invalid code (e.g. a
+        # bad muxer tag) would otherwise become '' and crash the standardize_tag() pass.
+        invalid = [c for c in streams_list if not is_valid_lang(c)]
+        if invalid:
+            logger.warning("ignoring {} stream(s) with invalid language tag(s): {}".format(stream_type, invalid))
+        streams_list = [c for c in streams_list if is_valid_lang(c)]
 
     return lcl,streams_list
 
 def kept_streams(settings):
-    al = ALCL
+    # Fingerprint only (file_streams_already_kept checks presence, not content), so the
+    # configured audio_languages is sufficient here — no need for the per-file augmented list.
+    al = settings.get_setting('audio_languages') or ''
     sl = settings.get_setting('subtitle_languages')
     if not sl:
         sl = settings.settings.get('subtitle_languages')
@@ -271,7 +303,21 @@ def kept_streams(settings):
 
     return 'kept_streams=audio_langauges={}:subtitle_languages={}:keep_undefined={}:keep_commentary={}:fail_safe={}'.format(al, sl, ku, kc, fs)
 
-def file_streams_already_kept(settings, path):
+def file_streams_already_kept(settings, path, file_metadata=None):
+    # New mechanism: Unmanic's per-file task metadata store (injected as file_metadata).
+    # In a library scan get() fingerprints `path` and returns this plugin's committed
+    # metadata; during a task it returns the task's merged metadata.
+    if file_metadata is not None:
+        try:
+            metadata = file_metadata.get()
+            if metadata.get('streams_kept'):
+                logger.debug("File '{}' streams previously kept (task metadata): {}".format(path, metadata.get('streams_kept')))
+                return True
+        except Exception as e:
+            logger.debug("Unable to read UnmanicFileMetadata for '{}': {}".format(path, e))
+
+    # Legacy mechanism: the .unmanic directory-info file. Always consulted when the store has
+    # no marker, so files marked by older plugin versions are still recognized as processed.
     directory_info = UnmanicDirectoryInfo(os.path.dirname(path))
 
     try:
@@ -285,38 +331,74 @@ def file_streams_already_kept(settings, path):
         streams_already_kept = ''
 
     if streams_already_kept:
-        logger.debug("File's streams were previously kept with {}.".format(streams_already_kept))
+        logger.debug("File's streams were previously kept with {} (legacy .unmanic).".format(streams_already_kept))
         return True
 
     # Default to...
     return False
 
-def add_original_to_alcl(path,settings):
-    global ALCL
+def parse_tmdb_language_overrides(raw):
+    # "cn=zh, xx=" -> {'cn': 'zh', 'xx': None}. An empty replacement means "drop this code".
+    overrides = {}
+    for pair in (raw or '').split(','):
+        pair = pair.strip()
+        if not pair:
+            continue
+        key, _, value = pair.partition('=')
+        key = key.strip().lower()
+        value = value.strip().lower()
+        if key:
+            overrides[key] = value or None
+    return overrides
+
+def build_audio_language_list(path, settings):
+    """Return the configured audio_languages, optionally augmented with the file's original
+    language from TMDB. Pure function: returns a comma-delimited string, mutates no globals,
+    so concurrent file tests can't clobber each other's language list."""
+    langs = settings.get_setting('audio_languages') or ''
     filename = os.path.basename(path)
     tmdb_api_key = settings.get_setting('tmdb_api_key')
-    tmdb_read_access_token = settings.get_setting('tmdb_read_access_token')
-    langs = settings.get_setting('audio_languages')
-    ALCL = langs
-    logger.debug(f"langs: {langs}")
+    # NOTE: was previously get_setting('tmdb_read_access_token') — a key that does not exist,
+    # so the read access token was always None. Corrected to the real setting key.
+    tmdb_read_access_token = settings.get_setting('tmdb_api_read_access_token')
+
     original_language = get_original_language(filename, tmdb_api_key, tmdb_read_access_token)
     logger.debug(f"original language {original_language}")
-    if original_language:
-        original_language = str(original_language[0])
-        cl = [standardize_tag(p.strip()) for p in langs.split(',')] if langs else []
-        logger.debug(f"cl: {cl}")
-        new = standardize_tag(original_language.strip())
-        logger.debug(f"new: {new}")
-        if new and new not in cl:
-            cl.append(new)
-#        settings.set_setting('audio_languages',','.join(cl))
-        logger.debug(f"alcl: {cl}")
-        ALCL = ','.join(cl)
-        logger.debug(f"ALCL: {ALCL}")
-    else:
-        logger.info(f"no original language returned for {filename}; alcl consist only of configured languages")
+    if not original_language:
+        logger.info(f"no original language returned for {filename}; audio language list is configured languages only")
+        return langs
 
-def on_library_management_file_test(data):
+    raw_code = str(original_language[0]).strip().lower()
+    if not raw_code:
+        return langs
+
+    overrides = parse_tmdb_language_overrides(settings.get_setting('tmdb_language_overrides'))
+    mapped = overrides.get(raw_code, raw_code)
+    if mapped is None:
+        logger.info(f"TMDB original language '{raw_code}' is configured to be dropped; not augmenting")
+        return langs
+    if mapped != raw_code:
+        logger.info(f"TMDB original language '{raw_code}' -> '{mapped}' (via tmdb_language_overrides)")
+
+    try:
+        new = standardize_tag(mapped)
+    except LanguageTagError:
+        new = None
+    if not is_valid_lang(new):
+        logger.warning(
+            f"TMDB original language '{raw_code}' is not a valid language tag and will not match any "
+            f"stream; not augmenting. Add a substitution such as '{raw_code}=zh' or '{raw_code}=yue' "
+            f"in the tmdb_language_overrides setting.")
+        return langs
+
+    cl = [standardize_tag(p.strip()) for p in langs.split(',') if p.strip()]
+    if new not in cl:
+        cl.append(new)
+    result = ','.join(cl)
+    logger.debug(f"audio language list: {result}")
+    return result
+
+def on_library_management_file_test(data, task_data_store=None, file_metadata=None):
     """
     Runner function - enables additional actions during the library management file tests.
 
@@ -343,10 +425,12 @@ def on_library_management_file_test(data):
     # Get the path to the file
     abspath = data.get('path')
 
-    # Add original language to audio language config list if keep_original_audio is True
+    # Build the audio language list, augmenting with the file's original language only when enabled.
     keep_original_lang = settings.get_setting('keep_original_audio')
-    if "keep_original_lang":
-        add_original_to_alcl(abspath,settings)
+    if keep_original_lang:
+        alcl_value = build_audio_language_list(abspath, settings)
+    else:
+        alcl_value = settings.get_setting('audio_languages') or ''
 
     # Get file probe
     probe = Probe(logger, allowed_mimetypes=['video'])
@@ -360,6 +444,7 @@ def on_library_management_file_test(data):
     # Get stream mapper
     mapper = PluginStreamMapper()
     mapper.set_settings(settings)
+    mapper.alcl = alcl_value
     mapper.set_probe(probe)
 
     # Set the input file
@@ -369,7 +454,7 @@ def on_library_management_file_test(data):
     fail_safe = settings.get_setting('fail_safe')
     keep_undefined = settings.get_setting('keep_undefined')
 
-    if not file_streams_already_kept(settings, abspath):
+    if not file_streams_already_kept(settings, abspath, file_metadata=file_metadata):
         logger.debug("File '{}' has not previously had streams kept by keep_streams_by_language plugin".format(abspath))
         if fail_safe:
             if not mapper.null_streams(probe_streams):
@@ -486,7 +571,7 @@ def reorder_audio_streams(stream_map, mapper, prefer_2_or_mc, ffmpeg_args, probe
     mapper.set_ffmpeg_advanced_options(**kwargs)
     logger.debug(f"ffmpeg_args: {ffmpeg_args}")
 
-def on_worker_process(data):
+def on_worker_process(data, task_data_store=None, file_metadata=None):
     """
     Runner function - enables additional configured processing jobs during the worker stages of a task.
 
@@ -515,11 +600,13 @@ def on_worker_process(data):
     else:
         settings = Settings()
 
-    # Add original language to audio language config list if keep_original_audio is True
+    # Build the audio language list, augmenting with the file's original language only when enabled.
     keep_original_lang = settings.get_setting('keep_original_audio')
-    if "keep_original_lang":
+    if keep_original_lang:
         path = data.get('original_file_path')
-        add_original_to_alcl(path,settings)
+        alcl_value = build_audio_language_list(path, settings)
+    else:
+        alcl_value = settings.get_setting('audio_languages') or ''
 
     # Get file probe
     probe = Probe(logger, allowed_mimetypes=['video'])
@@ -535,10 +622,11 @@ def on_worker_process(data):
     if reorder_kept:
         prefer_2_or_mc = settings.get_setting('prefer_2_or_mc')
 
-    if not file_streams_already_kept(settings, data.get('original_file_path')):
+    if not file_streams_already_kept(settings, data.get('original_file_path'), file_metadata=file_metadata):
         # Get stream mapper
         mapper = PluginStreamMapper()
         mapper.set_settings(settings)
+        mapper.alcl = alcl_value
         mapper.set_probe(probe)
 
         # Set the input file
@@ -569,8 +657,8 @@ def on_worker_process(data):
 
             # keep specific language streams if present
             if not keep_all_audio:
-                keep_languages(mapper, 'audio', ALCL, probe_streams, keep_undefined_lang_tags, keep_commentary)
-                def_lang = ALCL
+                keep_languages(mapper, 'audio', alcl_value, probe_streams, keep_undefined_lang_tags, keep_commentary)
+                def_lang = alcl_value
                 if reorder_kept and def_lang != '*':
                     lcl = list(def_lang.split(','))
                     lcl = [lcl[i].strip() for i in range(0,len(lcl))]
@@ -615,7 +703,7 @@ def on_worker_process(data):
             logger.debug("Worker will not process file '{}'; it does not contain streams that require processing.".format(abspath))
     return data
 
-def on_postprocessor_task_results(data):
+def on_postprocessor_task_results(data, task_data_store=None, file_metadata=None):
     """
     Runner function - provides a means for additional postprocessor functions based on the task success.
 
@@ -642,10 +730,24 @@ def on_postprocessor_task_results(data):
     else:
         settings = Settings()
 
-    # Loop over the destination_files list and update the directory info file for each one
+    marker = kept_streams(settings)
+
+    # New mechanism: stage this plugin's marker in Unmanic's task metadata store. Destination
+    # scope (the default) means the core commits it to every destination file's fingerprint
+    # after this runner returns, so a future library scan of the processed file finds it via
+    # file_metadata.get(). One set() call covers all destination files — no per-file loop.
+    if file_metadata is not None:
+        try:
+            file_metadata.set({'streams_kept': marker})
+            logger.debug("Keep streams by language marker written to task metadata store.")
+            return data
+        except Exception as e:
+            logger.debug("Unable to write UnmanicFileMetadata: {}; falling back to directory info".format(e))
+
+    # Fallback: legacy .unmanic directory-info file, one entry per destination file.
     for destination_file in data.get('destination_files'):
         directory_info = UnmanicDirectoryInfo(os.path.dirname(destination_file))
-        directory_info.set('keep_streams_by_language', os.path.basename(destination_file), kept_streams(settings))
+        directory_info.set('keep_streams_by_language', os.path.basename(destination_file), marker)
         directory_info.save()
         logger.debug("Keep streams by language already processed for '{}'.".format(destination_file))
 

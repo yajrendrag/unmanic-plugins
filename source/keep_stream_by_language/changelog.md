@@ -1,4 +1,12 @@
 
+**<span style="color:#56adda">0.3.0</span>**
+- add task data store to store file metadata to use for tracking video files that have had streams kept with this plugin.  plugin will still consult .unmanic files where they exist too.
+- Fixed a corner case where a language code accepted by standardize_tag but rejected by is_valid was converted to an empty string, which then raised a LanguageTagError and terminated the plugin
+- Fixed if testing a quoted string instead of the keep_original_lang variable, so original-language lookup always ran
+- Corrected TMDB read-access-token setting key (tmdb_read_access_token → tmdb_api_read_access_token)
+- Added a new tmdb_language_overrides setting (default cn=zh, editable, with inline help); this avoids the TMDB issue where standardize_tag('cn') succeeds and is_valid() rejects 'cn'.
+- removed global ALCL variable and moved to a new mapper instance of alcl instead.  this avoids concurrency issues when unmanic could be processing multiple files simultaneously with this plugin.
+
 **<span style="color:#56adda">0.2.3</span>**
 - change print statements in lib/tmdb_original.py to logger.info
 
