@@ -1,4 +1,10 @@
 
+**<span style="color:#56adda">0.3.1</span>**
+- updated debug message in post processor that Keep streams by language marker written to .unmanic file
+- updated comment that above should only occur in unmanic systems prior to existence of the task data store
+- all plugin tracking should now be written only to task data store in unmanic ≥ v0.4
+- .unmanic files will continue to be checked for history as files could have been processed prior to unmanic v0.4
+
 **<span style="color:#56adda">0.3.0</span>**
 - add task data store to store file metadata to use for tracking video files that have had streams kept with this plugin.  plugin will still consult .unmanic files where they exist too.
 - Fixed a corner case where a language code accepted by standardize_tag but rejected by is_valid was converted to an empty string, which then raised a LanguageTagError and terminated the plugin

@@ -745,10 +745,10 @@ def on_postprocessor_task_results(data, task_data_store=None, file_metadata=None
             logger.debug("Unable to write UnmanicFileMetadata: {}; falling back to directory info".format(e))
 
     # Fallback: legacy .unmanic directory-info file, one entry per destination file.
+    # note that this should only happen for newly processed files on pre v0.4 unmanic and the existence of task data store
     for destination_file in data.get('destination_files'):
         directory_info = UnmanicDirectoryInfo(os.path.dirname(destination_file))
         directory_info.set('keep_streams_by_language', os.path.basename(destination_file), marker)
         directory_info.save()
-        logger.debug("Keep streams by language already processed for '{}'.".format(destination_file))
-
+        logger.debug("Keep streams by language marker written for '{}' into .unmanic file.".format(destination_file))
     return data
