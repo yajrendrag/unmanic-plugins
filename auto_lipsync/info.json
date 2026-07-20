@@ -1,0 +1,16 @@
+{
+    "author": "yajrendrag",
+    "compatibility": [
+        2
+    ],
+    "description": "Automatically detect and correct audio/video lip sync issues using SyncNet with S3FD face detection",
+    "icon": "",
+    "id": "auto_lipsync",
+    "name": "Auto Lip Sync Correction",
+    "priorities": {
+        "on_library_management_file_test": 0,
+        "on_worker_process": 0
+    },
+    "tags": "video,audio,lipsync,sync,ffmpeg,ai",
+    "version": "0.0.1"
+}

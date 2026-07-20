@@ -1,0 +1,15 @@
+{
+    "author": "yajrendrag",
+    "compatibility": [
+        2
+    ],
+    "description": "adds or updates mkv track-statistics-tags to an mkv file",
+    "icon": "https://raw.githubusercontent.com/yajrendrag/unmanic-plugins/master/source/mkv_track_stats/icon.png",
+    "id": "mkv_track_stats",
+    "name": "MKV Track Stats",
+    "priorities": {
+        "on_postprocessor_task_results": 0
+    },
+    "tags": "tracks, streams, tags, mkv",
+    "version": "0.0.1"
+}
