@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.3.2</span>**
+- update description.md so that the configuration options do not include verbiage that fail-safe can apply to subtitle streams (it only applies to audio languages per release 0.1.6 notes below).
+
 **<span style="color:#56adda">0.3.1</span>**
 - updated debug message in post processor that Keep streams by language marker written to .unmanic file
 - updated comment that above should only occur in unmanic systems prior to existence of the task data store

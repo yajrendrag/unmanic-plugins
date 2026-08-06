@@ -23,9 +23,8 @@ For information on the The Movie Database (tmdb):
 - You can enter * for the language code in one of the two stream types and it will keep all langauges for that stream type.  This is useful, for example, if you want to keep a given audio language and keep all subtitles (or vice versa)
 - Keep Commentary - unchecking this will remove commentary streams regardless of it's language code, if any
 - keep undefined will keep all undefined or untagged language code streams
-- fail safe - if checked, this option will prevent the unitentional removal of all streams of each type (audio, subtitle) if the languages to remove does not intersect with any languages in the file.  If the fail safe is checked and the the check shows the
-intersection of configured languages and actual stream languages to be null, the file will be skipped.  If a given stream type is configured to keep all languages (* setting) OR the file doesn't contain any of a particular stream type, that stream type will 
-not trigger the fail safe.  If you checked the fail safe, it's also recommended to check the keep undefined option too.
+- fail safe - if checked, this option will prevent the unitentional removal of all audio streams if the languages to remove does not intersect with any languages in the file.  If the fail safe is checked and the the check shows the
+intersection of configured languages and actual stream languages to be null, the file will be skipped.  If you check the fail safe, it's also recommended to check the keep undefined option too.
 - reorder_kept - if checked, this will reorder the kept audio streams by making the first stream(s) in the file, those streams that match the first audio language listed above; audio stream 0 will also have default disposition set.
 - Set Multichannel or 2 channel - this option is only visible if reordering kept streams.  Specify if you prefer 2 channel or multichannel to be the default audio when the file has more than one stream that matches the first language tag in the list of audio languages
 - keep_original_audio - this option, if enabled, will keep the original language even if you don't specify it in the list of languages.  however, you cannot leave the configured list of audio languages empty. this option will cause the next 2 options to display and you will need to configure the plugin with (free) TMDB API credentials. 
