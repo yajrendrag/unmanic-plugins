@@ -1,3 +1,7 @@
+
+**<span style="color:#56adda">0.0.2</span>**
+- added icon
+
 **<span style="color:#56adda">0.0.1</span>**
 - Initial version
 - SyncNet with S3FD face detection for automatic lip sync offset detection
