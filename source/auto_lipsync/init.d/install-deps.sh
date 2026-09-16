@@ -20,6 +20,16 @@ mkdir -p "${MODELS_DIR}"
 apt-get install -y --no-install-recommends \
     libgl1-mesa-glx libglib2.0-0 2>/dev/null || true
 
+# --- install syncnet -----------------
+
+/opt/venv/bin/python3 -c "from syncnet_python import SyncNetPipeline; assert SyncNetPipeline" 2>/dev/null || {
+    /opt/venv/bin/python3 -m pip install --no-deps syncnet-python
+    /opt/venv/bin/python3 -m pip install python-speech-features \
+        "scenedetect<0.7" opencv-contrib-python-headless
+    SITE=$(/opt/venv/bin/python3 -c "import site; print(site.getsitepackages()[0])")
+    echo "${SITE}/syncnet_python" > "${SITE}/syncnet_detectors.pth"
+}
+
 # --- Download model weights from HuggingFace -------------------------
 HF_REPO="lithiumice/syncnet"
 
