@@ -63,7 +63,10 @@ class Settings(PluginSettings):
                 "label": "check to process file as multilingual meaning it has multiple languages in the audio streams so the lang tag is the most observed language in the samples.",
             },
             "force_cpu":    {
-                "label": "check this to only attempt processing with CPU.  This is helpful if you encounter issues using GPU such as GPU memory not being freed up after the plugin runs or if you do not have an nvidia GPU",
+                "label": "check to only attempt processing with CPU.  This is helpful if you encounter issues using GPU such as GPU memory not being freed up after the plugin runs or if you do not have an nvidia GPU",
+            },
+            "force_rescan":    {
+                "label": "check to reprocess all audio tracks",
             },
             "tag_style": {
                 "label":          "Choose Language Tag Style",
@@ -83,10 +86,28 @@ class Settings(PluginSettings):
 
 def get_audio_streams(probe_streams):
 
-    # Get settings and test astreams for language
-    astreams = [i for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and (('tags' in probe_streams[i] and 'language' in probe_streams[i]['tags'] and probe_streams[i]['tags']['language'] == 'und') or
-                                                                                                       ('tags' in probe_streams[i] and 'language' not in probe_streams[i]['tags']) or
-                                                                                                       ('tags' not in probe_streams[i]))]
+    force_rescan = settings.get_setting("force_rescan")
+
+    # Get settings and test astreams for language, return the position of that stream among audio streams only
+    astreams = []
+    firstAudio = True
+    minus = 0
+    for i in range(len(probe_streams)):
+      if probe_streams[i]['codec_type'] == 'audio':
+        if firstAudio:
+          minus = i
+        if force_rescan:
+          astreams.append(i - minus)
+        else:
+          if 'tags' in probe_streams[i]:
+            if 'language' in probe_streams[i]['tags']:
+              if probe_streams[i]['tags']['language'] == 'und':
+                astreams.append(i - minus)
+            else:
+              astreams.append(i - minus)
+          else:
+            astreams.append(i - minus)
+
     return astreams
 
 def on_library_management_file_test(data):
@@ -126,7 +147,7 @@ def on_library_management_file_test(data):
         return
 
     # Set file probe to shared infor for subsequent file test runners
-    if 'shared_info' in data:
+    if 'shared_info' not in data:
         data['shared_info'] = {}
     data['shared_info']['ffprobe'] = probe.get_probe()
 
@@ -159,7 +180,8 @@ def tag_streams(astreams, vid_file, settings):
     tag_args = []
 
     # for each audio stream needing a tag, create video file with that single audio stream
-    for astream, _ in enumerate(astreams):
+    # for astream, _ in enumerate(astreams): -map 0:a:N expects N to be the position of that stream among audio streams only
+    for astream in astreams:
         sfx = os.path.splitext(os.path.basename(vid_file))[1]
         temp_sfx = '.mkv'
         output_file = tmp_dir + '/' + str(os.path.splitext(os.path.basename(vid_file))[0]) + '.' + str(astream) + temp_sfx
@@ -174,8 +196,7 @@ def tag_streams(astreams, vid_file, settings):
             logger.error("Can not create output for audio stream '{}' of file '{}', so skipping stream".format(astream, vid_file))
             continue
         except OSError as e:
-            reason = e.stderr.decode()
-            logger.error(f"OSError: {reason}, skipping stream")
+            logger.error(f"OSError: {e}, skipping stream")
             continue
         else:
             logger.debug("temp video file to detect language in: '{}".format(output_file))
@@ -184,10 +205,11 @@ def tag_streams(astreams, vid_file, settings):
         lang_tag = detect_language(output_file, tmp_dir, settings)
         logger.debug(f"astream: {astream}, lang_tag: {lang_tag}")
         try:
-            is_valid = Language.get(lang_tag).is_valid()
-        except LanguageTagError:
+            if not Language.get(lang_tag).is_valid():
+                lang_tag = ""
+        except (LanguageTagError, TypeError, AttributeError):
             lang_tag = ""
-
+      
         if lang_tag:
             if tag_style == '2':
                 lang_tag = standardize_tag(lang_tag)
@@ -253,13 +275,22 @@ def detect_language(video_file, tmp_dir, settings):
     # Load video and get duration
     duration = float(ffmpeg.probe(video_file)['format']['duration'])
 
-    # Define subclip to start 10 minutes into video and end 7 minutes before end
-    if (duration - 430) - 600 < 690:
-        logger.info("File '{}' too short to process (<11.5 minutes), skipping".format(video_file))
+    # Define subclip to start 2 minutes into video and end 7 minutes before end
+    # Sample x random spots from the trimmed video
+    samples = 4
+    if duration <= 1200:
+        samples = 3
+    elif duration < 300:
+        samples = 2
+    elif duration < 90:
+        samples = 1
+    elif duration < 30:
+        logger.info("File '{}' too short to process (<30 seconds), skipping".format(video_file))
         return None
-
-    # Sample 6 random spots from the trimmed video
-    sample_times = sorted(random.sample(range(int((duration - 430) - 600)), 6))
+    
+    duration2end = int(duration * 0.06)
+    durationFromStart = int(duration * 0.02)
+    sample_times = sorted(random.sample(range(int((duration - duration2end) - durationFromStart)), samples))
     logger.debug("sample_times: '{}'".format(sample_times))
 
     detected_languages = []
@@ -269,7 +300,7 @@ def detect_language(video_file, tmp_dir, settings):
 
         # Extract 30 seconds of audio clip from the video
         audio_file = f"{tmp_dir}/sample_{str(sample_time)}.wav"
-        ffmpeg.input(video_file, ss=sample_time, t=sample_time+30).output(audio_file, vn=None, acodec='pcm_s16le').run()
+        ffmpeg.input(video_file, ss=sample_time, t=30).output(audio_file, vn=None, acodec='pcm_s16le').run()
         logger.debug("audio_file: '{}'".format(audio_file))
         audio = whisper.load_audio(audio_file)
         audio = whisper.pad_or_trim(audio)
