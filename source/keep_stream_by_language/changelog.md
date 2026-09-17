@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.3.3</span>**
+- fixed missing check on title tag which caused a key error problem
+- cleaned up the list comprehension calculating the audio streams to map
+
 **<span style="color:#56adda">0.3.2</span>**
 - update description.md so that the configuration options do not include verbiage that fail-safe can apply to subtitle streams (it only applies to audio languages per release 0.1.6 notes below).
 

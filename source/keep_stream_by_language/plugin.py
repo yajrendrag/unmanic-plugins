@@ -571,6 +571,11 @@ def reorder_audio_streams(stream_map, mapper, prefer_2_or_mc, ffmpeg_args, probe
     mapper.set_ffmpeg_advanced_options(**kwargs)
     logger.debug(f"ffmpeg_args: {ffmpeg_args}")
 
+def _is_commentary(stream):
+    title = stream.get("tags", {}).get("title", "").lower()
+    disposition = stream.get("disposition", {})
+    return "commentary" in title or disposition.get("comment", 0) == 1
+
 def on_worker_process(data, task_data_store=None, file_metadata=None):
     """
     Runner function - enables additional configured processing jobs during the worker stages of a task.
@@ -672,7 +677,7 @@ def on_worker_process(data, task_data_store=None, file_metadata=None):
                     mapper.stream_mapping += ['-map', '0:a?']
                 else:
                     astreams = [probe_streams[i]["index"] for i in range(len(probe_streams)) if probe_streams[i]["codec_type"] == 'audio']
-                    audio_streams_to_map = [astreams[a] for a,i in enumerate(astreams) if "commentary" not in probe_streams[i]["tags"]["title"].lower()]
+                    audio_streams_to_map = [i for i in astreams if not _is_commentary(probe_streams[i])]
                     for i in range(len(audio_streams_to_map)):
                         mapper.stream_mapping += ['-map', f"0:a:{i}"]
 
