@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.1.6</span>**
+- add None Guard to tag_streams in case detect language doesn't return a language
+- fixed error related to audio stream indicies which were calculated incorrectly in cases where the file had a mix of tagged and untagged streams
+
 **<span style="color:#56adda">0.1.5</span>**
 - update init.d/install_whisper.sh to install newer version of torch compatible with other plugins using torch
 - changed the init.d installer file name to install_deps.sh

@@ -82,11 +82,10 @@ class Settings(PluginSettings):
         }
 
 def get_audio_streams(probe_streams):
-
-    # Get settings and test astreams for language
-    astreams = [i for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio' and (('tags' in probe_streams[i] and 'language' in probe_streams[i]['tags'] and probe_streams[i]['tags']['language'] == 'und') or
-                                                                                                       ('tags' in probe_streams[i] and 'language' not in probe_streams[i]['tags']) or
-                                                                                                       ('tags' not in probe_streams[i]))]
+    audio = [i for i in range(len(probe_streams)) if probe_streams[i]['codec_type'] == 'audio']
+    astreams = [n for n, i in enumerate(audio) if (('tags' in probe_streams[i] and 'language' in probe_streams[i]['tags'] and probe_streams[i]['tags']['language'] == 'und') or
+                                                  ('tags' in probe_streams[i] and 'language' not in probe_streams[i]['tags']) or
+                                                  ('tags' not in probe_streams[i]))]
     return astreams
 
 def on_library_management_file_test(data):
@@ -159,7 +158,7 @@ def tag_streams(astreams, vid_file, settings):
     tag_args = []
 
     # for each audio stream needing a tag, create video file with that single audio stream
-    for astream, _ in enumerate(astreams):
+    for astream in astreams:
         sfx = os.path.splitext(os.path.basename(vid_file))[1]
         temp_sfx = '.mkv'
         output_file = tmp_dir + '/' + str(os.path.splitext(os.path.basename(vid_file))[0]) + '.' + str(astream) + temp_sfx
@@ -181,11 +180,18 @@ def tag_streams(astreams, vid_file, settings):
             logger.debug("temp video file to detect language in: '{}".format(output_file))
 
         tag_style = settings.get_setting('tag_style')
+
         lang_tag = detect_language(output_file, tmp_dir, settings)
         logger.debug(f"astream: {astream}, lang_tag: {lang_tag}")
+
+        if not lang_tag:
+            logger.error("Language not detected for audio stream '{}' of file '{}', so skipping stream".format(astream, vid_file))
+            continue
+
         try:
-            is_valid = Language.get(lang_tag).is_valid()
-        except LanguageTagError:
+            if not Language.get(lang_tag).is_valid():
+                lang_tag = ""
+        except (LanguageTagError, AttributeError, TypeError):
             lang_tag = ""
 
         if lang_tag:
