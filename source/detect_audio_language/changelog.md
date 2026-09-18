@@ -1,4 +1,10 @@
 
+**<span style="color:#56adda">0.2.0</span>**
+- fix sample_time calculation's duration value - old method was using an end time calculation
+- changed sample_time window calculation to use proportion of duration to avoid start and end times instead of hard coded values.
+  this results in ability to process shorter files instead of giving up on them.
+- changed the sample_times calculated to spread them across 6 windows (taking random samples in those 6 windows) - avoides bunching of the samples
+
 **<span style="color:#56adda">0.1.6</span>**
 - add None Guard to tag_streams in case detect language doesn't return a language
 - fixed error related to audio stream indicies which were calculated incorrectly in cases where the file had a mix of tagged and untagged streams

@@ -259,13 +259,25 @@ def detect_language(video_file, tmp_dir, settings):
     # Load video and get duration
     duration = float(ffmpeg.probe(video_file)['format']['duration'])
 
-    # Define subclip to start 10 minutes into video and end 7 minutes before end
-    if (duration - 430) - 600 < 690:
-        logger.info("File '{}' too short to process (<11.5 minutes), skipping".format(video_file))
+    # Changed from using fixed 10 minute opening titles and 430 second closing credit bands to proportional to runtime values
+    # Skip opening titles and closing credits.  Proportional to runtime, floored
+    # so short files still get some protection, capped at values suiting features.
+    head = min(600, max(60, 0.08 * duration))
+    tail = min(430, max(45, 0.06 * duration))
+
+    window_start = head
+    window_end = duration - tail
+    window = window_end - window_start
+
+    # Need room for 6 non-overlapping 30 second samples
+    # This will result in ability to process shorter files than the old method which had a minimum of 28.67 minutes (the 11.5 min in the logger message was wrong)
+    if window < 300:
+        logger.info("File '{}' too short to process (usable window {:.0f}s), skipping".format(video_file, window))
         return None
 
-    # Sample 6 random spots from the trimmed video
-    sample_times = sorted(random.sample(range(int((duration - 430) - 600)), 6))
+    # One sample from each of 6 equal bands, so samples can't all cluster together
+    band = window / 6
+    sample_times = sorted(random.randint(int(window_start + i * band), int(window_start + (i + 1) * band - 30)) for i in range(6))
     logger.debug("sample_times: '{}'".format(sample_times))
 
     detected_languages = []
@@ -275,7 +287,7 @@ def detect_language(video_file, tmp_dir, settings):
 
         # Extract 30 seconds of audio clip from the video
         audio_file = f"{tmp_dir}/sample_{str(sample_time)}.wav"
-        ffmpeg.input(video_file, ss=sample_time, t=sample_time+30).output(audio_file, vn=None, acodec='pcm_s16le').run()
+        ffmpeg.input(video_file, ss=sample_time, t=30).output(audio_file, vn=None, acodec='pcm_s16le').run()
         logger.debug("audio_file: '{}'".format(audio_file))
         audio = whisper.load_audio(audio_file)
         audio = whisper.pad_or_trim(audio)
