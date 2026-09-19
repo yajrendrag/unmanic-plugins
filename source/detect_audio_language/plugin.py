@@ -125,7 +125,7 @@ def on_library_management_file_test(data):
         return
 
     # Set file probe to shared infor for subsequent file test runners
-    if 'shared_info' in data:
+    if 'shared_info' not in data:
         data['shared_info'] = {}
     data['shared_info']['ffprobe'] = probe.get_probe()
 
@@ -173,8 +173,7 @@ def tag_streams(astreams, vid_file, settings):
             logger.error("Can not create output for audio stream '{}' of file '{}', so skipping stream".format(astream, vid_file))
             continue
         except OSError as e:
-            reason = e.stderr.decode()
-            logger.error(f"OSError: {reason}, skipping stream")
+            logger.error(f"OSError: {e}, skipping stream")
             continue
         else:
             logger.debug("temp video file to detect language in: '{}".format(output_file))

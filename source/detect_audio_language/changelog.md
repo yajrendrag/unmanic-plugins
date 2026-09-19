@@ -1,4 +1,8 @@
 
+**<span style="color:#56adda">0.2.1</span>**
+- fix incorrect decode on a plain OSError
+- fix wipeout of shared_data
+
 **<span style="color:#56adda">0.2.0</span>**
 - fix sample_time calculation's duration value - old method was using an end time calculation
 - changed sample_time window calculation to use proportion of duration to avoid start and end times instead of hard coded values.
