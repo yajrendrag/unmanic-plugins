@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.16</span>**
+- fix description.md to match what the code is doing.  this plugin operates on an srt file that is expected to be in the same directory as the video file.
+
 **<span style="color:#56adda">0.0.15</span>**
 - fix data['exec_command'] to refer to correct location of the ffsubsync command in the venv for unmanic v0.4.x
 

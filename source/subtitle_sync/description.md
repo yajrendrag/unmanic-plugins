@@ -7,8 +7,8 @@ See [ffsubsync github](https://github.com/smacke/ffsubsync) and/or
 [ffsubsync documentation](https://ffsubsync.readthedocs.io/en/latest/)
 
 ##### Configuration
-- Enter a comma delimited list of subtitle languages to sync.  To sync a subtitle file, there must be BOTH a subtitle language file and a corresponding
-  audio stream in the same language.  If you wish to sync all associated subtitle files wiht a corresponding video, enter *.  Two letter or three letter
+- Enter a subtitle language to sync.  To sync a subtitle language, there must be BOTH a subtitle language file and a corresponding
+  audio stream in the same language.  These should be in the same directory as the video file.  Two letter or three letter
   language codes can be used - the plugin will automatically match the given code to the subtitle file.
 - prefer_mc_or_st - in the case where a given language exists in both multichannel and stereo format, pick which stream type you wish to sync the subtitle.
 
