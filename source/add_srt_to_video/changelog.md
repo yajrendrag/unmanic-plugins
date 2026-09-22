@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.1.1</span>**
+- fix description.md to remove reference to an asterisk input option
+
 **<span style="color:#56adda">0.1.0</span>**
 - remove homegrown lang_codes list and migrate to langcodes library
 - if a subtitle file has a non-standard stream, it just skips those streams rather than aborting
