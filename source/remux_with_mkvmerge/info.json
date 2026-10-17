@@ -1,0 +1,16 @@
+{
+    "author": "yajrendrag",
+    "compatibility": [
+        2
+    ],
+    "description": "Remux video files (eg. MPEG-TS) to MKV using mkvmerge",
+    "icon": "",
+    "id": "remux_with_mkvmerge",
+    "name": "Remux to MKV with mkvmerge",
+    "priorities": {
+        "on_library_management_file_test": 0,
+        "on_worker_process": 0
+    },
+    "tags": "video,mkvmerge,mkvtoolnix,remux,mkv,ts",
+    "version": "0.0.1"
+}
