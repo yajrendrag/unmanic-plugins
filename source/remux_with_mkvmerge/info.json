@@ -4,7 +4,7 @@
         2
     ],
     "description": "Remux video files (eg. MPEG-TS) to MKV using mkvmerge",
-    "icon": "",
+    "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.video_remuxer/master/icon.png",
     "id": "remux_with_mkvmerge",
     "name": "Remux to MKV with mkvmerge",
     "priorities": {
@@ -12,5 +12,5 @@
         "on_worker_process": 0
     },
     "tags": "video,mkvmerge,mkvtoolnix,remux,mkv,ts",
-    "version": "0.0.1"
+    "version": "0.0.2"
 }
