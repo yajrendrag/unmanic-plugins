@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.5</span>**
+- fix to prevent spaces in the disallowed_values csv from causing an error
+
 **<span style="color:#56adda">0.0.4</span>**
 - typo in description.md (info page)
 
