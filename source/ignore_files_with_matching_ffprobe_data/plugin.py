@@ -129,7 +129,7 @@ def on_library_management_file_test(data):
     # Get the list of configured values to search for
     stream_field = settings.get_setting('stream_field')
     disallowed_values = settings.get_setting('disallowed_values')
-    disallowed_values = ','.join([i.strip() for i in disallowed_value.split(',')])
+    disallowed_values = ','.join([i.strip() for i in disallowed_values.split(',')])
     force_processing_if_no_disallowed_values = settings.get_setting('force_processing_if_no_disallowed_values')
 
     in_disallowed_values = file_contains_disallowed_values(probe, stream_field, disallowed_values, abspath)

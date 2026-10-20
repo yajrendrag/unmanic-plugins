@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.6</span>**
+- fix typo in disallowed_values variable name
+
 **<span style="color:#56adda">0.0.5</span>**
 - fix to prevent spaces in the disallowed_values csv from causing an error
 
