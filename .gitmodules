@@ -85,3 +85,6 @@
 [submodule "source/remux_with_mkvmerge/lib/ffmpeg"]
 	path = source/remux_with_mkvmerge/lib/ffmpeg
 	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
+[submodule "source/video_remuxer_tolerant/lib/ffmpeg"]
+	path = source/video_remuxer_tolerant/lib/ffmpeg
+	url = https://github.com/Josh5/unmanic.plugin.helpers.ffmpeg.git
