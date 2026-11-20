@@ -1,0 +1,17 @@
+{
+    "author": "",
+    "compatibility": [
+        2
+    ],
+    "description": "Extract bitmap subtitle streams (PGS/HDMV and DVD/VobSub) from video files and convert them to SRT text files using Tesseract OCR",
+    "icon": "",
+    "id": "convert_bitmap_subs_to_srt",
+    "name": "Convert bitmap subs to srt",
+    "priorities": {
+        "on_library_management_file_test": 10,
+        "on_worker_process": 1,
+        "on_postprocessor_task_results": 0
+    },
+    "tags": "subtitles,pgs,vobsub,dvd,srt,ocr,tesseract,ffmpeg",
+    "version": "0.0.1"
+}

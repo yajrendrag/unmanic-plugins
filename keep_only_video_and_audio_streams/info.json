@@ -1,0 +1,20 @@
+{
+    "author": "yajrendrag",
+    "compatibility": [
+        1,
+        2
+    ],
+    "description": "Keeps only audio and video streams",
+    "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.reorder_audio_streams_by_language/master/icon.png",
+    "id": "keep_only_video_and_audio_streams",
+    "name": "Keep only video and audio streams",
+    "platform": [
+        "all"
+    ],
+    "priorities": {
+        "on_library_management_file_test": 99,
+        "on_worker_process": 2
+    },
+    "tags": "audio,ffmpeg,library file test",
+    "version": "0.0.8"
+}

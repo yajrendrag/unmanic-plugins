@@ -1,0 +1,19 @@
+{
+    "author": "yajrendrag (based on Remux Video Files by Josh.5)",
+    "compatibility": [
+        1,
+        2
+    ],
+    "description": "Remux a video file to the configured container, regenerating timestamps and tolerating corrupt input",
+    "icon": "https://raw.githubusercontent.com/Josh5/unmanic.plugin.video_remuxer/master/icon.png",
+    "id": "video_remuxer_tolerant",
+    "name": "Remux Video Files (Tolerant)",
+    "platform": [
+        "all"
+    ],
+    "priorities": {
+        "on_worker_process": 3
+    },
+    "tags": "video,ffmpeg,remux",
+    "version": "0.0.1"
+}
