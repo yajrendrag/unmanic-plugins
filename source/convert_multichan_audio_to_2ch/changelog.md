@@ -1,4 +1,7 @@
 
+**<span style="color:#56adda">0.0.29</span>**
+- ensure audio rate is at least 128k
+
 **<span style="color:#56adda">0.0.28</span>**
 - correct langs.append to langs.extend in streams_to_stereo_encode
 

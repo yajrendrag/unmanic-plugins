@@ -317,6 +317,10 @@ def on_worker_process(data):
                     rate = str(int(int(probe_streams[abs_stream]['bit_rate'])/(1000 * probe_streams[abs_stream]['channels']))*2) + 'k'
                 except KeyError:
                     rate = '128k'
+                finally:
+                    rate_num = int(rate.strip('k'))
+                    if rate_num < 128:
+                        rate = '128k'
                 try:
                     chnls = probe_streams[abs_stream]['channels']
                 except KeyError:
@@ -355,6 +359,10 @@ def on_worker_process(data):
                     rate = str(int(int(probe_streams[stream_map[stream]]['bit_rate'])/(1000 * probe_streams[stream_map[stream]]['channels']))*2) + 'k'
                 except KeyError:
                     rate = '128k'
+                finally:
+                    rate_num = int(rate.strip('k'))
+                    if rate_num < 128:
+                        rate = '128k'
 
                 filter = [f"-filter:a:{stream}", audio_filtergraph(settings)]
                 if not normalize_2_channel_stream: filter = []
